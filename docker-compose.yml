@@ -9,6 +9,8 @@ services:
     ports:
       - "3040:3040"
     restart: always
+    environment:
+      - INTERNAL_API_URL=http://localhost:3041
     env_file:
       - ./backend/.env
     volumes:
