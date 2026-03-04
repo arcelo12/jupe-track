@@ -304,7 +304,16 @@ class JunosService:
                     if not name:
                         continue
                     name = name.strip()
-                    if not (name.startswith('ge-') or name.startswith('xe-') or name.startswith('et-')):
+                    
+                    # Allow physical port prefixes only (ge-, xe-, et-)
+                    ALLOWED_PREFIXES = ('ge-', 'xe-', 'et-')
+                    # Exclude internal line-card and system interfaces
+                    EXCLUDED_PREFIXES = ('lc-', 'pfe-', 'pfh-', 'cbp', 'dsc', 'esi',
+                                         'fti', 'fxp', 'gre', 'ipip', 'irb', 'jsrv',
+                                         'lo', 'lsi', 'mif', 'mtun', 'pim', 'pip',
+                                         'pp0', 'rb', 'tap', 'vtep', 'demux', 'em')
+                    
+                    if not any(name.startswith(p) for p in ALLOWED_PREFIXES):
                         continue
                         
                     admin_status = iface.findtext('admin-status')
