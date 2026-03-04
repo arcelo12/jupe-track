@@ -301,11 +301,17 @@ class JunosService:
                 
                 for iface in physical_interfaces:
                     name = iface.findtext('name')
-                    if not name or not (name.startswith('ge-') or name.startswith('xe-') or name.startswith('et-')):
+                    if not name:
+                        continue
+                    name = name.strip()
+                    if not (name.startswith('ge-') or name.startswith('xe-') or name.startswith('et-')):
                         continue
                         
                     admin_status = iface.findtext('admin-status')
+                    if admin_status: admin_status = admin_status.strip()
+                    
                     oper_status = iface.findtext('oper-status')
+                    if oper_status: oper_status = oper_status.strip()
                     
                     # Traffic statistics typically found in traffic-statistics node
                     stats = iface.find('traffic-statistics')
