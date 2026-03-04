@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  jupetrack:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jupetrack
+    ports:
+      - "3040:3040"
+    restart: always
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/data:/app/backend/data
