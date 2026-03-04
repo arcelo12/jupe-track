@@ -25,6 +25,7 @@ venv.bak/
 backend/data/
 db.sqlite3
 *.db
+device_config.json
 
 # Logs
 *.log
