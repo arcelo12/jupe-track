@@ -60,7 +60,18 @@ Ensure your Juniper MX204 has NETCONF over SSH enabled:
 set system services netconf ssh
 ```
 
-> **Note**: For Interface Traffic Graphs to function correctly, PyEZ queries interface statistics. Ensure the user account has appropriate operational read privileges.
+> **Note**: The API account must have Operational (`view`) and Configuration (`view-configuration`) access, but no write permissions.
+
+For strict enterprise environments, here is the exact `login class` required for this dashboard to function properly:
+
+```junos
+set system login class api-readonly-class permissions view
+set system login class api-readonly-class permissions view-configuration
+set system login class api-readonly-class allow-commands "(show bgp .*)|(show configuration .*)|(show route .*)|(show interfaces .*)|(ping .*)|(traceroute .*)"
+set system login class api-readonly-class deny-commands "(request .*)|(clear .*)|(start .*)"
+
+set system login user jupe-api class api-readonly-class
+```
 
 ## Development
 
