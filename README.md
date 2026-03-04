@@ -33,8 +33,6 @@
 - ⚙️ **Dynamic Device Configuration**: Update the target MX204 IP, username, password, and port directly from the UI without restarting the container.
 - 🏢 **Multi-Logical System Support**: Seamlessly switch between different `logical-systems` (or `global`). The selected context is automatically preserved across all tabs.
 
-## Tech Stack
-
 ## Quick Start (Docker)
 
 The entire application runs inside a single, optimized Docker container.
