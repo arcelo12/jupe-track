@@ -317,6 +317,7 @@ class JunosService:
 
                     admin_status = (iface.findtext('admin-status') or '').strip()
                     oper_status = (iface.findtext('oper-status') or '').strip()
+                    description = (iface.findtext('description') or '').strip()
 
                     # Physical-level BPS from traffic-statistics
                     stats = iface.find('traffic-statistics')
@@ -325,6 +326,7 @@ class JunosService:
 
                     interfaces.append({
                         "name": name,
+                        "description": description,
                         "type": "physical",
                         "admin_status": admin_status,
                         "oper_status": oper_status,
@@ -340,6 +342,7 @@ class JunosService:
 
                         li_admin = (li.findtext('admin-status') or oper_status).strip()
                         li_oper = (li.findtext('oper-status') or oper_status).strip()
+                        li_desc = (li.findtext('description') or '').strip()
 
                         # Transit traffic stats carry actual bps for logical interfaces
                         tts = li.find('transit-traffic-statistics')
@@ -348,6 +351,7 @@ class JunosService:
 
                         interfaces.append({
                             "name": li_name,
+                            "description": li_desc,
                             "type": "logical",
                             "admin_status": li_admin,
                             "oper_status": li_oper,

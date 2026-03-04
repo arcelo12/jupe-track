@@ -14,6 +14,7 @@ interface TrafficData {
 
 interface InterfaceInfo {
   name: string;
+  description: string;
   type: 'physical' | 'logical';
   admin_status: string;
   oper_status: string;
@@ -131,9 +132,14 @@ export default function InterfacesDashboard() {
               <div key={physical.name} className="glass-panel flex flex-col gap-3">
                 {/* Physical Interface Header */}
                 <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-3 h-3 rounded-full flex-shrink-0 ${up ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"}`}></div>
-                    <h2 className="text-xl font-bold font-mono text-slate-200">{physical.name}</h2>
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-bold font-mono text-slate-200">{physical.name}</h2>
+                      {physical.description && (
+                        <p className="text-xs text-slate-400 truncate mt-0.5">{physical.description}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-4 text-sm font-mono">
                     <div className="text-right">
@@ -203,7 +209,10 @@ export default function InterfacesDashboard() {
                               const isActive = li.bps_in > 0 || li.bps_out > 0;
                               return (
                                 <tr key={li.name} className={`border-t border-slate-700/30 ${isActive ? '' : 'opacity-40'}`}>
-                                  <td className="px-3 py-1.5 text-slate-300">{li.name}</td>
+                                <td className="px-3 py-1.5">
+                                  <div className="text-slate-300 font-mono">{li.name}</div>
+                                  {li.description && <div className="text-[10px] text-slate-500 mt-0.5">{li.description}</div>}
+                                </td>
                                   <td className="px-3 py-1.5 text-right text-blue-400">{formatBps(li.bps_in)}</td>
                                   <td className="px-3 py-1.5 text-right text-orange-400">{formatBps(li.bps_out)}</td>
                                   <td className="px-3 py-1.5 text-right">
