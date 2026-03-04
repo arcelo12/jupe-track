@@ -10,8 +10,12 @@ def get_device():
     """
     config = get_device_config()
     
+    host = config.get("host", "").strip()
+    if not host:
+        raise ValueError("Juniper host IP is not configured. Please set it in Settings.")
+        
     dev = Device(
-        host=config.get("host", ""),
+        host=host,
         user=config.get("user", ""),
         password=config.get("password", ""),
         port=int(config.get("port", "830")) if config.get("port") else 830
