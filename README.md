@@ -1,5 +1,17 @@
 # JupeTrack - Juniper MX204 Monitoring Dashboard
 
+<div align="center">
+[![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Recharts](https://img.shields.io/badge/Recharts-Latest-22B5BF?style=for-the-badge&logo=chartdotjs&logoColor=white)](https://recharts.org/)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Junos PyEZ](https://img.shields.io/badge/Junos_PyEZ-junos--eznc-84B135?style=for-the-badge&logo=juniper-networks&logoColor=white)](https://github.com/Juniper/py-junos-eznc)
+[![Docker](https://img.shields.io/badge/Docker-Multi--stage-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Docker Compose](https://img.shields.io/badge/Docker_Compose-Latest-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
+</div>
+
 **JupeTrack** is a modern, real-time web dashboard designed specifically for monitoring Juniper MX204 routers. Built with a FastAPI backend leveraging Junos PyEZ (NETCONF) and a responsive Next.js frontend, it provides deep visibility into your BGP routing, interface bandwidth, and system diagnostics.
 
 <div align="center">
@@ -20,28 +32,6 @@
 - 🏢 **Multi-Logical System Support**: Seamlessly switch between different `logical-systems` (or `global`). The selected context is automatically preserved across all tabs.
 
 ## Tech Stack
-
-<div align="center">
-
-**Frontend**
-
-[![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Recharts](https://img.shields.io/badge/Recharts-Latest-22B5BF?style=for-the-badge&logo=chartdotjs&logoColor=white)](https://recharts.org/)
-
-**Backend**
-
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Junos PyEZ](https://img.shields.io/badge/Junos_PyEZ-junos--eznc-84B135?style=for-the-badge&logo=juniper-networks&logoColor=white)](https://github.com/Juniper/py-junos-eznc)
-
-**Deployment**
-
-[![Docker](https://img.shields.io/badge/Docker-Multi--stage-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
-[![Docker Compose](https://img.shields.io/badge/Docker_Compose-Latest-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-
-</div>
 
 ## Quick Start (Docker)
 
