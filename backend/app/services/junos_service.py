@@ -315,10 +315,16 @@ class JunosService:
                     if stats is not None:
                         in_bps_str = stats.findtext('input-bps')
                         out_bps_str = stats.findtext('output-bps')
-                        if in_bps_str and in_bps_str.isdigit():
-                            bps_in = int(in_bps_str)
-                        if out_bps_str and out_bps_str.isdigit():
-                            bps_out = int(out_bps_str)
+                        
+                        if in_bps_str:
+                            in_bps_str = in_bps_str.strip()
+                            if in_bps_str.isdigit():
+                                bps_in = int(in_bps_str)
+                                
+                        if out_bps_str:
+                            out_bps_str = out_bps_str.strip()
+                            if out_bps_str.isdigit():
+                                bps_out = int(out_bps_str)
                     
                     interfaces.append({
                         "name": name,
