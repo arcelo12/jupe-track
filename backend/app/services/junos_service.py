@@ -286,75 +286,84 @@ class JunosService:
     @staticmethod
     def get_interface_traffic(logical_system: str = "global") -> List[Dict[str, Any]]:
         """
-        Fetches interface bandwidth statistics.
-        Returns physical interfaces (ge-*, xe-*, et-*) with current bit rates.
+        Fetches interface bandwidth statistics for physical AND logical interfaces.
+        Physical: uses traffic-statistics (statistics=True).
+        Logical: uses transit-traffic-statistics (detail=True).
         """
+        ALLOWED_PREFIXES = ('ge-', 'xe-', 'et-')
+
+        def _parse_bps(node, tag='input-bps'):
+            val = node.findtext(tag)
+            if val:
+                val = val.strip()
+                if val.isdigit():
+                    return int(val)
+            return 0
+
         interfaces = []
         try:
             with get_device() as dev:
-                kwargs = {"statistics": True}
-                # PyEZ get_interface_information doesn't cleanly isolate by logical_system in all cases without filters,
-                # but we pass it anyway if the OS version supports it, else we fetch all and filter.
-                
-                response = dev.rpc.get_interface_information(**kwargs)
+                # Use detail=True so that logical-interface transit-traffic-statistics include bps
+                response = dev.rpc.get_interface_information(statistics=True, detail=True)
                 physical_interfaces = response.xpath('.//physical-interface')
-                
+
                 for iface in physical_interfaces:
                     name = iface.findtext('name')
                     if not name:
                         continue
                     name = name.strip()
-                    
-                    # Allow physical port prefixes only (ge-, xe-, et-)
-                    ALLOWED_PREFIXES = ('ge-', 'xe-', 'et-')
-                    # Exclude internal line-card and system interfaces
-                    EXCLUDED_PREFIXES = ('lc-', 'pfe-', 'pfh-', 'cbp', 'dsc', 'esi',
-                                         'fti', 'fxp', 'gre', 'ipip', 'irb', 'jsrv',
-                                         'lo', 'lsi', 'mif', 'mtun', 'pim', 'pip',
-                                         'pp0', 'rb', 'tap', 'vtep', 'demux', 'em')
-                    
                     if not any(name.startswith(p) for p in ALLOWED_PREFIXES):
                         continue
-                        
-                    admin_status = iface.findtext('admin-status')
-                    if admin_status: admin_status = admin_status.strip()
-                    
-                    oper_status = iface.findtext('oper-status')
-                    if oper_status: oper_status = oper_status.strip()
-                    
-                    # Traffic statistics typically found in traffic-statistics node
+
+                    admin_status = (iface.findtext('admin-status') or '').strip()
+                    oper_status = (iface.findtext('oper-status') or '').strip()
+
+                    # Physical-level BPS from traffic-statistics
                     stats = iface.find('traffic-statistics')
-                    bps_in = 0
-                    bps_out = 0
-                    
-                    if stats is not None:
-                        in_bps_str = stats.findtext('input-bps')
-                        out_bps_str = stats.findtext('output-bps')
-                        
-                        if in_bps_str:
-                            in_bps_str = in_bps_str.strip()
-                            if in_bps_str.isdigit():
-                                bps_in = int(in_bps_str)
-                                
-                        if out_bps_str:
-                            out_bps_str = out_bps_str.strip()
-                            if out_bps_str.isdigit():
-                                bps_out = int(out_bps_str)
-                    
+                    bps_in = _parse_bps(stats) if stats is not None else 0
+                    bps_out = _parse_bps(stats, 'output-bps') if stats is not None else 0
+
                     interfaces.append({
                         "name": name,
+                        "type": "physical",
                         "admin_status": admin_status,
                         "oper_status": oper_status,
                         "bps_in": bps_in,
                         "bps_out": bps_out
                     })
+
+                    # Logical sub-interfaces (units) from transit-traffic-statistics
+                    for li in iface.xpath('logical-interface'):
+                        li_name = (li.findtext('name') or '').strip()
+                        if not li_name:
+                            continue
+
+                        li_admin = (li.findtext('admin-status') or oper_status).strip()
+                        li_oper = (li.findtext('oper-status') or oper_status).strip()
+
+                        # Transit traffic stats carry actual bps for logical interfaces
+                        tts = li.find('transit-traffic-statistics')
+                        li_bps_in = _parse_bps(tts) if tts is not None else 0
+                        li_bps_out = _parse_bps(tts, 'output-bps') if tts is not None else 0
+
+                        interfaces.append({
+                            "name": li_name,
+                            "type": "logical",
+                            "admin_status": li_admin,
+                            "oper_status": li_oper,
+                            "bps_in": li_bps_in,
+                            "bps_out": li_bps_out
+                        })
+
         except Exception as e:
             print(f"Error fetching interface traffic (returning mock data): {e}")
             import random
             interfaces = [
-                {"name": "xe-0/0/0", "admin_status": "up", "oper_status": "up", "bps_in": random.randint(1000000, 50000000), "bps_out": random.randint(1000000, 50000000)},
-                {"name": "xe-0/0/1", "admin_status": "up", "oper_status": "down", "bps_in": 0, "bps_out": 0},
-                {"name": "ge-0/0/2", "admin_status": "up", "oper_status": "up", "bps_in": random.randint(500000, 10000000), "bps_out": random.randint(500000, 10000000)},
+                {"name": "et-0/0/0", "type": "physical", "admin_status": "up", "oper_status": "up", "bps_in": random.randint(1_000_000_000, 12_000_000_000), "bps_out": random.randint(1_000_000_000, 12_000_000_000)},
+                {"name": "et-0/0/0.0", "type": "logical", "admin_status": "up", "oper_status": "up", "bps_in": random.randint(100_000_000, 6_000_000_000), "bps_out": random.randint(100_000_000, 6_000_000_000)},
+                {"name": "et-0/0/1", "type": "physical", "admin_status": "up", "oper_status": "up", "bps_in": random.randint(500_000_000, 8_000_000_000), "bps_out": random.randint(500_000_000, 8_000_000_000)},
+                {"name": "xe-0/1/0", "type": "physical", "admin_status": "up", "oper_status": "down", "bps_in": 0, "bps_out": 0},
             ]
-        
+
         return interfaces
+
