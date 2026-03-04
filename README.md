@@ -3,7 +3,11 @@
 **JupeTrack** is a modern, real-time web dashboard designed specifically for monitoring Juniper MX204 routers. Built with a FastAPI backend leveraging Junos PyEZ (NETCONF) and a responsive Next.js frontend, it provides deep visibility into your BGP routing, interface bandwidth, and system diagnostics.
 
 <div align="center">
-  <img src="preview.png" alt="JupeTrack Dashboard Preview" width="800" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"/>
+  <img src="docs/1.png" width="800"/>
+  <img src="docs/2.png" width="390"/>
+  <img src="docs/3.png" width="390"/>
+  <img src="docs/4.png" width="390"/>
+  <img src="docs/5.png" width="390"/>
 </div>
 
 ## Features
