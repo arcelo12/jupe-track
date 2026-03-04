@@ -24,7 +24,7 @@ The entire application runs inside a single, optimized Docker container.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/jupe-track.git
+git clone https://github.com/arcelo12/jupe-track.git
 cd jupe-track
 ```
 
