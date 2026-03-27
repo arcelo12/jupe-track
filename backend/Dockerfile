@@ -16,5 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Run the FastAPI app on port 3041
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3041", "--reload"]
+# Create data directory for SQLite database and config files
+RUN mkdir -p /app/data
+
+# Run FastAPI in production mode (workers=1 to share APScheduler state)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3041", "--workers", "1"]
+

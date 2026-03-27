@@ -14,7 +14,9 @@ const Sidebar = () => {
     { name: 'Routing Policy', path: '/policy', icon: '🛡️' },
     { name: 'Looking Glass', path: '/lg', icon: '🔍' },
     { name: 'Settings', path: '/settings', icon: '⚙️' },
+    { name: 'Data Retention', path: '/settings/retention', icon: '🗄️' },
   ];
+
 
   return (
     <aside className="w-64 h-screen border-r border-slate-700/50 bg-slate-900/80 backdrop-blur-xl flex flex-col fixed left-0 top-0 z-40">
