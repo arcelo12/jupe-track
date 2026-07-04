@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useRefresh } from '@/components/RefreshProvider';
 import { authFetch } from '@/lib/auth';
 import { Compass, Search, HelpCircle, Terminal, Play, Settings2 } from 'lucide-react';
-import { RouteResultViewer } from '@/components/ui/RouteResultViewer';
+import { RouteResultViewer, parseRoutes } from '@/components/ui/RouteResultViewer';
+import { AggregateASGraph } from '@/components/ui/AggregateASGraph';
 
 export default function RouteLookup() {
   const [target, setTarget] = useState("");
@@ -19,6 +20,19 @@ export default function RouteLookup() {
   const [showDebug, setShowDebug] = useState(false);
   
   const { logicalSystem } = useRefresh();
+
+  const parsedOutput = React.useMemo(() => {
+    if (!output) return [];
+    return parseRoutes(output);
+  }, [output]);
+
+  const allAsPaths = React.useMemo(() => {
+    return parsedOutput
+      .map((r: any) => r.asPath)
+      .filter((p: string) => p && p.trim() !== '' && p !== 'Local' && p !== 'Direct');
+  }, [parsedOutput]);
+
+  const mainPrefix = parsedOutput.length > 0 ? parsedOutput[0].prefix : '';
 
   // Load initial cached settings if any
   React.useEffect(() => {
@@ -238,6 +252,13 @@ export default function RouteLookup() {
               <span className="w-2 h-2 rounded-full bg-rose-500"></span>
               {error}
             </div>
+          )}
+
+          {/* Aggregate AS Graph Outside Terminal */}
+          {!loading && allAsPaths.length > 0 && (
+             <div className="mb-4">
+                <AggregateASGraph paths={allAsPaths} targetPrefix={mainPrefix} />
+             </div>
           )}
 
           {/* Terminal Console Wrapper */}

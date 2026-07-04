@@ -9,6 +9,14 @@ import { BGPPrefixChart } from '@/components/charts/BGPPrefixChart';
 import { LookupModal } from '@/components/ui/LookupModal';
 import { Search, Activity, Clock, ShieldAlert, Network, X, Server, Globe } from 'lucide-react';
 
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
 function isFlapping(uptime?: string): boolean {
   if (!uptime) return false;
   if (uptime.includes('w') || uptime.includes('d')) return false;
@@ -31,7 +39,6 @@ export default function BGPDashboard() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [policyLoading, setPolicyLoading] = useState(false);
   
-  // TSDB Zoom / Time Range State
   const [timeRange, setTimeRange] = useState<"1h" | "24h" | "7d" | "30d" | "all">("1h");
   const [chartData, setChartData] = useState<any[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
@@ -45,7 +52,6 @@ export default function BGPDashboard() {
       if (cachedData) {
         setBgpData(JSON.parse(cachedData));
       } else {
-        // Clear to empty to show loading skeletons for the new logical system
         setBgpData([]);
       }
     } catch {
@@ -64,26 +70,11 @@ export default function BGPDashboard() {
     }
   }, [rawBgpData, logicalSystem]);
 
-  // Fetch TSDB Historical Data based on Time Range
   useEffect(() => {
     if (selectedPeer) {
       const fetchHistory = async () => {
         setChartLoading(true);
         try {
-          // Calculate start time based on range
-          let startParam = "now-1h";
-          let step = "60s";
-          if (timeRange === "24h") { startParam = "now-24h"; step = "15m"; }
-          else if (timeRange === "7d") { startParam = "now-7d"; step = "1h"; }
-          else if (timeRange === "30d") { startParam = "now-30d"; step = "6h"; }
-          else if (timeRange === "all") { startParam = "now-1y"; step = "1d"; }
-
-          // Proxy PromQL query via Next.js to VictoriaMetrics
-          // For now, since TSDB PromQL returning matrix is complex to parse identically to BGPPoint[], 
-          // we use the proxy if available or mock transform it.
-          // Note: In a full implementation, you map Prometheus API Matrix back to `{timestamp, active_prefixes, received_prefixes}`
-          
-          // Mock data generation that visually represents the time range zoom:
           const now = Date.now();
           const mockPoints = [];
           const pts = timeRange === "1h" ? 60 : timeRange === "24h" ? 96 : 30;
@@ -98,7 +89,6 @@ export default function BGPDashboard() {
             });
           }
           setChartData(mockPoints);
-          
         } catch (e) {
           console.warn("Failed to fetch historical data", e);
         } finally {
@@ -154,128 +144,120 @@ export default function BGPDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3 bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
             <Network className="text-emerald-400" size={28} />
             BGP Routing Detail
           </h1>
           <p className="text-slate-400 mt-1 text-sm">Comprehensive view of all active and configured peers.</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="glass-card flex items-center px-4 py-2 focus-within:ring-1 focus-within:ring-emerald-500 transition-all hover-glow m-0">
-            <Search className="text-slate-500 mr-2" size={16} />
-            <input 
-              type="text"
-              placeholder="Search IP or AS..."
-              className="bg-transparent border-none outline-none text-sm w-32 sm:w-56 placeholder:text-slate-600 focus:placeholder:text-slate-400"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+        <div className="relative w-full md:w-auto">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+          <Input 
+            placeholder="Search IP or AS..." 
+            className="pl-9 bg-slate-900/50 border-white/10 w-full md:w-64 focus-visible:ring-emerald-500"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
       </div>
 
-      <div className="glass-panel overflow-hidden p-0">
+      <Card className="border-white/10 bg-[#0f172a]/60 backdrop-blur-md overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/5 bg-slate-800/30 text-slate-400 text-xs uppercase tracking-widest">
-                <th className="py-4 px-6 font-semibold">Peer Address</th>
-                <th className="py-4 px-6 font-semibold">AFI</th>
-                <th className="py-4 px-6 font-semibold">Remote AS</th>
-                <th className="py-4 px-6 font-semibold">State</th>
-                <th className="py-4 px-6 font-semibold">Uptime</th>
-                <th className="py-4 px-6 font-semibold text-right">Rcvd/Actv/Adv</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
+          <Table>
+            <TableHeader className="bg-slate-900/50 hover:bg-slate-900/50">
+              <TableRow className="border-white/10 hover:bg-transparent">
+                <TableHead className="py-4 px-6 text-slate-400">Peer Address</TableHead>
+                <TableHead className="py-4 px-6 text-slate-400">AFI</TableHead>
+                <TableHead className="py-4 px-6 text-slate-400">Remote AS</TableHead>
+                <TableHead className="py-4 px-6 text-slate-400">State</TableHead>
+                <TableHead className="py-4 px-6 text-slate-400">Uptime</TableHead>
+                <TableHead className="py-4 px-6 text-slate-400 text-right">Rcvd/Actv/Adv</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {loading && bgpData.length === 0 ? (
                 [1, 2, 3].map(i => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="py-5 px-6"><div className="h-4 bg-slate-700/50 rounded w-24"></div></td>
-                    <td className="py-5 px-6"><div className="h-4 bg-slate-700/50 rounded w-10"></div></td>
-                    <td className="py-5 px-6"><div className="h-4 bg-slate-700/50 rounded w-16"></div></td>
-                    <td className="py-5 px-6"><div className="h-6 bg-slate-700/50 rounded-full w-24"></div></td>
-                    <td className="py-5 px-6"><div className="h-4 bg-slate-700/50 rounded w-20"></div></td>
-                    <td className="py-5 px-6 text-right"><div className="h-4 bg-slate-700/50 rounded w-16 ml-auto"></div></td>
-                  </tr>
+                  <TableRow key={i} className="animate-pulse border-white/5 hover:bg-transparent">
+                    <TableCell className="py-5 px-6"><div className="h-4 bg-slate-700/50 rounded w-24"></div></TableCell>
+                    <TableCell className="py-5 px-6"><div className="h-4 bg-slate-700/50 rounded w-10"></div></TableCell>
+                    <TableCell className="py-5 px-6"><div className="h-4 bg-slate-700/50 rounded w-16"></div></TableCell>
+                    <TableCell className="py-5 px-6"><div className="h-6 bg-slate-700/50 rounded-full w-24"></div></TableCell>
+                    <TableCell className="py-5 px-6"><div className="h-4 bg-slate-700/50 rounded w-20"></div></TableCell>
+                    <TableCell className="py-5 px-6 text-right"><div className="h-4 bg-slate-700/50 rounded w-16 ml-auto"></div></TableCell>
+                  </TableRow>
                 ))
               ) : filteredData.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-slate-500">
+                <TableRow className="hover:bg-transparent border-white/5">
+                  <TableCell colSpan={6} className="py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Network size={32} className="text-slate-600 opacity-50 mb-2" />
                       {bgpData.length === 0 && !loading ? "No BGP peers configured." : "No peers matched search."}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 filteredData.map((peer, idx) => {
+                  const isUp = peer.state === "Established" || peer.state === "Active";
                   return (
-                  <tr 
-                    key={idx} 
-                    onClick={() => setSelectedPeer(peer)}
-                    className="group hover:bg-slate-800/60 transition-all duration-300 cursor-pointer"
-                  >
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="font-mono font-medium text-slate-200 hover:text-emerald-400 transition-colors cursor-pointer inline-flex items-center gap-1 group/ip z-10"
-                          onClick={(e) => { e.stopPropagation(); setLookupQuery({ query: peer.peer_address, type: 'ip' }); }}
-                        >
-                          {peer.peer_address}
-                          <Globe size={12} className="opacity-0 group-hover/ip:opacity-100 transition-opacity text-slate-400" />
+                    <TableRow 
+                      key={idx} 
+                      onClick={() => setSelectedPeer(peer)}
+                      className="group hover:bg-slate-800/60 transition-all duration-300 cursor-pointer border-white/5"
+                    >
+                      <TableCell className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="font-mono font-medium text-slate-200 hover:text-emerald-400 transition-colors cursor-pointer inline-flex items-center gap-1 group/ip z-10"
+                            onClick={(e) => { e.stopPropagation(); setLookupQuery({ query: peer.peer_address, type: 'ip' }); }}
+                          >
+                            {peer.peer_address}
+                            <Globe size={12} className="opacity-0 group-hover/ip:opacity-100 transition-opacity text-slate-400" />
+                          </div>
                         </div>
-                      </div>
-                      {peer.description && <div className="text-[11px] text-slate-500 mt-1 max-w-[200px] truncate">{peer.description}</div>}
-                    </td>
-                    <td className="py-4 px-6 text-sm text-slate-300 font-mono uppercase">{peer.afi || "N/A"}</td>
-                    <td className="py-4 px-6 text-sm text-slate-300 font-mono">
-                      <span 
-                        className="hover:text-blue-400 cursor-pointer inline-flex items-center gap-1 group/asn transition-colors z-10 relative"
-                        onClick={(e) => { e.stopPropagation(); setLookupQuery({ query: peer.peer_as, type: 'asn' }); }}
-                      >
-                        AS {peer.peer_as}
-                        <Search size={12} className="opacity-0 group-hover/asn:opacity-100 transition-opacity" />
-                      </span>
-                    </td>
-                    <td className="py-4 px-6">
-                      {peer.state === "Established" || peer.state === "Active" ? (
-                        <span className="status-badge-up w-max">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                          {peer.state}
+                        {peer.description && <div className="text-[11px] text-slate-500 mt-1 max-w-[200px] truncate">{peer.description}</div>}
+                      </TableCell>
+                      <TableCell className="py-4 px-6 text-sm text-slate-300 font-mono uppercase">{peer.afi || "N/A"}</TableCell>
+                      <TableCell className="py-4 px-6 text-sm text-slate-300 font-mono">
+                        <span 
+                          className="hover:text-blue-400 cursor-pointer inline-flex items-center gap-1 group/asn transition-colors z-10 relative"
+                          onClick={(e) => { e.stopPropagation(); setLookupQuery({ query: peer.peer_as, type: 'asn' }); }}
+                        >
+                          AS {peer.peer_as}
+                          <Search size={12} className="opacity-0 group-hover/asn:opacity-100 transition-opacity" />
                         </span>
-                      ) : (
-                        <span className="status-badge-down w-max">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                      </TableCell>
+                      <TableCell className="py-4 px-6">
+                        <Badge variant={isUp ? 'default' : 'destructive'} className={`gap-1.5 ${isUp ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border-rose-500/20'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isUp ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
                           {peer.state}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 text-sm font-mono text-slate-400">
-                      {peer.uptime || "-"}
-                    </td>
-                    <td className="py-4 px-6 text-right font-mono text-sm">
-                       <div className="flex justify-end items-center gap-3">
-                         <div className="flex items-center">
-                          <span className="text-emerald-400 font-medium" title="Received Prefixes">{peer.received_prefixes || 0}</span>
-                          <span className="text-slate-600/50 mx-1">/</span>
-                          <span className="text-purple-400 font-medium" title="Active Prefixes">{peer.active_prefixes || 0}</span>
-                          <span className="text-slate-600/50 mx-1">/</span>
-                          <span className="text-cyan-400 font-medium" title="Advertised Prefixes">{peer.advertised_prefixes || 0}</span>
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-4 px-6 text-sm font-mono text-slate-400">
+                        {peer.uptime || "-"}
+                      </TableCell>
+                      <TableCell className="py-4 px-6 text-right font-mono text-sm">
+                         <div className="flex justify-end items-center gap-3">
+                           <div className="flex items-center">
+                            <span className="text-emerald-400 font-medium" title="Received Prefixes">{peer.received_prefixes || 0}</span>
+                            <span className="text-slate-600/50 mx-1">/</span>
+                            <span className="text-purple-400 font-medium" title="Active Prefixes">{peer.active_prefixes || 0}</span>
+                            <span className="text-slate-600/50 mx-1">/</span>
+                            <span className="text-cyan-400 font-medium" title="Advertised Prefixes">{peer.advertised_prefixes || 0}</span>
+                           </div>
+                           <div className="w-5 h-5 flex items-center justify-center rounded-full bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Activity size={12} className="text-emerald-500" />
+                           </div>
                          </div>
-                         <div className="w-5 h-5 flex items-center justify-center rounded-full bg-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <Activity size={12} className="text-emerald-500" />
-                         </div>
-                       </div>
-                    </td>
-                  </tr>
-                )})
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
-      </div>
+      </Card>
 
       {lookupQuery && (
         <LookupModal 
@@ -285,157 +267,157 @@ export default function BGPDashboard() {
         />
       )}
 
-      {/* Peer Details Modal with TSDB Zoom */}
-      {selectedPeer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 opacity-100 transition-opacity duration-300">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={() => setSelectedPeer(null)}></div>
-          <div className="relative glass-panel w-full max-w-4xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] border-emerald-500/20 overflow-hidden flex flex-col max-h-[95vh] p-0 transform scale-100 transition-transform duration-300">
-            
-            {/* Modal Header */}
-            <div className="flex justify-between items-start border-b border-white/5 p-6 bg-slate-900/50">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
+      {/* Peer Details Dialog */}
+      <Dialog open={!!selectedPeer} onOpenChange={(open: boolean) => !open && setSelectedPeer(null)}>
+        <DialogContent className="max-w-5xl sm:max-w-4xl md:max-w-5xl w-[95vw] md:w-full bg-[#080b12] border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.7)] p-0 gap-0 overflow-hidden">
+          {selectedPeer && (
+            <>
+              <DialogHeader className="border-b border-white/5 p-6 bg-slate-900/50">
+                <DialogTitle className="text-2xl font-bold text-slate-100 flex items-center gap-3">
                   <Server className="text-emerald-500" size={24} />
                   {selectedPeer.peer_address}
-                  {selectedPeer.state === "Established" || selectedPeer.state === "Active" ? (
-                    <span className="status-badge-up text-xs font-normal"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>{selectedPeer.state}</span>
-                  ) : (
-                    <span className="status-badge-down text-xs font-normal"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>{selectedPeer.state}</span>
-                  )}
-                </h2>
-                <div className="text-slate-400 mt-1.5 text-sm flex items-center gap-2">
-                  <span className="font-mono bg-slate-800/50 px-2 py-0.5 rounded text-slate-300">AS {selectedPeer.peer_as}</span>
-                  <span className="font-mono bg-slate-800/50 px-2 py-0.5 rounded text-cyan-400 uppercase">{selectedPeer.afi || "N/A"}</span>
+                  <Badge variant={selectedPeer.state === "Established" || selectedPeer.state === "Active" ? 'default' : 'destructive'} className={`ml-2 text-xs font-normal gap-1 ${selectedPeer.state === "Established" || selectedPeer.state === "Active" ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 border-rose-500/20'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${selectedPeer.state === "Established" || selectedPeer.state === "Active" ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                    {selectedPeer.state}
+                  </Badge>
+                </DialogTitle>
+                <div className="text-slate-400 mt-2 text-sm flex flex-wrap items-center gap-2">
+                  <span className="font-mono bg-slate-800/80 px-2 py-0.5 rounded text-slate-300">AS {selectedPeer.peer_as}</span>
+                  <span className="font-mono bg-slate-800/80 px-2 py-0.5 rounded text-cyan-400 uppercase">{selectedPeer.afi || "N/A"}</span>
                   {selectedPeer.description && <span>• {selectedPeer.description}</span>}
                 </div>
-              </div>
-              <button 
-                onClick={() => setSelectedPeer(null)}
-                className="text-slate-400 hover:text-white transition-all p-2 bg-slate-800/50 hover:bg-rose-500/20 hover:text-rose-400 rounded-lg"
-              >
-                <X size={20} />
-              </button>
-            </div>
+              </DialogHeader>
 
-            <div className="overflow-y-auto p-6 space-y-6 flex-1 bg-slate-900/20">
-              
-              {/* TSDB Zoom Controls & Chart */}
-              <div className="glass-card p-5 border-white/5">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-widest flex items-center gap-2">
-                    <Activity size={14} className="text-cyan-400" />
-                    Historical Trend (TSDB)
-                  </h3>
-                  
-                  {/* The TSDB Time Range Selector */}
-                  <div className="flex bg-slate-900/80 p-1 rounded-lg border border-white/5">
-                    {[
-                      { id: "1h", label: "1H" },
-                      { id: "24h", label: "24H" },
-                      { id: "7d", label: "7D" },
-                      { id: "30d", label: "30D" },
-                      { id: "all", label: "All" }
-                    ].map(range => (
-                      <button
-                        key={range.id}
-                        onClick={() => setTimeRange(range.id as any)}
-                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                          timeRange === range.id 
-                            ? 'bg-emerald-500 text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.4)]' 
-                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                        }`}
-                      >
-                        {range.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              <ScrollArea className="max-h-[75vh] p-6 bg-slate-900/20">
+                <div className="space-y-6 pb-6">
+                  {/* TSDB Zoom Controls & Chart */}
+                  <Card className="border-white/5 bg-slate-900/40">
+                    <CardContent className="p-5">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+                        <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-widest flex items-center gap-2">
+                          <Activity size={14} className="text-cyan-400" />
+                          Historical Trend (TSDB)
+                        </h3>
+                        
+                        <div className="flex bg-slate-900 p-1 rounded-lg border border-white/5">
+                          {[
+                            { id: "1h", label: "1H" },
+                            { id: "24h", label: "24H" },
+                            { id: "7d", label: "7D" },
+                            { id: "30d", label: "30D" },
+                            { id: "all", label: "All" }
+                          ].map(range => (
+                            <button
+                              key={range.id}
+                              onClick={() => setTimeRange(range.id as any)}
+                              className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                timeRange === range.id 
+                                  ? 'bg-emerald-500 text-slate-950 shadow-[0_0_10px_rgba(16,185,129,0.4)]' 
+                                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                              }`}
+                            >
+                              {range.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                <div className="relative h-[200px] w-full">
-                  {chartLoading && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm rounded-lg">
-                      <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
-                    </div>
-                  )}
-                  <BGPPrefixChart data={chartData} peerAddress={selectedPeer.peer_address} />
-                </div>
-              </div>
+                      <div className="relative h-[200px] w-full">
+                        {chartLoading && (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm rounded-lg">
+                            <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
+                          </div>
+                        )}
+                        <BGPPrefixChart data={chartData} peerAddress={selectedPeer.peer_address} />
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="glass-card p-5 flex flex-col justify-center border-l-4 border-l-emerald-500/50">
-                   <div className="text-xs text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-2">
-                     <Clock size={12} /> Router ID
-                   </div>
-                   <div className="text-lg font-mono font-bold text-slate-200">{selectedPeer.router_id || "N/A"}</div>
-                </div>
-                <div className="glass-card p-5 flex flex-col justify-center border-l-4 border-l-cyan-500/50">
-                   <div className="text-xs text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-2">
-                     <Network size={12} /> Received / Active
-                   </div>
-                   <div className="flex items-baseline gap-2">
-                     <div className="text-2xl font-mono font-bold text-cyan-400">{selectedPeer.received_prefixes || 0}</div>
-                     <div className="text-sm font-mono text-slate-400">/ {selectedPeer.active_prefixes || 0}</div>
-                   </div>
-                </div>
-                <div className="glass-card p-5 flex flex-col justify-center border-l-4 border-l-purple-500/50">
-                   <div className="text-xs text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-2">
-                     <Network size={12} /> Advertised Routes
-                   </div>
-                   <div className="text-2xl font-mono font-bold text-purple-400">{selectedPeer.advertised_prefixes || 0}</div>
-                </div>
-                <div className="glass-card p-5 flex flex-col justify-center border-l-4 border-l-amber-500/50">
-                   <div className="text-xs text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-2">
-                     <ShieldAlert size={12} /> Policy (In/Out)
-                   </div>
-                   <div className="text-sm font-mono text-amber-400">
-                     {policyLoading ? (
-                       <span className="animate-pulse">Loading...</span>
-                     ) : bgpPolicy ? (
-                       <div className="flex flex-col">
-                         <span>{bgpPolicy.import_policies?.join(",") || "None"}</span>
-                         <span className="text-slate-500">/</span>
-                         <span>{bgpPolicy.export_policies?.join(",") || "None"}</span>
-                       </div>
-                     ) : "N/A"}
-                   </div>
-                </div>
-              </div>
-
-              {/* Logs */}
-              <div className="glass-card p-5">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-widest flex items-center gap-2">
-                    <Server size={14} className="text-slate-400" />
-                    Syslog Messages
-                  </h3>
-                </div>
-                <div className="bg-[#080b12] rounded-lg p-4 font-mono text-[11px] text-slate-400 h-40 overflow-y-auto whitespace-pre-wrap border border-white/5 shadow-inner">
-                  {logsLoading ? (
-                     <div className="animate-pulse flex items-center gap-2 text-emerald-500">
-                       <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                       Fetching latest syslog messages...
-                     </div>
-                  ) : bgpLogs.length > 0 ? (
-                     <div className="space-y-1.5">
-                       {bgpLogs.map((line, i) => (
-                         <div key={i} className="hover:bg-slate-800/50 px-2 py-1 -mx-2 rounded transition-colors break-all">
-                           {line.replace(/([0-9]{2}:[0-9]{2}:[0-9]{2})/, (match) => `<span class="text-cyan-500">${match}</span>`)}
-                           {/* Quick hack: Since we render as text, it won't parse HTML, we just render line. We could use dangerouslySetInnerHTML if we wanted colored timestamps. */}
-                           {line}
+                  {/* Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card className="bg-slate-900/40 border-white/5 border-l-4 border-l-emerald-500">
+                      <CardContent className="p-5 flex flex-col justify-center h-full">
+                         <div className="text-xs text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-2">
+                           <Clock size={12} /> Router ID
                          </div>
-                       ))}
-                     </div>
-                  ) : (
-                     <span className="text-slate-600 flex items-center justify-center h-full italic">No log messages found for this peer.</span>
-                  )}
-                </div>
-              </div>
+                         <div className="text-lg font-mono font-bold text-slate-200">{selectedPeer.router_id || "N/A"}</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-900/40 border-white/5 border-l-4 border-l-cyan-500">
+                      <CardContent className="p-5 flex flex-col justify-center h-full">
+                         <div className="text-xs text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-2">
+                           <Network size={12} /> Received / Active
+                         </div>
+                         <div className="flex items-baseline gap-2">
+                           <div className="text-2xl font-mono font-bold text-cyan-400">{selectedPeer.received_prefixes || 0}</div>
+                           <div className="text-sm font-mono text-slate-400">/ {selectedPeer.active_prefixes || 0}</div>
+                         </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-900/40 border-white/5 border-l-4 border-l-purple-500">
+                      <CardContent className="p-5 flex flex-col justify-center h-full">
+                         <div className="text-xs text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-2">
+                           <Network size={12} /> Advertised Routes
+                         </div>
+                         <div className="text-2xl font-mono font-bold text-purple-400">{selectedPeer.advertised_prefixes || 0}</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-900/40 border-white/5 border-l-4 border-l-amber-500">
+                      <CardContent className="p-5 flex flex-col justify-center h-full">
+                         <div className="text-xs text-slate-400 mb-2 uppercase tracking-widest flex items-center gap-2">
+                           <ShieldAlert size={12} /> Policy (In/Out)
+                         </div>
+                         <div className="text-sm font-mono text-amber-400">
+                           {policyLoading ? (
+                             <span className="animate-pulse">Loading...</span>
+                           ) : bgpPolicy ? (
+                             <div className="flex flex-col gap-1">
+                               <span>{bgpPolicy.import_policies?.join(", ") || "None"}</span>
+                               <span className="text-slate-500">/</span>
+                               <span>{bgpPolicy.export_policies?.join(", ") || "None"}</span>
+                             </div>
+                           ) : "N/A"}
+                         </div>
+                      </CardContent>
+                    </Card>
+                  </div>
 
-            </div>
-          </div>
-        </div>
-      )}
+                  {/* Logs */}
+                  <Card className="border-white/5 bg-slate-900/40">
+                    <CardContent className="p-5">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-widest flex items-center gap-2">
+                          <Server size={14} className="text-slate-400" />
+                          Syslog Messages
+                        </h3>
+                      </div>
+                      <div className="bg-[#05070a] rounded-lg p-4 font-mono text-[11px] text-slate-400 h-40 overflow-y-auto whitespace-pre-wrap border border-white/5 shadow-inner">
+                        {logsLoading ? (
+                           <div className="animate-pulse flex items-center gap-2 text-emerald-500">
+                             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                             Fetching latest syslog messages...
+                           </div>
+                        ) : bgpLogs.length > 0 ? (
+                           <div className="space-y-1.5">
+                             {bgpLogs.map((line, i) => (
+                               <div key={i} className="hover:bg-slate-800/50 px-2 py-1 -mx-2 rounded transition-colors break-all">
+                                 {line.replace(/([0-9]{2}:[0-9]{2}:[0-9]{2})/, (match) => `<span class="text-cyan-500">${match}</span>`)}
+                                 {line}
+                               </div>
+                             ))}
+                           </div>
+                        ) : (
+                           <span className="text-slate-600 flex items-center justify-center h-full italic">No log messages found for this peer.</span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </ScrollArea>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

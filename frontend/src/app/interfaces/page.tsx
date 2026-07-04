@@ -9,8 +9,15 @@ import { useWebSocket } from '@/components/WebSocketProvider';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
+import { Network, Activity, Clock, ChevronRight, X } from 'lucide-react';
 
-
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface TrafficData {
   time: string;
@@ -47,14 +54,11 @@ export default function InterfacesDashboard() {
   const [groups, setGroups] = useState<PhysicalGroup[]>([]);
   const loading = rawInterfaces.length === 0;
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'live' | 'history'>('live');
   const [hoveredIface, setHoveredIface] = useState<string | null>(null);
   const [modalIface, setModalIface] = useState<string | null>(null);
 
-  // Rolling history for all interfaces (live mode)
   const [trafficHistory, setTrafficHistory] = useState<Record<string, TrafficData[]>>({});
 
-  // Historical data from DB
   const [historyData, setHistoryData] = useState<Array<{interface_name: string; interface_type: string; points: Array<{timestamp: string; bps_in: number; bps_out: number}>}>>([]);
   const [historyHours, setHistoryHours] = useState(24);
   const [selectedIface, setSelectedIface] = useState<string>('');
@@ -62,10 +66,11 @@ export default function InterfacesDashboard() {
   const [isCustomRange, setIsCustomRange] = useState(false);
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
+  const [activeTab, setActiveTab] = useState('live');
+
   useEffect(() => {
     if (rawInterfaces.length === 0) return;
     
-    // Group logicals under their physical parent
     const grouped: PhysicalGroup[] = [];
     let currentGroup: PhysicalGroup | null = null;
     
@@ -80,7 +85,6 @@ export default function InterfacesDashboard() {
     
     setGroups(grouped);
     
-    // Update history for all interfaces
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setTrafficHistory(prev => {
       const next = { ...prev };
@@ -130,392 +134,294 @@ export default function InterfacesDashboard() {
 
   const interfaceNames = groups.map(g => g.physical.name);
 
-  // Allow closing modal with Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setModalIface(null);
-    };
-    if (modalIface) {
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [modalIface]);
-
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Interfaces</h1>
-          <p className="text-slate-400 mt-1 mb-4">Bandwidth utilization — physical and logical units.</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Interfaces</h1>
+          <p className="text-slate-400 mt-1 mb-4 text-sm">Bandwidth utilization — physical and logical units.</p>
           <DeviceStatusWidget />
         </div>
 
-        {/* Tab switcher */}
-        <div style={{
-          display: "flex", gap: 4,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 10, padding: 4,
-        }}>
-          {(['live', 'history'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: "0.375rem 1rem",
-                borderRadius: 7, border: "none", cursor: "pointer",
-                fontSize: "0.8rem", fontWeight: 600,
-                transition: "all 0.2s",
-                background: activeTab === tab
-                  ? "linear-gradient(135deg, rgba(6,182,212,0.2), rgba(59,130,246,0.2))"
-                  : "transparent",
-                color: activeTab === tab ? "#06b6d4" : "#64748b",
-                borderBottom: activeTab === tab ? "1px solid rgba(6,182,212,0.4)" : "1px solid transparent",
-              }}
-            >
-              {tab === 'live' ? '⚡ Live' : '📈 Historical'}
-            </button>
-          ))}
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-[250px]">
+          <TabsList className="grid w-full grid-cols-2 bg-slate-900/80 border border-white/10">
+            <TabsTrigger value="live" className="data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">⚡ Live</TabsTrigger>
+            <TabsTrigger value="history" className="data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-400">📈 Historical</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      {/* ── Historical View ─────────────────────────────────────────────────── */}
       {activeTab === 'history' && (
-        <div className="space-y-4">
-          <div className="glass-panel">
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 20 }}>
-              <select
-                value={selectedIface}
-                onChange={e => setSelectedIface(e.target.value)}
-                style={{
-                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8, padding: "0.5rem 0.875rem", color: "#e2e8f0",
-                  fontSize: "0.85rem", cursor: "pointer",
-                }}
-              >
-                <option value="">All interfaces</option>
-                {interfaceNames.map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-
-              {([1, 6, 24, 48, 168] as const).map(h => (
-                <button
-                  key={h}
-                  onClick={() => { setIsCustomRange(false); setHistoryHours(h); }}
-                  style={{
-                    padding: "0.375rem 0.75rem", borderRadius: 6, border: "none",
-                    cursor: "pointer", fontSize: "0.78rem", fontWeight: 600,
-                    background: (!isCustomRange && historyHours === h)
-                      ? "rgba(6,182,212,0.2)" : "rgba(255,255,255,0.05)",
-                    color: (!isCustomRange && historyHours === h) ? "#06b6d4" : "#64748b",
-                    transition: "all 0.15s",
-                  }}
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <Card className="border-white/10 bg-[#0f172a]/60 backdrop-blur-md">
+            <CardContent className="pt-6">
+              <div className="flex flex-wrap items-center gap-3 mb-6">
+                <select
+                  value={selectedIface}
+                  onChange={e => setSelectedIface(e.target.value)}
+                  className="bg-slate-900 border border-white/10 rounded-md px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none"
                 >
-                  {h < 24 ? `${h}h` : h === 168 ? '7d' : h === 48 ? '2d' : `${h/24}d`}
-                </button>
-              ))}
-              <button
-                onClick={() => setIsCustomRange(true)}
-                style={{
-                  padding: "0.375rem 0.75rem", borderRadius: 6, border: "none",
-                  cursor: "pointer", fontSize: "0.78rem", fontWeight: 600,
-                  background: isCustomRange ? "rgba(6,182,212,0.2)" : "rgba(255,255,255,0.05)",
-                  color: isCustomRange ? "#06b6d4" : "#64748b",
-                  transition: "all 0.15s",
-                }}
-              >
-                Custom
-              </button>
+                  <option value="">All interfaces</option>
+                  {interfaceNames.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
 
-              {isCustomRange && (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input
-                    type="datetime-local"
-                    value={customStart}
-                    onChange={(e) => setCustomStart(e.target.value)}
-                    style={{
-                      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: 6, padding: "0.375rem", color: "#e2e8f0", fontSize: "0.78rem"
-                    }}
-                  />
-                  <span style={{ color: "#64748b", fontSize: "0.85rem" }}>to</span>
-                  <input
-                    type="datetime-local"
-                    value={customEnd}
-                    onChange={(e) => setCustomEnd(e.target.value)}
-                    style={{
-                      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: 6, padding: "0.375rem", color: "#e2e8f0", fontSize: "0.78rem"
-                    }}
-                  />
-                </div>
-              )}
-
-              <button onClick={fetchHistory} style={{
-                padding: "0.375rem 0.875rem", borderRadius: 6, border: "none",
-                cursor: "pointer", fontSize: "0.78rem", fontWeight: 600,
-                background: "rgba(6,182,212,0.15)", color: "#06b6d4",
-              }}>
-                Apply
-              </button>
-            </div>
-
-            {historyLoading ? (
-              <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
-                Loading historical data...
-              </div>
-            ) : historyData.length === 0 ? (
-              <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "#475569", flexDirection: "column", gap: 8 }}>
-                <span style={{ fontSize: "1.5rem" }}>📊</span>
-                <span style={{ fontSize: "0.85rem" }}>No historical data yet. Data will appear after the background scraper has run.</span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {historyData.map(iface => (
-                  <div key={iface.interface_name} style={{
-                    background: "rgba(255,255,255,0.02)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                    borderRadius: 12, padding: "1rem",
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                      <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#e2e8f0", fontSize: "0.9rem" }}>
-                        {iface.interface_name}
-                      </span>
-                      <span style={{ fontSize: "0.7rem", color: "#475569", background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: 4 }}>
-                        {iface.interface_type}
-                      </span>
-                    </div>
-                    <InterfaceTrafficChart data={iface.points} interfaceName={iface.interface_name} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Live View ───────────────────────────────────────────────────────── */}
-      {activeTab === 'live' && (
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-
-        {loading && groups.length === 0 ? (
-          [1,2,3,4].map(i => (
-            <div key={i} className="glass-panel h-80 flex items-center justify-center text-slate-500 animate-pulse">
-               Loading interface metrics...
-            </div>
-          ))
-        ) : groups.length === 0 ? (
-          <div className="glass-panel col-span-full py-12 text-center text-slate-400">
-            No physical interfaces found for {logicalSystem}.
-          </div>
-        ) : (
-          groups.map(group => {
-            const { physical, logicals } = group;
-            const history = trafficHistory[physical.name] || [];
-            const up = physical.oper_status.toLowerCase() === 'up';
-            const expanded = expandedGroups.has(physical.name);
-            const hasLogicals = logicals.length > 0;
-            const safeName = physical.name.replace(/[/\.]/g, '-');
-            
-            return (
-              <div key={physical.name} className="glass-panel flex flex-col gap-3">
-                {/* Physical Interface Header */}
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-3 h-3 rounded-full flex-shrink-0 ${up ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"}`}></div>
-                    <div className="min-w-0">
-                      <h2 className="text-xl font-bold font-mono text-slate-200">{physical.name}</h2>
-                      {physical.description && (
-                        <p className="text-xs text-slate-400 truncate mt-0.5">{physical.description}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm font-mono">
-                    <div className="text-right">
-                      <div className="text-slate-400 text-[10px] uppercase">In (Rx)</div>
-                      <div className="text-blue-400">{formatBps(physical.bps_in)}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-slate-400 text-[10px] uppercase">Out (Tx)</div>
-                      <div className="text-orange-400">{formatBps(physical.bps_out)}</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Traffic Chart */}
-                <div className="h-52 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={history} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id={`colorIn-${safeName}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                        </linearGradient>
-                        <linearGradient id={`colorOut-${safeName}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                      <XAxis dataKey="time" stroke="#94a3b8" fontSize={10} tickMargin={8} minTickGap={30} />
-                      <YAxis stroke="#94a3b8" fontSize={10} tickFormatter={(v) => `${v}M`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }}
-                        itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                        labelStyle={{ color: '#94a3b8', fontSize: '10px', marginBottom: '4px' }}
-                      />
-                      <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }}/>
-                      <Area type="monotone" dataKey="in_mbps" name="Ingress Mbps" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill={`url(#colorIn-${safeName})`} isAnimationActive={false} />
-                      <Area type="monotone" dataKey="out_mbps" name="Egress Mbps" stroke="#f97316" strokeWidth={2} fillOpacity={1} fill={`url(#colorOut-${safeName})`} isAnimationActive={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Logical Sub-interfaces (collapsible) */}
-                {hasLogicals && (
-                  <div>
-                    <button
-                      onClick={() => toggleGroup(physical.name)}
-                      className="w-full text-left text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1.5 transition-colors py-1"
+                <div className="flex bg-slate-900/80 p-1 rounded-md border border-white/5">
+                  {([1, 6, 24, 48, 168] as const).map(h => (
+                    <Button
+                      key={h}
+                      variant={!isCustomRange && historyHours === h ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => { setIsCustomRange(false); setHistoryHours(h); }}
+                      className={`h-8 px-3 text-xs ${!isCustomRange && historyHours === h ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:text-slate-200'}`}
                     >
-                      <span className={`transition-transform ${expanded ? 'rotate-90' : ''}`}>▶</span>
-                      {logicals.length} Logical Units
-                    </button>
-                    {expanded && (
-                      <div className="mt-1 rounded-lg overflow-hidden border border-slate-700/50">
-                        <table className="w-full text-xs font-mono">
-                          <thead>
-                            <tr className="bg-slate-800/50 text-slate-400">
-                              <th className="text-left px-3 py-2">Unit</th>
-                              <th className="text-right px-3 py-2">In (Rx)</th>
-                              <th className="text-right px-3 py-2">Out (Tx)</th>
-                              <th className="text-right px-3 py-2">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {logicals.map(li => {
-                              const liUp = li.oper_status.toLowerCase() === 'up';
-                              const isActive = li.bps_in > 0 || li.bps_out > 0;
-                              const safeLiName = li.name.replace(/[/\.]/g, '-');
-                              const liHistory = trafficHistory[li.name] || [];
-                              const isHovered = hoveredIface === li.name;
+                      {h < 24 ? `${h}h` : h === 168 ? '7d' : h === 48 ? '2d' : `${h/24}d`}
+                    </Button>
+                  ))}
+                  <Button
+                    variant={isCustomRange ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setIsCustomRange(true)}
+                    className={`h-8 px-3 text-xs ${isCustomRange ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:text-slate-200'}`}
+                  >
+                    Custom
+                  </Button>
+                </div>
 
-                              return (
-                                <tr 
-                                  key={li.name} 
-                                  className={`border-t border-slate-700/30 transition-colors cursor-pointer hover:bg-slate-800/40 ${isActive ? '' : 'opacity-40'}`}
-                                  onMouseEnter={() => setHoveredIface(li.name)}
-                                  onMouseLeave={() => setHoveredIface(null)}
-                                  onClick={() => setModalIface(li.name)}
-                                >
-                                  <td className="px-3 py-2">
-                                    <div className="flex items-center gap-2">
-                                      <div>
-                                        <div className="text-slate-300 font-mono">{li.name}</div>
-                                        {li.description && <div className="text-[10px] text-slate-500 mt-0.5">{li.description}</div>}
-                                      </div>
-                                    </div>
-                                  </td>
-                                  
-                                  <td className="px-3 py-2 text-right relative">
-                                    <div className="flex flex-col items-end">
-                                      <span className="text-blue-400">{formatBps(li.bps_in)}</span>
-                                      {/* Tiny Sparkline on hover */}
-                                      {isHovered && liHistory.length > 1 && (
-                                        <div 
-                                          className="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-10 bg-slate-900/95 rounded-md border border-slate-700/50 shadow-2xl z-20 hidden md:block"
-                                          style={{ 
-                                            transform: 'translate(-110%, -50%)',
-                                            animation: 'fadeInSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards'
-                                          }}
-                                        >
-                                          <style>{`
-                                            @keyframes fadeInSlide {
-                                              from { opacity: 0; transform: translate(-100%, -50%); }
-                                              to { opacity: 1; transform: translate(-110%, -50%); }
-                                            }
-                                          `}</style>
-                                          <div className="w-full h-full relative p-1">
-                                            <div className="absolute inset-0 bg-blue-500/5 rounded blur-md" />
-                                            <ResponsiveContainer width="100%" height="100%">
-                                              <AreaChart data={liHistory}>
-                                                <Area type="monotone" dataKey="in_mbps" stroke="#3b82f6" fill="url(#colorIn-modal)" fillOpacity={1} strokeWidth={1.5} isAnimationActive={false} />
-                                                <Area type="monotone" dataKey="out_mbps" stroke="#f97316" fill="url(#colorOut-modal)" fillOpacity={1} strokeWidth={1.5} isAnimationActive={false} />
-                                              </AreaChart>
-                                            </ResponsiveContainer>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-3 py-2 text-right text-orange-400">{formatBps(li.bps_out)}</td>
-                                  <td className="px-3 py-2 text-right">
-                                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${liUp ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                                      {li.oper_status}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                {isCustomRange && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="datetime-local"
+                      value={customStart}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                      className="h-9 bg-slate-900 border-white/10 text-xs"
+                    />
+                    <span className="text-slate-500 text-xs">to</span>
+                    <Input
+                      type="datetime-local"
+                      value={customEnd}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                      className="h-9 bg-slate-900 border-white/10 text-xs"
+                    />
                   </div>
                 )}
+
+                <Button onClick={fetchHistory} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-9">
+                  Apply
+                </Button>
               </div>
-            );
-          })
-        )}
-      </div>
+
+              {historyLoading ? (
+                <div className="h-[200px] flex items-center justify-center text-slate-500 animate-pulse">
+                  Loading historical data...
+                </div>
+              ) : historyData.length === 0 ? (
+                <div className="h-[200px] flex flex-col items-center justify-center text-slate-500 gap-2">
+                  <Activity size={32} className="opacity-50 mb-2" />
+                  <span className="text-sm">No historical data yet. Data will appear after the background scraper has run.</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  {historyData.map(iface => (
+                    <Card key={iface.interface_name} className="bg-slate-900/40 border-white/5">
+                      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                        <CardTitle className="text-sm font-mono text-slate-200">{iface.interface_name}</CardTitle>
+                        <Badge variant="outline" className="text-[10px] uppercase border-white/10 text-slate-400">
+                          {iface.interface_type}
+                        </Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <InterfaceTrafficChart data={iface.points} interfaceName={iface.interface_name} />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* ── Modal Chart for Logical Units ─────────────────────────────────────── */}
-      {modalIface && (
-        <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 pt-10 pb-10 sm:p-6"
-          style={{ animation: 'backdropFade 0.3s ease-out forwards' }}
-          onClick={() => setModalIface(null)}
-        >
-          <style>{`
-            @keyframes backdropFade { from { opacity: 0; backdrop-filter: blur(0px); background: rgba(0,0,0,0); } to { opacity: 1; backdrop-filter: blur(8px); background: rgba(0,0,0,0.6); } }
-            @keyframes modalPopup { 0% { opacity: 0; transform: scale(0.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
-          `}</style>
-          
-          <div 
-            className="w-full max-w-4xl relative overflow-hidden"
-            style={{ 
-              background: 'linear-gradient(135deg, rgba(15,23,42,0.95), rgba(8,15,26,0.98))',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '16px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(6,182,212,0.1)',
-              padding: '2rem',
-              animation: 'modalPopup 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Ambient Glow */}
-            <div className="absolute top-0 left-1/4 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50 shadow-[0_0_20px_rgba(34,211,238,0.4)]" />
+      {activeTab === 'live' && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {loading && groups.length === 0 ? (
+            [1,2,3,4].map(i => (
+              <Card key={i} className="h-80 flex items-center justify-center text-slate-500 animate-pulse bg-[#0f172a]/60 border-white/5">
+                 Loading interface metrics...
+              </Card>
+            ))
+          ) : groups.length === 0 ? (
+            <Card className="col-span-full py-12 text-center text-slate-400 bg-[#0f172a]/60 border-white/5">
+              No physical interfaces found for {logicalSystem}.
+            </Card>
+          ) : (
+            groups.map(group => {
+              const { physical, logicals } = group;
+              const history = trafficHistory[physical.name] || [];
+              const up = physical.oper_status.toLowerCase() === 'up';
+              const expanded = expandedGroups.has(physical.name);
+              const hasLogicals = logicals.length > 0;
+              const safeName = physical.name.replace(/[/\.]/g, '-');
+              
+              return (
+                <Card key={physical.name} className="bg-[#0f172a]/60 backdrop-blur-md border-white/10 overflow-hidden flex flex-col">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${up ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"}`}></div>
+                        <div className="min-w-0">
+                          <CardTitle className="text-xl font-bold font-mono text-slate-200">{physical.name}</CardTitle>
+                          {physical.description && (
+                            <p className="text-xs text-slate-400 truncate mt-0.5">{physical.description}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm font-mono">
+                        <div className="text-right">
+                          <div className="text-slate-400 text-[10px] uppercase tracking-widest mb-0.5">In (Rx)</div>
+                          <div className="text-blue-400 font-bold">{formatBps(physical.bps_in)}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-slate-400 text-[10px] uppercase tracking-widest mb-0.5">Out (Tx)</div>
+                          <div className="text-orange-400 font-bold">{formatBps(physical.bps_out)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
 
-            <button
-              onClick={() => setModalIface(null)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all z-10 rounded-full w-9 h-9 flex items-center justify-center border border-transparent hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              title="Close (Esc)"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M13 1L1 13M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            
-            <div className="flex items-center gap-4 mb-6 relative z-10">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-400"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                  <CardContent className="flex-1 flex flex-col gap-4">
+                    <div className="h-52 w-full mt-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={history} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id={`colorIn-${safeName}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id={`colorOut-${safeName}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                          <XAxis dataKey="time" stroke="#64748b" fontSize={10} tickMargin={8} minTickGap={30} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#64748b" fontSize={10} tickFormatter={(v) => `${v}M`} tickLine={false} axisLine={false} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px' }}
+                            itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                            labelStyle={{ color: '#94a3b8', fontSize: '10px', marginBottom: '4px' }}
+                          />
+                          <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }}/>
+                          <Area type="monotone" dataKey="in_mbps" name="Ingress Mbps" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill={`url(#colorIn-${safeName})`} isAnimationActive={false} />
+                          <Area type="monotone" dataKey="out_mbps" name="Egress Mbps" stroke="#f97316" strokeWidth={2} fillOpacity={1} fill={`url(#colorOut-${safeName})`} isAnimationActive={false} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {hasLogicals && (
+                      <div className="mt-auto">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleGroup(physical.name)}
+                          className="w-full justify-start text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 h-8"
+                        >
+                          <ChevronRight size={14} className={`mr-2 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
+                          {logicals.length} Logical Units
+                        </Button>
+                        
+                        <div className={`grid transition-all duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0'}`}>
+                          <div className="overflow-hidden">
+                            <div className="rounded-md border border-white/5 bg-slate-900/30 overflow-hidden">
+                              <Table>
+                                <TableHeader className="bg-slate-900/50">
+                                  <TableRow className="border-white/5 hover:bg-transparent">
+                                    <TableHead className="py-2 px-3 h-8 text-xs">Unit</TableHead>
+                                    <TableHead className="py-2 px-3 h-8 text-xs text-right">In (Rx)</TableHead>
+                                    <TableHead className="py-2 px-3 h-8 text-xs text-right">Out (Tx)</TableHead>
+                                    <TableHead className="py-2 px-3 h-8 text-xs text-right">Status</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {logicals.map(li => {
+                                    const liUp = li.oper_status.toLowerCase() === 'up';
+                                    const isActive = li.bps_in > 0 || li.bps_out > 0;
+                                    const liHistory = trafficHistory[li.name] || [];
+                                    const isHovered = hoveredIface === li.name;
+
+                                    return (
+                                      <TableRow 
+                                        key={li.name} 
+                                        className={`border-white/5 cursor-pointer hover:bg-slate-800/60 transition-colors ${isActive ? '' : 'opacity-50 hover:opacity-100'}`}
+                                        onMouseEnter={() => setHoveredIface(li.name)}
+                                        onMouseLeave={() => setHoveredIface(null)}
+                                        onClick={() => setModalIface(li.name)}
+                                      >
+                                        <TableCell className="py-2 px-3">
+                                          <div className="text-slate-300 font-mono text-xs">{li.name}</div>
+                                          {li.description && <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[150px]">{li.description}</div>}
+                                        </TableCell>
+                                        
+                                        <TableCell className="py-2 px-3 text-right relative">
+                                          <div className="flex flex-col items-end">
+                                            <span className="text-blue-400 font-mono text-xs">{formatBps(li.bps_in)}</span>
+                                            {isHovered && liHistory.length > 1 && (
+                                              <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-32 h-12 bg-slate-950/95 rounded-md border border-slate-700/50 shadow-2xl z-20 hidden md:block animate-in fade-in slide-in-from-right-2">
+                                                <div className="w-full h-full p-1 relative">
+                                                  <div className="absolute inset-0 bg-blue-500/5 rounded blur-sm" />
+                                                  <ResponsiveContainer width="100%" height="100%">
+                                                    <AreaChart data={liHistory}>
+                                                      <Area type="monotone" dataKey="in_mbps" stroke="#3b82f6" fillOpacity={0.2} fill="#3b82f6" strokeWidth={1.5} isAnimationActive={false} />
+                                                      <Area type="monotone" dataKey="out_mbps" stroke="#f97316" fillOpacity={0.2} fill="#f97316" strokeWidth={1.5} isAnimationActive={false} />
+                                                    </AreaChart>
+                                                  </ResponsiveContainer>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="py-2 px-3 text-right text-orange-400 font-mono text-xs">{formatBps(li.bps_out)}</TableCell>
+                                        <TableCell className="py-2 px-3 text-right">
+                                          <Badge variant={liUp ? 'default' : 'destructive'} className={`text-[9px] px-1.5 py-0 ${liUp ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-none' : 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border-none'}`}>
+                                            {li.oper_status}
+                                          </Badge>
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Logical Unit Traffic Dialog */}
+      <Dialog open={!!modalIface} onOpenChange={(open: boolean) => !open && setModalIface(null)}>
+        <DialogContent className="max-w-4xl sm:max-w-4xl md:max-w-5xl w-[95vw] md:w-full bg-slate-950/95 border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.15)] sm:rounded-2xl p-6 sm:p-8 backdrop-blur-xl">
+          <DialogHeader className="mb-2 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                <Activity className="text-cyan-400" size={24} />
               </div>
               <div>
-                <h2 className="text-2xl font-mono font-bold text-white leading-tight">{modalIface}</h2>
+                <DialogTitle className="text-2xl font-mono font-bold text-white leading-tight">{modalIface}</DialogTitle>
                 <span className="text-xs text-slate-400 font-medium tracking-wide uppercase">Live Traffic Overview</span>
               </div>
             </div>
+          </DialogHeader>
 
+          {/* Ambient Glow */}
+          <div className="absolute top-0 left-1/4 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50 shadow-[0_0_20px_rgba(34,211,238,0.4)] pointer-events-none" />
+
+          {modalIface && (
             <div className="h-[350px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trafficHistory[modalIface] || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -544,15 +450,13 @@ export default function InterfacesDashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            
-            <div className="mt-6 text-center text-xs text-slate-500 bg-slate-800/30 rounded-lg p-3 border border-slate-700/50">
-              <span className="text-slate-400">💡 Tip:</span> Click outside this window or press <kbd className="font-mono bg-slate-700 px-1.5 py-0.5 rounded text-[10px] mx-1">Esc</kbd> to close. Check the 'Historical' tab for long-term data.
-            </div>
+          )}
+          
+          <div className="mt-6 text-center text-xs text-slate-500 bg-slate-800/30 rounded-lg p-3 border border-slate-700/50">
+            <span className="text-slate-400">💡 Tip:</span> You can check the 'Historical' tab for long-term data if this router supports background scraping.
           </div>
-        </div>
-      )}
-
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

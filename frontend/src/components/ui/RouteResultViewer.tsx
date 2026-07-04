@@ -1,5 +1,138 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Route, Search, ShieldCheck, Activity, Share2, Server, Clock, Settings, Network, CheckCircle2 } from 'lucide-react';
+import { ASPathGraph } from './ASPathGraph';
+import { AggregateASGraph } from './AggregateASGraph';
+
+export const parseRoutes = (text: string) => {
+  if (!text) return [];
+  const lines = text.split('\n');
+  const entries: any[] = [];
+  
+  let currentPrefix = "";
+  let currentEntry: any = null;
+
+  const pushEntry = () => {
+    if (currentEntry) {
+      entries.push(currentEntry);
+      currentEntry = null;
+    }
+  };
+
+  const createEntry = (prefix: string, isActive: boolean, rawLine: string) => {
+    return {
+      prefix,
+      isActive,
+      rawLines: [rawLine],
+      asPath: '', communities: '', nextHops: [], protocol: '', preference: '', localpref: '', metric: '', age: '', peerAs: '', state: ''
+    };
+  };
+
+  const parseBriefLine = (trimmed: string, entry: any) => {
+    const match = trimmed.match(/\*?\[(.*?)\/(.*?)\]\s+(.*)/);
+    if (match) {
+      entry.protocol = match[1];
+      entry.preference = match[2];
+      entry.age = match[3].split(',')[0].trim();
+    } else {
+      const fallback = trimmed.match(/\*?\[(.*?)\]\s+(.*)/);
+      if (fallback) {
+        entry.protocol = fallback[1];
+        entry.age = fallback[2].split(',')[0].trim();
+      }
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim() || line.startsWith('inet.0:') || line.includes('destinations') || line.includes('routes') || line.startsWith('+ =')) {
+      continue;
+    }
+
+    if (!line.match(/^\s/)) {
+      const prefixMatch = line.match(/^([0-9a-fA-F:\.\/]+)/);
+      if (prefixMatch) {
+        currentPrefix = prefixMatch[1];
+      }
+      
+      let entryPart = line.substring(currentPrefix.length).trim();
+      if (entryPart.startsWith('*[') || entryPart.startsWith('[')) {
+        pushEntry();
+        currentEntry = createEntry(currentPrefix, entryPart.startsWith('*'), line);
+        parseBriefLine(entryPart, currentEntry);
+      }
+      continue;
+    }
+
+    const trimmed = line.trim();
+    const isNewEntryBrief = trimmed.match(/^\*?\[.*?\/.*?\]/) || trimmed.match(/^\*?\[.*?\]\s+\d/);
+    
+    let isNewEntryDetail = line.match(/^\s+(\*?)([A-Z][a-zA-Z0-9]+)\s+Preference:/) || 
+                           line.match(/^\s+(\*?)([A-Z][a-zA-Z0-9]+)\s+Metric:/);
+    if (!isNewEntryDetail) {
+      const simpleMatch = line.match(/^\s+(\*?)([A-Z][a-zA-Z0-9]+)$/);
+      if (simpleMatch && !['Accepted', 'Announced', 'Multipath', 'Resolve'].includes(line.trim())) {
+        isNewEntryDetail = simpleMatch;
+      }
+    }
+    
+    if (isNewEntryBrief || isNewEntryDetail) {
+      pushEntry();
+      currentEntry = createEntry(currentPrefix, trimmed.startsWith('*'), line);
+      
+      if (isNewEntryBrief) {
+         parseBriefLine(trimmed, currentEntry);
+      } else if (isNewEntryDetail) {
+         currentEntry.protocol = isNewEntryDetail[2];
+         if (line.includes('Preference:')) currentEntry.preference = line.split('Preference:')[1].trim().split(' ')[0];
+      }
+      continue;
+    }
+
+    if (currentEntry) {
+      currentEntry.rawLines.push(line);
+      if (line.includes('> via') || line.includes('> to')) {
+        currentEntry.nextHops.push(trimmed.replace(/^> /, ''));
+      } else if (trimmed.startsWith('Next hop:')) {
+        const nh = line.split('Next hop:')[1].split(',')[0].trim();
+        if (nh) currentEntry.nextHops.push(nh);
+      }
+      if (line.includes('AS path:')) {
+        currentEntry.asPath = line.split('AS path:')[1].trim();
+      }
+      if (line.includes('Communities:')) {
+        currentEntry.communities = line.split('Communities:')[1].trim();
+      }
+      if (line.includes('Localpref:')) {
+        currentEntry.localpref = line.split('Localpref:')[1].trim();
+      }
+      if (line.includes('Metric:')) {
+        const match = line.match(/Metric:\s*(\d+)/);
+        if (match) currentEntry.metric = match[1];
+      }
+      if (line.includes('Age:')) {
+        const match = line.match(/Age:\s*([^\s]+)/);
+        if (match) currentEntry.age = match[1];
+      }
+      if (line.includes('State: ') && !line.includes('Validation State:')) {
+        currentEntry.state = line.split('State:')[1].trim();
+      }
+      if (line.includes('Peer AS:')) {
+        const match = line.match(/Peer AS:\s*(\d+)/);
+        if (match) currentEntry.peerAs = match[1];
+      }
+    }
+  }
+  pushEntry();
+  
+  entries.sort((a, b) => {
+    if (a.prefix === b.prefix) {
+      return (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1;
+    }
+    return a.prefix.localeCompare(b.prefix);
+  });
+
+  return entries;
+};
 
 export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
   const [viewMode, setViewMode] = useState<'raw' | 'parsed'>('parsed');
@@ -8,150 +141,7 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
     return <div className="text-slate-400">No output.</div>;
   }
 
-  const parseRoutes = (text: string) => {
-    const lines = text.split('\n');
-    const entries: any[] = [];
-    
-    let currentPrefix = "";
-    let currentEntry: any = null;
-
-    const pushEntry = () => {
-      if (currentEntry) {
-        entries.push(currentEntry);
-        currentEntry = null;
-      }
-    };
-
-    const createEntry = (prefix: string, isActive: boolean, rawLine: string) => {
-      return {
-        prefix,
-        isActive,
-        rawLines: [rawLine],
-        asPath: '', communities: '', nextHops: [], protocol: '', preference: '', localpref: '', metric: '', age: '', peerAs: '', state: ''
-      };
-    };
-
-    const parseBriefLine = (trimmed: string, entry: any) => {
-      const match = trimmed.match(/\*?\[(.*?)\/(.*?)\]\s+(.*)/);
-      if (match) {
-        entry.protocol = match[1];
-        entry.preference = match[2];
-        entry.age = match[3].split(',')[0].trim();
-      } else {
-        // sometimes no preference, just protocol
-        const fallback = trimmed.match(/\*?\[(.*?)\]\s+(.*)/);
-        if (fallback) {
-          entry.protocol = fallback[1];
-          entry.age = fallback[2].split(',')[0].trim();
-        }
-      }
-    };
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line.trim() || line.startsWith('inet.0:') || line.includes('destinations') || line.includes('routes') || line.startsWith('+ =')) {
-        continue;
-      }
-
-      // New Prefix Block
-      if (!line.match(/^\s/)) {
-        const prefixMatch = line.match(/^([0-9a-fA-F:\.\/]+)/);
-        if (prefixMatch) {
-          currentPrefix = prefixMatch[1];
-        }
-        
-        // Inline brief format?
-        let entryPart = line.substring(currentPrefix.length).trim();
-        if (entryPart.startsWith('*[') || entryPart.startsWith('[')) {
-          pushEntry();
-          currentEntry = createEntry(currentPrefix, entryPart.startsWith('*'), line);
-          parseBriefLine(entryPart, currentEntry);
-        } else {
-          // Just the prefix line (detail/extensive format)
-          // We don't create an entry yet until we see the protocol line
-        }
-        continue;
-      }
-
-      const trimmed = line.trim();
-      
-      // Check if line looks like start of a new entry
-      // Protocol lines usually have Preference or Metric, or are just single words like 'Direct'
-      const isNewEntryBrief = trimmed.match(/^\*?\[.*?\/.*?\]/) || trimmed.match(/^\*?\[.*?\]\s+\d/);
-      
-      // Specifically avoid matching lone words like "Accepted", "Announced", etc. that show up in BGP routes
-      let isNewEntryDetail = line.match(/^\s+(\*?)([A-Z][a-zA-Z0-9]+)\s+Preference:/) || 
-                             line.match(/^\s+(\*?)([A-Z][a-zA-Z0-9]+)\s+Metric:/);
-      if (!isNewEntryDetail) {
-        const simpleMatch = line.match(/^\s+(\*?)([A-Z][a-zA-Z0-9]+)$/);
-        if (simpleMatch && !['Accepted', 'Announced', 'Multipath', 'Resolve'].includes(line.trim())) {
-          isNewEntryDetail = simpleMatch;
-        }
-      }
-      
-      if (isNewEntryBrief || isNewEntryDetail) {
-        pushEntry();
-        currentEntry = createEntry(currentPrefix, trimmed.startsWith('*'), line);
-        
-        if (isNewEntryBrief) {
-           parseBriefLine(trimmed, currentEntry);
-        } else if (isNewEntryDetail) {
-           currentEntry.protocol = isNewEntryDetail[2];
-           if (line.includes('Preference:')) currentEntry.preference = line.split('Preference:')[1].trim().split(' ')[0];
-        }
-        continue;
-      }
-
-      // Inside an entry, parse attributes
-      if (currentEntry) {
-        currentEntry.rawLines.push(line);
-        if (line.includes('> via') || line.includes('> to')) {
-          currentEntry.nextHops.push(trimmed.replace(/^> /, ''));
-        } else if (trimmed.startsWith('Next hop:')) {
-          const nh = line.split('Next hop:')[1].split(',')[0].trim();
-          if (nh) currentEntry.nextHops.push(nh);
-        }
-        if (line.includes('AS path:')) {
-          currentEntry.asPath = line.split('AS path:')[1].trim();
-        }
-        if (line.includes('Communities:')) {
-          currentEntry.communities = line.split('Communities:')[1].trim();
-        }
-        if (line.includes('Localpref:')) {
-          currentEntry.localpref = line.split('Localpref:')[1].trim();
-        }
-        if (line.includes('Metric:')) {
-          const match = line.match(/Metric:\s*(\d+)/);
-          if (match) currentEntry.metric = match[1];
-        }
-        if (line.includes('Age:')) {
-          const match = line.match(/Age:\s*([^\s]+)/);
-          if (match) currentEntry.age = match[1];
-        }
-        if (line.includes('State: ') && !line.includes('Validation State:')) {
-          currentEntry.state = line.split('State:')[1].trim();
-        }
-        if (line.includes('Peer AS:')) {
-          const match = line.match(/Peer AS:\s*(\d+)/);
-          if (match) currentEntry.peerAs = match[1];
-        }
-      }
-    }
-    pushEntry();
-    
-    // Sort so active entries (*) are first
-    entries.sort((a, b) => {
-      // If same prefix, active goes first
-      if (a.prefix === b.prefix) {
-        return (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1;
-      }
-      return a.prefix.localeCompare(b.prefix);
-    });
-
-    return entries;
-  };
-
-  const parsedRoutes = parseRoutes(rawOutput);
+  const parsedRoutes = useMemo(() => parseRoutes(rawOutput), [rawOutput]);
 
   return (
     <div className="flex flex-col h-full w-full">
@@ -176,13 +166,14 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
         </button>
       </div>
 
-      <div className="p-4 bg-black/40 min-h-[400px] max-h-[600px] overflow-auto">
+      <div className="p-4 overflow-auto">
         {viewMode === 'raw' ? (
           <pre className="text-xs md:text-sm font-mono text-emerald-400 whitespace-pre leading-relaxed font-light select-text">
             {rawOutput}
           </pre>
         ) : (
           <div className="space-y-4">
+            
             {parsedRoutes.length === 0 ? (
               <div className="text-slate-500 text-center py-10 italic">
                 <p>No parsable routes found.</p>
@@ -238,13 +229,13 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
                     </div>
                     
                     <div className="space-y-3">
-                      {(r.asPath || r.peerAs) && (
+                      {r.peerAs && !r.asPath && (
                         <div className="flex items-start gap-2 bg-slate-950/30 p-2 rounded-lg">
                           <Network className="text-purple-400 mt-0.5 shrink-0" size={14} />
                           <div>
-                            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block mb-0.5">AS Path / Peer</span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 block mb-0.5">Peer AS</span>
                             <span className="font-mono text-sm text-slate-300 break-words block max-w-full">
-                              {r.asPath ? r.asPath : `Peer AS: ${r.peerAs}`}
+                              {r.peerAs}
                             </span>
                           </div>
                         </div>
@@ -288,6 +279,12 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
                       )}
                     </div>
                   </div>
+                  
+                  {r.asPath && (
+                    <div className="mt-4">
+                      <ASPathGraph asPath={r.asPath} />
+                    </div>
+                  )}
                   
                   <details className="mt-4 border-t border-slate-800 pt-3 group">
                     <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-300 focus:outline-none select-none">

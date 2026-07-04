@@ -236,12 +236,14 @@ func extractFriendly(xmlStr string) []string {
 	
 	// 2. Extract tags with content like <protocol>bgp</protocol>
 	// Only leaf nodes (no nested `<` inside)
-	reContent := regexp.MustCompile(`<([a-zA-Z0-9-]+)>([^<]+)</\1>`)
+	reContent := regexp.MustCompile(`<([a-zA-Z0-9-]+)>([^<]+)</([a-zA-Z0-9-]+)>`)
 	matchesContent := reContent.FindAllStringSubmatch(xmlStr, -1)
 	for _, m := range matchesContent {
-		val := strings.TrimSpace(m[2])
-		if val != "" {
-			res = append(res, fmt.Sprintf("%s %s", m[1], val))
+		if m[1] == m[3] { // Verify closing tag matches opening tag
+			val := strings.TrimSpace(m[2])
+			if val != "" {
+				res = append(res, fmt.Sprintf("%s %s", m[1], val))
+			}
 		}
 	}
 

@@ -114,8 +114,8 @@ Inside `backend-go/.env`, configure the following critical parameters:
 | `ADMIN_USERNAME` | The initial administrator username. | `admin` |
 | `ADMIN_PASSWORD` | The initial administrator password. | `SecurePass123!` |
 | `DB_TYPE` | Choose relational database (`sqlite` or `mysql`). | `sqlite` |
-| `JUNOS_HOST` | (Optional) IP Address of your Juniper MX204. | `103.155.190.9` |
-| `JUNOS_PORT` | (Optional) NETCONF Port. | `2830` |
+| `JUNOS_HOST` | (Optional) IP Address of your Juniper MX204. | `192.168.1.1` |
+| `JUNOS_PORT` | (Optional) NETCONF Port. | `830` |
 
 ---
 
