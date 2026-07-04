@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
 import { RefreshProvider } from "@/components/RefreshProvider";
+import { WebSocketProvider } from "@/components/WebSocketProvider";
 import LayoutShell from "@/components/ui/LayoutShell";
 import "./globals.css";
 
@@ -22,7 +23,9 @@ export default function RootLayout({
       <body className={`${inter.className} bg-slate-900 text-slate-50 min-h-screen`}>
         <AuthProvider>
           <RefreshProvider>
-            <LayoutShell>{children}</LayoutShell>
+            <WebSocketProvider>
+              <LayoutShell>{children}</LayoutShell>
+            </WebSocketProvider>
           </RefreshProvider>
         </AuthProvider>
       </body>

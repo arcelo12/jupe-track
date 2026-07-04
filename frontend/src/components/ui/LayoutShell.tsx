@@ -12,6 +12,8 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
 
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isMobileOpen, setIsMobileOpen] = React.useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = React.useState(false);
   const [passwords, setPasswords] = React.useState({ current: "", new: "", confirm: "" });
   const [passError, setPassError] = React.useState("");
@@ -19,6 +21,21 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const isPublic = PUBLIC_PATHS.some(p => pathname?.startsWith(p));
+
+  // Load sidebar collapsed state from localStorage if preset
+  React.useEffect(() => {
+    try {
+      const val = localStorage.getItem("junos-sidebar-collapsed");
+      if (val) setIsCollapsed(JSON.parse(val));
+    } catch {}
+  }, []);
+
+  const handleSetCollapsed = (val: boolean) => {
+    setIsCollapsed(val);
+    try {
+      localStorage.setItem("junos-sidebar-collapsed", JSON.stringify(val));
+    } catch {}
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,12 +110,29 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
   // Authenticated app shell
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-64 overflow-hidden h-screen">
-        <header className="h-16 flex items-center justify-between px-8 border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-xl z-20">
+      <Sidebar 
+        isCollapsed={isCollapsed} 
+        setIsCollapsed={handleSetCollapsed} 
+        isMobileOpen={isMobileOpen} 
+        setIsMobileOpen={setIsMobileOpen} 
+      />
+      <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 overflow-hidden h-screen ${
+        isCollapsed ? 'md:ml-20' : 'md:ml-64'
+      } ml-0`}>
+        <header className="h-16 flex items-center justify-between px-4 md:px-8 border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-xl z-20">
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsMobileOpen(true)}
+              className="md:hidden text-slate-400 hover:text-slate-200 p-1.5 mr-1 bg-slate-800/40 rounded-lg"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
             {user && (
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-400 hidden sm:inline">
                 Signed in as <span className="text-slate-200 font-medium">{user.username}</span>
                 {user.is_admin && (
                   <span className="ml-2 text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-medium">ADMIN</span>
@@ -106,7 +140,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <HeaderRefreshButton />
             <button
               onClick={() => setIsPasswordModalOpen(true)}
@@ -133,7 +167,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
             </button>
           </div>
         </header>
-        <main className="flex-1 p-8 overflow-y-auto relative">
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto relative">
           {children}
         </main>
       </div>

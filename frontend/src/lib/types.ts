@@ -9,6 +9,9 @@ export interface BGPPeer {
   active_prefixes?: number;
   received_prefixes?: number;
   accepted_prefixes?: number;
+  advertised_prefixes?: number;
+  afi?: string;
+  router_id?: string;
 }
 
 export interface BGPPolicyItem {
@@ -27,4 +30,14 @@ export interface BGPPeerPolicy {
   import_policies: string[];
   export_policies: string[];
   policy_details: Record<string, BGPPolicy>;
+}
+
+export interface InterfaceInfo {
+  name: string;
+  description: string;
+  type: 'physical' | 'logical';
+  admin_status: string;
+  oper_status: string;
+  bps_in: number;
+  bps_out: number;
 }

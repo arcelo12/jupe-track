@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 
@@ -28,30 +28,42 @@ function formatTime(ts: string): string {
   // Ensure we treat the naive string from the DB as UTC by appending 'Z'
   const utcTs = ts.endsWith('Z') || ts.includes('+') ? ts : `${ts}Z`;
   const d = new Date(utcTs);
-  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  
+  // If we are dealing with data spanning multiple days, showing date is helpful.
+  // For simplicity, let's just return MM/DD HH:MM
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
+  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${month}/${day} ${time}`;
 }
 
 const CustomTooltip = ({ active, payload, label }: {
   active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
+  payload?: Array<{ name: string; value: number; color: string; payload: any }>;
   label?: string;
 }) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: "rgba(8,15,26,0.95)",
-      border: "1px solid rgba(255,255,255,0.1)",
-      borderRadius: "10px",
+      background: "rgba(15,23,42,0.95)",
+      border: "1px solid rgba(51,65,85,0.8)",
+      borderRadius: "8px",
       padding: "10px 14px",
-      fontSize: "0.78rem",
-      boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+      fontSize: "12px",
+      boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
     }}>
-      <p style={{ color: "#94a3b8", marginBottom: 6, fontSize: "0.72rem" }}>{label}</p>
-      {payload.map((entry, i) => (
-        <p key={i} style={{ color: entry.color, margin: "2px 0", fontWeight: 500 }}>
-          {entry.name}: <span style={{ fontFamily: "monospace" }}>{formatBps(entry.value)}</span>
-        </p>
-      ))}
+      <p style={{ color: "#94a3b8", marginBottom: 6, fontSize: "10px", fontWeight: "bold" }}>
+        {label ? formatTime(label) : ""}
+      </p>
+      {payload.map((entry, i) => {
+        // Read original bps value for tooltip
+        const bpsVal = entry.name === "Ingress Mbps" ? entry.payload.bps_in : entry.payload.bps_out;
+        return (
+          <p key={i} style={{ color: entry.color, margin: "2px 0", fontWeight: 500 }}>
+            {entry.name}: <span style={{ fontFamily: "monospace", color: "#e2e8f0" }}>{formatBps(bpsVal)}</span>
+          </p>
+        );
+      })}
     </div>
   );
 };
@@ -69,66 +81,73 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
     );
   }
 
-  const formatted = data.map(d => ({
+  // Ensure data is sorted by time ascending
+  const sortedData = [...data].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  const formatted = sortedData.map(d => ({
     ...d,
-    time: formatTime(d.timestamp),
-    bps_in_val: d.bps_in,
-    bps_out_val: d.bps_out,
+    time: d.timestamp, // Use the raw timestamp as unique X-axis key
+    in_mbps: Number((d.bps_in / 1_000_000).toFixed(2)),
+    out_mbps: Number((d.bps_out / 1_000_000).toFixed(2)),
   }));
+
+  const safeName = interfaceName.replace(/[/\.]/g, '-');
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: "0.78rem", color: "#64748b", fontFamily: "monospace" }}>
-          {interfaceName}
-        </span>
-        <div style={{ display: "flex", gap: 16, fontSize: "0.72rem" }}>
-          <span style={{ color: "#06b6d4" }}>● IN</span>
-          <span style={{ color: "#8b5cf6" }}>● OUT</span>
-        </div>
-      </div>
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={formatted} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+      <ResponsiveContainer width="100%" height={250}>
+        <AreaChart data={formatted} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+          <defs>
+            <linearGradient id={`colorInHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+            </linearGradient>
+            <linearGradient id={`colorOutHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+              <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
           <XAxis
             dataKey="time"
-            tick={{ fill: "#475569", fontSize: 10 }}
+            stroke="#94a3b8" 
+            fontSize={10} 
+            tickMargin={8} 
+            minTickGap={30}
             axisLine={false}
             tickLine={false}
-            interval="preserveStartEnd"
+            tickFormatter={(val) => formatTime(val)}
           />
           <YAxis
-            tickFormatter={(v) => {
-              if (v >= 1e9) return `${(v / 1e9).toFixed(1)}G`;
-              if (v >= 1e6) return `${(v / 1e6).toFixed(0)}M`;
-              if (v >= 1e3) return `${(v / 1e3).toFixed(0)}K`;
-              return String(v);
-            }}
-            tick={{ fill: "#475569", fontSize: 10 }}
+            stroke="#94a3b8" 
+            fontSize={10} 
+            tickFormatter={(v) => `${v}M`}
             axisLine={false}
             tickLine={false}
-            width={45}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Line
+          <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+          <Area
             type="monotone"
-            dataKey="bps_in"
-            name="Inbound"
-            stroke="#06b6d4"
+            dataKey="in_mbps"
+            name="Ingress Mbps"
+            stroke="#3b82f6"
             strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: "#06b6d4" }}
+            fillOpacity={1}
+            fill={`url(#colorInHistory-${safeName})`}
+            isAnimationActive={false}
           />
-          <Line
+          <Area
             type="monotone"
-            dataKey="bps_out"
-            name="Outbound"
-            stroke="#8b5cf6"
+            dataKey="out_mbps"
+            name="Egress Mbps"
+            stroke="#f97316"
             strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: "#8b5cf6" }}
+            fillOpacity={1}
+            fill={`url(#colorOutHistory-${safeName})`}
+            isAnimationActive={false}
           />
-        </LineChart>
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );

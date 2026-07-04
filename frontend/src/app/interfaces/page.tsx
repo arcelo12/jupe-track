@@ -4,6 +4,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRefresh } from '@/components/RefreshProvider';
 import { InterfaceTrafficChart } from '@/components/charts/InterfaceTrafficChart';
 import { authFetch } from '@/lib/auth';
+import { DeviceStatusWidget } from '@/components/ui/DeviceStatusWidget';
+import { useWebSocket } from '@/components/WebSocketProvider';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
@@ -40,8 +42,10 @@ function formatBps(bps: number): string {
 
 export default function InterfacesDashboard() {
   const { refreshTrigger, logicalSystem } = useRefresh();
+  const { interfaces: rawInterfaces, isConnected } = useWebSocket();
+  
   const [groups, setGroups] = useState<PhysicalGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const loading = rawInterfaces.length === 0;
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'live' | 'history'>('live');
   const [hoveredIface, setHoveredIface] = useState<string | null>(null);
@@ -55,56 +59,52 @@ export default function InterfacesDashboard() {
   const [historyHours, setHistoryHours] = useState(24);
   const [selectedIface, setSelectedIface] = useState<string>('');
   const [historyLoading, setHistoryLoading] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-      const res = await fetch(`/api/proxy/interfaces/traffic/${logicalSystem}`, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      
-      if (!res.ok) throw new Error('Failed to fetch data');
-      const data: InterfaceInfo[] = await res.json();
-      
-      // Group logicals under their physical parent
-      const grouped: PhysicalGroup[] = [];
-      let currentGroup: PhysicalGroup | null = null;
-      
-      for (const iface of data) {
-        if (iface.type === 'physical') {
-          currentGroup = { physical: iface, logicals: [] };
-          grouped.push(currentGroup);
-        } else if (currentGroup) {
-          currentGroup.logicals.push(iface);
-        }
+  const [isCustomRange, setIsCustomRange] = useState(false);
+  const [customStart, setCustomStart] = useState<string>('');
+  const [customEnd, setCustomEnd] = useState<string>('');
+  useEffect(() => {
+    if (rawInterfaces.length === 0) return;
+    
+    // Group logicals under their physical parent
+    const grouped: PhysicalGroup[] = [];
+    let currentGroup: PhysicalGroup | null = null;
+    
+    for (const iface of rawInterfaces) {
+      if (iface.type === 'physical') {
+        currentGroup = { physical: iface, logicals: [] };
+        grouped.push(currentGroup);
+      } else if (currentGroup) {
+        currentGroup.logicals.push(iface);
       }
-      
-      setGroups(grouped);
-      
-      // Update history for all interfaces
-      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      setTrafficHistory(prev => {
-        const next = { ...prev };
-        data.forEach(iface => {
-          const in_mbps = Number((iface.bps_in / 1_000_000).toFixed(2));
-          const out_mbps = Number((iface.bps_out / 1_000_000).toFixed(2));
-          if (!next[iface.name]) next[iface.name] = [];
-          next[iface.name] = [...next[iface.name], { time: now, in_mbps, out_mbps }].slice(-20);
-        });
-        return next;
-      });
-      
-    } catch (error) {
-      console.warn("Error loading interface traffic:", error);
-    } finally {
-      setLoading(false);
     }
-  }, [logicalSystem]);
+    
+    setGroups(grouped);
+    
+    // Update history for all interfaces
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setTrafficHistory(prev => {
+      const next = { ...prev };
+      rawInterfaces.forEach(iface => {
+        const in_mbps = Number((iface.bps_in / 1_000_000).toFixed(2));
+        const out_mbps = Number((iface.bps_out / 1_000_000).toFixed(2));
+        if (!next[iface.name]) next[iface.name] = [];
+        next[iface.name] = [...next[iface.name], { time: now, in_mbps, out_mbps }].slice(-20);
+      });
+      return next;
+    });
+  }, [rawInterfaces]);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const params = new URLSearchParams({ hours: String(historyHours), limit: '300' });
+      const params = new URLSearchParams({ limit: '300' });
+      if (isCustomRange && customStart && customEnd) {
+        params.set('start', new Date(customStart).toISOString());
+        params.set('end', new Date(customEnd).toISOString());
+      } else {
+        params.set('hours', String(historyHours));
+      }
+      
       if (selectedIface) params.set('interface_name', selectedIface);
       const res = await authFetch(`/api/proxy/metrics/interfaces/history?${params}`);
       if (res.ok) setHistoryData(await res.json());
@@ -113,11 +113,7 @@ export default function InterfacesDashboard() {
     } finally {
       setHistoryLoading(false);
     }
-  }, [historyHours, selectedIface]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData, refreshTrigger, logicalSystem]);
+  }, [historyHours, selectedIface, isCustomRange, customStart, customEnd]);
 
   useEffect(() => {
     if (activeTab === 'history') fetchHistory();
@@ -134,12 +130,24 @@ export default function InterfacesDashboard() {
 
   const interfaceNames = groups.map(g => g.physical.name);
 
+  // Allow closing modal with Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setModalIface(null);
+    };
+    if (modalIface) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [modalIface]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Interfaces</h1>
-          <p className="text-slate-400 mt-1">Bandwidth utilization — physical and logical units.</p>
+          <p className="text-slate-400 mt-1 mb-4">Bandwidth utilization — physical and logical units.</p>
+          <DeviceStatusWidget />
         </div>
 
         {/* Tab switcher */}
@@ -192,25 +200,62 @@ export default function InterfacesDashboard() {
               {([1, 6, 24, 48, 168] as const).map(h => (
                 <button
                   key={h}
-                  onClick={() => setHistoryHours(h)}
+                  onClick={() => { setIsCustomRange(false); setHistoryHours(h); }}
                   style={{
                     padding: "0.375rem 0.75rem", borderRadius: 6, border: "none",
                     cursor: "pointer", fontSize: "0.78rem", fontWeight: 600,
-                    background: historyHours === h
+                    background: (!isCustomRange && historyHours === h)
                       ? "rgba(6,182,212,0.2)" : "rgba(255,255,255,0.05)",
-                    color: historyHours === h ? "#06b6d4" : "#64748b",
+                    color: (!isCustomRange && historyHours === h) ? "#06b6d4" : "#64748b",
                     transition: "all 0.15s",
                   }}
                 >
-                  {h < 24 ? `${h}h` : h === 168 ? '7d' : `${h/24}d`}
+                  {h < 24 ? `${h}h` : h === 168 ? '7d' : h === 48 ? '2d' : `${h/24}d`}
                 </button>
               ))}
+              <button
+                onClick={() => setIsCustomRange(true)}
+                style={{
+                  padding: "0.375rem 0.75rem", borderRadius: 6, border: "none",
+                  cursor: "pointer", fontSize: "0.78rem", fontWeight: 600,
+                  background: isCustomRange ? "rgba(6,182,212,0.2)" : "rgba(255,255,255,0.05)",
+                  color: isCustomRange ? "#06b6d4" : "#64748b",
+                  transition: "all 0.15s",
+                }}
+              >
+                Custom
+              </button>
+
+              {isCustomRange && (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    type="datetime-local"
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    style={{
+                      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 6, padding: "0.375rem", color: "#e2e8f0", fontSize: "0.78rem"
+                    }}
+                  />
+                  <span style={{ color: "#64748b", fontSize: "0.85rem" }}>to</span>
+                  <input
+                    type="datetime-local"
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    style={{
+                      background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 6, padding: "0.375rem", color: "#e2e8f0", fontSize: "0.78rem"
+                    }}
+                  />
+                </div>
+              )}
+
               <button onClick={fetchHistory} style={{
                 padding: "0.375rem 0.875rem", borderRadius: 6, border: "none",
                 cursor: "pointer", fontSize: "0.78rem", fontWeight: 600,
                 background: "rgba(6,182,212,0.15)", color: "#06b6d4",
               }}>
-                Refresh
+                Apply
               </button>
             </div>
 
@@ -376,13 +421,28 @@ export default function InterfacesDashboard() {
                                       <span className="text-blue-400">{formatBps(li.bps_in)}</span>
                                       {/* Tiny Sparkline on hover */}
                                       {isHovered && liHistory.length > 1 && (
-                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-[110%] w-24 h-8 bg-slate-900/90 rounded border border-slate-700/50 overflow-hidden shadow-xl z-10 hidden md:block">
-                                          <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={liHistory}>
-                                              <Area type="monotone" dataKey="in_mbps" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.2} strokeWidth={1} isAnimationActive={false} />
-                                              <Area type="monotone" dataKey="out_mbps" stroke="#f97316" fill="#f97316" fillOpacity={0.2} strokeWidth={1} isAnimationActive={false} />
-                                            </AreaChart>
-                                          </ResponsiveContainer>
+                                        <div 
+                                          className="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-10 bg-slate-900/95 rounded-md border border-slate-700/50 shadow-2xl z-20 hidden md:block"
+                                          style={{ 
+                                            transform: 'translate(-110%, -50%)',
+                                            animation: 'fadeInSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+                                          }}
+                                        >
+                                          <style>{`
+                                            @keyframes fadeInSlide {
+                                              from { opacity: 0; transform: translate(-100%, -50%); }
+                                              to { opacity: 1; transform: translate(-110%, -50%); }
+                                            }
+                                          `}</style>
+                                          <div className="w-full h-full relative p-1">
+                                            <div className="absolute inset-0 bg-blue-500/5 rounded blur-md" />
+                                            <ResponsiveContainer width="100%" height="100%">
+                                              <AreaChart data={liHistory}>
+                                                <Area type="monotone" dataKey="in_mbps" stroke="#3b82f6" fill="url(#colorIn-modal)" fillOpacity={1} strokeWidth={1.5} isAnimationActive={false} />
+                                                <Area type="monotone" dataKey="out_mbps" stroke="#f97316" fill="url(#colorOut-modal)" fillOpacity={1} strokeWidth={1.5} isAnimationActive={false} />
+                                              </AreaChart>
+                                            </ResponsiveContainer>
+                                          </div>
                                         </div>
                                       )}
                                     </div>
@@ -411,50 +471,82 @@ export default function InterfacesDashboard() {
 
       {/* ── Modal Chart for Logical Units ─────────────────────────────────────── */}
       {modalIface && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-4">
-          <div className="glass-panel w-full max-w-4xl animate-slide-up relative">
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 pt-10 pb-10 sm:p-6"
+          style={{ animation: 'backdropFade 0.3s ease-out forwards' }}
+          onClick={() => setModalIface(null)}
+        >
+          <style>{`
+            @keyframes backdropFade { from { opacity: 0; backdrop-filter: blur(0px); background: rgba(0,0,0,0); } to { opacity: 1; backdrop-filter: blur(8px); background: rgba(0,0,0,0.6); } }
+            @keyframes modalPopup { 0% { opacity: 0; transform: scale(0.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+          `}</style>
+          
+          <div 
+            className="w-full max-w-4xl relative overflow-hidden"
+            style={{ 
+              background: 'linear-gradient(135deg, rgba(15,23,42,0.95), rgba(8,15,26,0.98))',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(6,182,212,0.1)',
+              padding: '2rem',
+              animation: 'modalPopup 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Ambient Glow */}
+            <div className="absolute top-0 left-1/4 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50 shadow-[0_0_20px_rgba(34,211,238,0.4)]" />
+
             <button
               onClick={() => setModalIface(null)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white z-10 bg-slate-800/50 rounded-full w-8 h-8 flex items-center justify-center border border-slate-700"
+              className="absolute top-5 right-5 text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all z-10 rounded-full w-9 h-9 flex items-center justify-center border border-transparent hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              title="Close (Esc)"
             >
-              ✕
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M13 1L1 13M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
             
-            <div className="flex items-center gap-3 mb-6">
-              <span className="text-2xl font-mono font-bold text-white">{modalIface}</span>
-              <span className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">Live Traffic</span>
+            <div className="flex items-center gap-4 mb-6 relative z-10">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-400"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              </div>
+              <div>
+                <h2 className="text-2xl font-mono font-bold text-white leading-tight">{modalIface}</h2>
+                <span className="text-xs text-slate-400 font-medium tracking-wide uppercase">Live Traffic Overview</span>
+              </div>
             </div>
 
-            <div className="h-80 w-full">
+            <div className="h-[350px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trafficHistory[modalIface] || []} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={trafficHistory[modalIface] || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="modalColorIn" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="modalColorOut" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.4}/>
                       <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                  <XAxis dataKey="time" stroke="#94a3b8" fontSize={10} tickMargin={8} minTickGap={30} />
-                  <YAxis stroke="#94a3b8" fontSize={10} tickFormatter={(v) => `${v}M`} />
+                  <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="time" stroke="#64748b" fontSize={11} tickMargin={12} minTickGap={30} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#64748b" fontSize={11} tickFormatter={(v) => `${v}M`} tickLine={false} axisLine={false} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }}
-                    itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                    labelStyle={{ color: '#94a3b8', fontSize: '10px', marginBottom: '4px' }}
+                    contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', padding: '12px' }}
+                    itemStyle={{ fontSize: '13px', fontWeight: '600' }}
+                    labelStyle={{ color: '#94a3b8', fontSize: '11px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                    cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }}/>
-                  <Area type="monotone" dataKey="in_mbps" name="Ingress Mbps" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill={`url(#modalColorIn)`} isAnimationActive={false} />
-                  <Area type="monotone" dataKey="out_mbps" name="Egress Mbps" stroke="#f97316" strokeWidth={2} fillOpacity={1} fill={`url(#modalColorOut)`} isAnimationActive={false} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}/>
+                  <Area type="monotone" dataKey="in_mbps" name="Ingress Mbps" stroke="#06b6d4" strokeWidth={3} fillOpacity={1} fill={`url(#modalColorIn)`} isAnimationActive={true} animationDuration={800} />
+                  <Area type="monotone" dataKey="out_mbps" name="Egress Mbps" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill={`url(#modalColorOut)`} isAnimationActive={true} animationDuration={800} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
             
-            <div className="mt-4 text-center text-xs text-slate-500">
-              Click the 'Historical' tab to view long-term storage data for this interface.
+            <div className="mt-6 text-center text-xs text-slate-500 bg-slate-800/30 rounded-lg p-3 border border-slate-700/50">
+              <span className="text-slate-400">💡 Tip:</span> Click outside this window or press <kbd className="font-mono bg-slate-700 px-1.5 py-0.5 rounded text-[10px] mx-1">Esc</kbd> to close. Check the 'Historical' tab for long-term data.
             </div>
           </div>
         </div>

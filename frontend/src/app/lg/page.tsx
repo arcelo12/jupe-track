@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRefresh } from '@/components/RefreshProvider';
+import { authFetch } from '@/lib/auth';
 
 const COMMANDS = [
   { value: "show_route", label: "Show Route", icon: "🗺️", needsTarget: true, placeholder: "e.g. 10.0.0.0/8 or leave empty for all" },
@@ -74,7 +75,7 @@ export default function LookingGlass() {
     setOutput(null);
     
     try {
-      const res = await fetch('/api/proxy/looking-glass', {
+      const res = await authFetch('/api/proxy/looking-glass', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

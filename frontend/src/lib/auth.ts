@@ -89,7 +89,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
     const refreshed = await tryRefreshToken();
     if (!refreshed) {
       clearAuth();
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
       throw new Error("Session expired. Please log in again.");
@@ -109,7 +109,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
   return res;
 }
 
-async function tryRefreshToken(): Promise<boolean> {
+export async function tryRefreshToken(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 

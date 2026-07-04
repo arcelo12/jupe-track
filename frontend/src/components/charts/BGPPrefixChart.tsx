@@ -67,7 +67,10 @@ export function BGPPrefixChart({ data, peerAddress, compact = false }: BGPPrefix
     );
   }
 
-  const formatted = data.map(d => ({
+  // Ensure data is sorted by time ascending
+  const sortedData = [...data].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  const formatted = sortedData.map(d => ({
     time: formatTime(d.timestamp),
     active: d.active_prefixes,
     received: d.received_prefixes,

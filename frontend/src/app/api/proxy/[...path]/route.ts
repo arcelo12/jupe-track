@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const BACKEND_URL = process.env.INTERNAL_API_URL || 'http://backend:3041';
+const GO_BACKEND_URL = process.env.INTERNAL_GO_API_URL || 'http://jupetrack_go:8080';
 
 function buildHeaders(request: NextRequest): HeadersInit {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
@@ -19,7 +23,9 @@ async function proxyRequest(
   const targetPath = path.join('/');
   const searchParams = request.nextUrl.searchParams.toString();
   const queryStr = searchParams ? `?${searchParams}` : '';
-  const targetUrl = `${BACKEND_URL}/api/v1/${targetPath}${queryStr}`;
+  
+  // Smart Routing: ALL traffic now goes to Go Backend (Phase 3 Cutover)
+  const targetUrl = `${GO_BACKEND_URL}/api/v1/${targetPath}${queryStr}`;
 
   try {
     const controller = new AbortController();
@@ -29,6 +35,7 @@ async function proxyRequest(
       method,
       signal: controller.signal,
       headers: buildHeaders(request),
+      cache: 'no-store',
       ...(body ? { body } : {}),
     });
     clearTimeout(timeoutId);

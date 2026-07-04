@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { authFetch } from '@/lib/auth';
 
 export default function SettingsPage() {
   const [formData, setFormData] = useState({
@@ -17,17 +18,35 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch('/api/proxy/settings/device');
+        const res = await authFetch(`/api/proxy/settings/device?t=${Date.now()}`);
+        console.log("[DEBUG] settings response status:", res.status);
         if (res.ok) {
           const data = await res.json();
+          console.log("[DEBUG] device settings raw data:", JSON.stringify(data));
+          
+          // Handle format: { success: true, config: { host, user, port } }
           if (data.success && data.config) {
             setFormData({
               host: data.config.host || '',
               port: data.config.port || '830',
               user: data.config.user || '',
-              password: data.config.password || '' // usually masked from backend
+              password: '' // password not returned from backend
             });
           }
+          // Handle flat format: { host, user, port }
+          else if (data.host || data.user) {
+            setFormData({
+              host: data.host || '',
+              port: data.port || '830',
+              user: data.user || '',
+              password: ''
+            });
+          } else {
+            console.warn("[DEBUG] Unexpected settings format:", data);
+          }
+        } else {
+          console.error("[DEBUG] settings fetch failed with status:", res.status);
+          setMessage({ type: 'error', text: `Failed to load settings (HTTP ${res.status}).` });
         }
       } catch (error) {
         console.error("Failed to fetch settings", error);
@@ -50,7 +69,7 @@ export default function SettingsPage() {
     setMessage({ type: '', text: '' });
 
     try {
-      const res = await fetch('/api/proxy/settings/device', {
+      const res = await authFetch('/api/proxy/settings/device', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,8 +78,9 @@ export default function SettingsPage() {
       });
       
       const data = await res.json();
-      if (res.ok && data.success) {
-        setMessage({ type: 'success', text: 'Device settings updated successfully!' });
+      console.log("[DEBUG] save response:", JSON.stringify(data));
+      if (res.ok && (data.success || data.message)) {
+        setMessage({ type: 'success', text: data.message || 'Device settings updated successfully!' });
       } else {
         setMessage({ type: 'error', text: data.detail || data.message || 'Failed to update settings.' });
       }
@@ -122,6 +142,7 @@ export default function SettingsPage() {
                   required
                   className="w-full bg-slate-900 border border-slate-700 rounded-md px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors"
                 />
+                <p className="text-xs text-slate-500">Port for NETCONF (default: 830)</p>
               </div>
             </div>
 

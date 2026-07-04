@@ -1,148 +1,200 @@
-# JupeTrack - Enterprise Juniper MX204 Monitoring Dashboard
-
 <div align="center">
 
-[![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Recharts](https://img.shields.io/badge/Recharts-Latest-22B5BF?style=for-the-badge&logo=chartdotjs&logoColor=white)](https://recharts.org/)
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-ORM-d71f00?style=for-the-badge&logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
-[![SQLite](https://img.shields.io/badge/SQLite-DB-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![MySQL](https://img.shields.io/badge/MySQL-Supported-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
-[![JWT](https://img.shields.io/badge/JWT-Security-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
-[![APScheduler](https://img.shields.io/badge/APScheduler-Background-3776AB?style=for-the-badge&logo=python&logoColor=white)]()
-[![Junos PyEZ](https://img.shields.io/badge/Junos_PyEZ-junos--eznc-84B135?style=for-the-badge&logo=juniper-networks&logoColor=white)](https://github.com/Juniper/py-junos-eznc)
-[![Docker](https://img.shields.io/badge/Docker-Multi--stage-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+# JupeTrack - Enterprise Juniper MX204 Monitoring
+
+[![Go Version](https://img.shields.io/github/go-mod/go-version/arcelo12/jupe-track?color=00ADD8&logo=go)](https://go.dev/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![VictoriaMetrics](https://img.shields.io/badge/VictoriaMetrics-Time_Series-4F4F4F?style=flat&logo=victoriametrics&logoColor=white)](https://victoriametrics.com/)
+[![Docker](https://img.shields.io/badge/Docker-Supported-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
+**An intelligent, high-performance monitoring dashboard tailored specifically for Juniper Networks MX204 Edge Routers.**
+
+<img src="docs/1.png" width="900" alt="Dashboard View" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-top: 20px;"/>
 
 </div>
 
-**JupeTrack v2.0** is an enterprise-grade web dashboard designed specifically for monitoring Juniper MX204 routers. Built with a robust FastAPI backend leveraging Junos PyEZ (NETCONF), a persistent relational database (SQLite/MySQL), and a responsive glassmorphism Next.js frontend, it provides deep real-time and historical visibility into your BGP routing, interface bandwidth, and system diagnostics.
+<br />
 
-<div align="center">
-  <img src="docs/1.png" width="800" alt="Dashboard View"/>
-  <!-- You can add more screenshot links here -->
-</div>
-
-## ✨ Key Features (v2.0 Enterprise Upgrades)
-
-- 🔐 **Secure Authentication**: JWT-based login system (Access & Refresh tokens) with bcrypt password hashing. Includes a protected Admin panel and user profile management.
-- 🗄️ **Persistent Storage**: Built-in support for **SQLite** (zero-config default) and **MySQL** for high-volume deployments. Safely stores long-term historical traffic and BGP data.
-- ⏱️ **Background Scraper (APScheduler)**: Continuous, fully autonomous background data collection. The backend tirelessly scrapes interface traffic and BGP metrics every 60 seconds (configurable), even when no browser is open.
-- 📊 **Historical Data Visualization**: Switch between **Live** monitoring and beautiful **Historical** Recharts graphs (up to 7 days or more). Interact with sparklines on hover and deep-dive into modal area charts for every logical interface unit.
-- ⚙️ **Data Retention Policies**: Administrators can dynamically adjust scraper intervals (10s to 10m) and set auto-cleanup retention thresholds (1 to 365 days) directly from the UI without restarting containers.
-
-## 🌐 Core Functionality
-
-- **BGP Dashboard**: Real-time view of BGP peers, states, ASNs, uptimes, and active/received prefixes.
-- **Interface Traffic Graphs**: Live Ingress (Rx) and Egress (Tx) bandwidth utilization graphs (Mbps) for physical links and logical sub-interfaces using Recharts.
-- **Routing Policy Viewer**: Visualizes configured BGP Import and Export policies (`policy-options`), mapping routing terms and actions per peer.
-- **Looking Glass**: Secure, read-only diagnostic terminal supporting `ping`, `traceroute`, `show route`, `show bgp summary`, and `show interfaces`.
-- **Multi-Logical System Support**: Seamlessly switch between different `logical-systems` (or `global`). The selected context is automatically preserved across all tabs.
+## 📖 Table of Contents
+- [What is JupeTrack?](#-what-is-jupetrack)
+- [Architecture & Tech Stack](#-architecture--tech-stack)
+- [Core Features](#-core-features)
+- [Getting Started (Docker)](#-getting-started-docker)
+- [Environment Configuration](#-environment-configuration)
+- [Juniper Device Configuration](#-juniper-device-configuration)
+- [Local Development Setup](#-local-development-setup)
+- [Screenshots](#-screenshots)
 
 ---
 
-## 🚀 Quick Start (Docker)
+## 🎯 What is JupeTrack?
 
-The entire application runs inside a single, optimized Docker container.
+Network administrators managing Juniper MX204 routers often struggle with fragmented visibility. Traditional NMS (Network Management Systems) can be overly complex, hard to set up, or lack granular BGP tracking and visual looking glass functionality out of the box.
 
-### 1. Clone the repository
+**JupeTrack** bridges this gap by providing an "install-and-go" solution. It communicates directly with the MX204 via **NETCONF**, automatically extracting, indexing, and visualizing critical routing and traffic data. It allows operators to pinpoint bandwidth bottlenecks, review routing policies, and track BGP session drops within a beautiful, modern interface.
 
+---
+
+## 🏗️ Architecture & Tech Stack
+
+JupeTrack v2.0 has been entirely re-architected for enterprise scale:
+
+1. **Frontend (Next.js 16 & React 19):** A highly responsive, glassmorphism-inspired UI featuring `Recharts` for interactive graphing and `TailwindCSS 4` for styling.
+2. **Backend Engine (Go 1.22+):** A lightning-fast API backend that maintains a continuous, autonomous background scraper. It queries the MX204 securely via NETCONF (over SSH).
+3. **Time-Series Storage (VictoriaMetrics):** All historical bandwidth (Rx/Tx) and statistical data is efficiently stored in VictoriaMetrics, ensuring lightning-fast metric retrieval.
+4. **Relational Storage (SQLite/MySQL):** Handles user authentication, device configurations, and system preferences.
+
+---
+
+## ✨ Core Features
+
+### 📡 1. BGP Peering & Analytics
+- **Live BGP Status:** Monitor ASNs, session states (Established, Idle, Active), uptimes, and prefix counts (received/active).
+- **Routing Policy Visualizer:** Decode BGP `policy-options`. Map out import and export terms logically per peer directly from the web interface.
+
+### 📊 2. High-Fidelity Traffic Graphs
+- **Physical & Logical Interfaces:** Track bandwidth utilization (Mbps) across all physical links and logical sub-interfaces (`units`).
+- **Time-Travel Data:** Switch seamlessly between **Live Mode** and **Historical Mode** to investigate traffic spikes over the last hour, day, or week.
+- **Sparklines & Area Charts:** Interactive hoverable charts for intuitive trend spotting.
+
+### 🛠️ 3. Integrated Looking Glass
+- A read-only diagnostic terminal built directly into the web UI.
+- Securely execute operations like `ping`, `traceroute`, `show route`, `show bgp summary`, and `show interfaces` without providing engineers full SSH terminal access.
+
+### 🔐 4. Enterprise Security & Multi-Tenancy
+- **JWT Authentication:** Secure login using access & refresh tokens.
+- **Multi-Logical System Support:** Seamlessly switch between different `logical-systems` (or `global` routing table).
+- **Admin Panel:** Manage users, scraper intervals, and data retention policies.
+
+---
+
+## 🚀 Getting Started (Docker)
+
+The fastest and most reliable way to run JupeTrack is via Docker Compose. Everything runs in isolated, orchestrated containers.
+
+### Prerequisites
+- Docker Engine & Docker Compose (`docker compose`)
+- A Juniper MX204 router accessible via network (Port 830 / 22 for NETCONF)
+
+### Installation Steps
+
+**1. Clone the repository:**
 ```bash
 git clone https://github.com/arcelo12/jupe-track.git
 cd jupe-track
 ```
 
-### 2. Configure Environment
-
-Copy the provided example environment file and update the variables:
-
+**2. Setup Configuration:**
 ```bash
-cd backend
+cd backend-go
 cp .env.example .env
-nano .env
+nano .env  # Edit your environment variables (see below)
 ```
 
-Key variables to update:
-- `SECRET_KEY`: Must be a long, random secure string.
-- `ADMIN_USERNAME` / `ADMIN_PASSWORD`: Custom credentials for the first admin account.
-- `DB_TYPE`: Leave as `sqlite` for zero-configuration, or change to `mysql` for a dedicated Database container.
-- `JUNOS_*`: (Optional) Provide default credentials for your MX204. You can also edit this via the dashboard UI later.
-
-### 3. Build & Run
-
-**For default SQLite storage:**
+**3. Launch the Stack:**
 ```bash
+cd ..
 docker compose up -d --build
 ```
 
-**For MySQL storage:** 
-Ensure `DB_TYPE=mysql` is set in your `.env` and start with the mysql profile:
-```bash
-docker compose --profile mysql up -d --build
-```
-
-### 4. Access the Dashboard
-
-Open your browser and navigate to:
-**http://localhost:3040**
-
-Log in using the default credentials (`admin` / `Admin@JupeTrack2024`). You can change your password immediately from the top-right header menu.
+**4. Access the Dashboard:**
+Open your browser and navigate to **`http://localhost:3040`**.
+Log in using your defined `ADMIN_USERNAME` and `ADMIN_PASSWORD`. Once logged in, navigate to **Settings** to add your Juniper MX204 credentials.
 
 ---
 
-## 🛠️ Initial Setup Post-Login
+## ⚙️ Environment Configuration
 
-1. Open the **Settings** tab (⚙️) on the bottom left of the sidebar.
-2. Enter your Juniper MX204 management IP, NETCONF port (typically `830`), username, and password.
-3. Click "Save Configuration".
-4. Navigate to **Data Retention (🗄️)** to customize your background scraping intervals and storage policies.
-5. The system will automatically begin collecting data in the background.
+Inside `backend-go/.env`, configure the following critical parameters:
 
-## 🔒 Configuration Requirements (Junos)
+| Variable | Description | Default / Example |
+|---|---|---|
+| `SECRET_KEY` | 64-character random string for JWT encryption. **Must change in production!** | `random-secret-key...` |
+| `ADMIN_USERNAME` | The initial administrator username. | `admin` |
+| `ADMIN_PASSWORD` | The initial administrator password. | `SecurePass123!` |
+| `DB_TYPE` | Choose relational database (`sqlite` or `mysql`). | `sqlite` |
+| `JUNOS_HOST` | (Optional) IP Address of your Juniper MX204. | `103.155.190.9` |
+| `JUNOS_PORT` | (Optional) NETCONF Port. | `2830` |
 
-Ensure your Juniper MX204 has NETCONF over SSH enabled:
+---
 
+## 🔒 Juniper Device Configuration
+
+JupeTrack uses **NETCONF over SSH** to collect metrics securely. Ensure your MX204 is configured properly:
+
+### 1. Enable NETCONF
 ```junos
 set system services netconf ssh
 ```
 
-> **Note**: The API account must have Operational (`view`) and Configuration (`view-configuration`) access, but no write permissions.
+### 2. Create a Read-Only API User (Security Best Practice)
+The API account only needs Operational (`view`) and Configuration (`view-configuration`) access. **No write permissions are required.**
 
-For strict enterprise environments, here is the exact `login class` required for this dashboard to function properly:
+Run the following commands on your MX204 to create the strictest possible role:
 
 ```junos
+# 1. Define the read-only class and strictly allow only necessary diagnostic commands
 set system login class api-readonly-class permissions view
 set system login class api-readonly-class permissions view-configuration
 set system login class api-readonly-class allow-commands "(show bgp .*)|(show configuration .*)|(show route .*)|(show interfaces .*)|(ping .*)|(traceroute .*)"
+
+# 2. Explicitly deny dangerous commands
 set system login class api-readonly-class deny-commands "(request .*)|(clear .*)|(start .*)"
 
-set system login user jupe-api class api-readonly-class
+# 3. Create the user and assign the class
+set system login user jupe-api class api-readonly-class authentication plain-text-password
 ```
 
-## 💻 Development Setup
+---
 
-If you wish to run the backend and frontend separately for development:
+## 💻 Local Development Setup
 
-**Backend (FastAPI):**
+Want to contribute or modify JupeTrack? You can run the Go backend and Next.js frontend independently.
 
+### Backend (Go API & Scraper)
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 3041 --reload
+cd backend-go
+# Ensure VictoriaMetrics is running locally via Docker or bare-metal
+go mod download
+go run cmd/main.go
 ```
+*API will run on `http://localhost:8080`*
 
-**Frontend (Next.js):**
-
+### Frontend (Next.js 16)
 ```bash
 cd frontend
+# Copy env configuration
+cp .env.example .env.local
 npm install
 npm run dev
 ```
+*Frontend will run on `http://localhost:3000`*
+
+---
+
+## 📸 Screenshots
+
+*(Images are located in the `docs/` directory. Add or preview them to see the interface).*
+
+<div align="center">
+  <img src="docs/2.png" width="48%" alt="BGP Monitor" style="border-radius: 4px; margin: 4px;" />
+  <img src="docs/3.png" width="48%" alt="Traffic Graphs" style="border-radius: 4px; margin: 4px;" />
+  <img src="docs/4.png" width="48%" alt="Looking Glass" style="border-radius: 4px; margin: 4px;" />
+  <img src="docs/5.png" width="48%" alt="Settings Panel" style="border-radius: 4px; margin: 4px;" />
+</div>
+
+---
+
+## 🤝 Contributing
+
+Contributions are heavily encouraged! Please follow standard fork-and-pull-request workflows.
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## 📄 License
 
-MIT License.
+This project is open-sourced software licensed under the [MIT license](LICENSE).

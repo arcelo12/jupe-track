@@ -1,6 +1,8 @@
 # Environment variables
 .env
-backend/.env
+backend-go/.env
+frontend/.env.local
+frontend/.env
 
 # Node
 node_modules/
@@ -9,7 +11,11 @@ out/
 build/
 dist/
 
-# Python
+# Go
+backend-go/bin/
+backend-go/tmp/
+
+# Python (Legacy)
 __pycache__/
 *.pyc
 *.pyo
@@ -22,7 +28,7 @@ env.bak/
 venv.bak/
 
 # Data
-backend/data/
+backend-go/data/
 db.sqlite3
 *.db
 device_config.json
@@ -33,3 +39,7 @@ device_config.json
 # OS generated
 .DS_Store
 Thumbs.db
+
+.agents
+
+docs/superpowers/

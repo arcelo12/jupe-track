@@ -10,34 +10,40 @@ services:
     environment:
       - INTERNAL_API_URL=http://localhost:3041
     env_file:
-      - ./backend/.env
+      - ./backend-go/.env
     volumes:
-      - ./backend/data:/app/backend/data
+      - ./backend-go/data:/app/backend-go/data
 
-  # ── Optional MySQL Service ──────────────────────────────────────────────────
-  # Activate with: docker compose --profile mysql up
-  # Set DB_TYPE=mysql in backend/.env first
-  #
-  # mysql:
-  #   image: mysql:8.0
-  #   container_name: jupetrack_mysql
-  #   restart: always
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: root_password_change_me
-  #     MYSQL_DATABASE: jupetrack
-  #     MYSQL_USER: jupetrack
-  #     MYSQL_PASSWORD: jupetrack_pass
-  #   ports:
-  #     - "3306:3306"
-  #   volumes:
-  #     - mysql_data:/var/lib/mysql
-  #   healthcheck:
-  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "jupetrack", "-pjupetrack_pass"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   profiles:
-  #     - mysql
+  backend-go:
+    build:
+      context: ./backend-go
+      dockerfile: Dockerfile
+    container_name: jupetrack_go
+    ports:
+      - "8085:8080"
+    restart: always
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    env_file:
+      - ./backend-go/.env
+    volumes:
+      - ./backend-go/data:/app/data
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
+    container_name: jupetrack_victoriametrics
+    ports:
+      - "8428:8428"
+    volumes:
+      - victoriametrics-data:/victoria-metrics-data
+    command:
+      - "-storageDataPath=/victoria-metrics-data"
+      - "-retentionPeriod=1y"
+    restart: always
 
 # volumes:
 #   mysql_data:
+
+volumes:
+  victoriametrics-data:

@@ -8,6 +8,10 @@ interface RetentionSettings {
   retention_days_bgp: number;
   scrape_interval_seconds: number;
   scrape_enabled: boolean;
+  enable_bgp: boolean;
+  enable_interfaces: boolean;
+  scrape_interface_targets: string;
+  scrape_bgp_targets: string;
 }
 
 interface ScraperStatus {
@@ -57,8 +61,17 @@ export default function RetentionPage() {
     retention_days_bgp: 30,
     scrape_interval_seconds: 60,
     scrape_enabled: true,
+    enable_bgp: true,
+    enable_interfaces: true,
+    scrape_interface_targets: "",
+    scrape_bgp_targets: "",
   });
   const [status, setStatus] = useState<ScraperStatus | null>(null);
+  
+  // Available options
+  const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
+  const [availablePeers, setAvailablePeers] = useState<string[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -70,12 +83,21 @@ export default function RetentionPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [retRes, statusRes] = await Promise.all([
+      const [retRes, statusRes, ifaceRes, peerRes] = await Promise.all([
         authFetch("/api/proxy/metrics/retention"),
         authFetch("/api/proxy/metrics/status"),
+        authFetch("/api/proxy/metrics/interfaces/names"),
+        authFetch("/api/proxy/metrics/bgp/peers"),
       ]);
       if (retRes.ok) setSettings(await retRes.json());
       if (statusRes.ok) setStatus(await statusRes.json());
+      if (ifaceRes.ok) {
+        const names: string[] = await ifaceRes.json();
+        // Filter out logical units (which contain '.') to declutter the UI
+        // Since querying the physical interface in PyEZ automatically returns its logical units
+        setAvailableInterfaces(names.filter(n => !n.includes('.')));
+      }
+      if (peerRes.ok) setAvailablePeers(await peerRes.json());
     } catch (e) {
       console.error("Failed to fetch retention data", e);
     } finally {
@@ -94,6 +116,7 @@ export default function RetentionPage() {
     try {
       const res = await authFetch("/api/proxy/metrics/retention", {
         method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -113,6 +136,70 @@ export default function RetentionPage() {
       </div>
     );
   }
+
+  const handleTargetToggle = (type: "interfaces" | "bgp", itemName: string) => {
+    setSettings(s => {
+      const field = type === "interfaces" ? "scrape_interface_targets" : "scrape_bgp_targets";
+      const current = s[field] ? s[field].split(",").map(t => t.trim()).filter(Boolean) : [];
+      let next;
+      if (current.includes(itemName)) {
+        next = current.filter(t => t !== itemName);
+      } else {
+        next = [...current, itemName];
+      }
+      return { ...s, [field]: next.join(",") };
+    });
+  };
+
+  const renderTargetSelect = (title: string, desc: string, type: "interfaces" | "bgp", options: string[]) => {
+    const field = type === "interfaces" ? "scrape_interface_targets" : "scrape_bgp_targets";
+    const selected = new Set(settings[field] ? settings[field].split(",").map(t => t.trim()).filter(Boolean) : []);
+    
+    return (
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div>
+            <p style={{ fontWeight: 500, fontSize: "0.9rem" }}>{title}</p>
+            <p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 2 }}>{desc}</p>
+          </div>
+          <span style={{ fontSize: "0.75rem", color: "#06b6d4" }}>
+            {selected.size === 0 ? "All Selected (Default)" : `${selected.size} specific selected`}
+          </span>
+        </div>
+        <div style={{
+          maxHeight: 180, overflowY: "auto", 
+          background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8,
+          padding: 8, display: "grid", gap: 6, gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))"
+        }}>
+          {options.length === 0 && <div className="text-slate-500 text-xs p-2">Wait for first scrape to see options...</div>}
+          {options.map(opt => (
+            <label key={opt} style={{
+              display: "flex", alignItems: "center", gap: 8, fontSize: "0.8rem", color: "#cbd5e1",
+              padding: "6px 10px", background: selected.has(opt) ? "rgba(6,182,212,0.1)" : "transparent",
+              border: selected.has(opt) ? "1px solid rgba(6,182,212,0.3)" : "1px solid transparent",
+              borderRadius: 6, cursor: "pointer", transition: "all 0.2s"
+            }}>
+              <input 
+                type="checkbox" 
+                checked={selected.has(opt)} 
+                onChange={() => handleTargetToggle(type, opt)} 
+                style={{ accentColor: "#06b6d4", cursor: "pointer" }}
+              />
+              {opt}
+            </label>
+          ))}
+        </div>
+        <div style={{ marginTop: 8, textAlign: "right" }}>
+          <button 
+            type="button" 
+            onClick={() => setSettings(s => ({ ...s, [field]: "" }))}
+            style={{ background: "none", border: "none", color: "#64748b", fontSize: "0.75rem", cursor: "pointer" }}>
+            Clear Selection (Scrape All)
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -200,6 +287,70 @@ export default function RetentionPage() {
 
           <div style={{ height: 1, background: "rgba(255,255,255,0.05)" }} />
 
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <p style={{ fontWeight: 500, fontSize: "0.9rem" }}>Enable Interface Scraping</p>
+              <p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 2 }}>
+                Collect and store interface traffic and status metrics
+              </p>
+            </div>
+            <button
+              onClick={() => setSettings(s => ({ ...s, enable_interfaces: !s.enable_interfaces }))}
+              style={{
+                width: 48, height: 26, borderRadius: 13,
+                background: settings.enable_interfaces
+                  ? "linear-gradient(90deg, #10b981, #06b6d4)"
+                  : "rgba(255,255,255,0.1)",
+                border: "none", cursor: "pointer", position: "relative",
+                transition: "all 0.2s", flexShrink: 0,
+              }}
+            >
+              <span style={{
+                position: "absolute",
+                width: 20, height: 20,
+                background: "#fff",
+                borderRadius: "50%",
+                top: 3,
+                left: settings.enable_interfaces ? 25 : 3,
+                transition: "left 0.2s",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+              }} />
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <p style={{ fontWeight: 500, fontSize: "0.9rem" }}>Enable BGP Scraping</p>
+              <p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 2 }}>
+                Collect and store BGP peer status and prefix metrics
+              </p>
+            </div>
+            <button
+              onClick={() => setSettings(s => ({ ...s, enable_bgp: !s.enable_bgp }))}
+              style={{
+                width: 48, height: 26, borderRadius: 13,
+                background: settings.enable_bgp
+                  ? "linear-gradient(90deg, #10b981, #06b6d4)"
+                  : "rgba(255,255,255,0.1)",
+                border: "none", cursor: "pointer", position: "relative",
+                transition: "all 0.2s", flexShrink: 0,
+              }}
+            >
+              <span style={{
+                position: "absolute",
+                width: 20, height: 20,
+                background: "#fff",
+                borderRadius: "50%",
+                top: 3,
+                left: settings.enable_bgp ? 25 : 3,
+                transition: "left 0.2s",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+              }} />
+            </button>
+          </div>
+
+          <div style={{ height: 1, background: "rgba(255,255,255,0.05)" }} />
+
           <SliderInput
             label="Scrape Interval"
             value={settings.scrape_interval_seconds}
@@ -227,6 +378,27 @@ export default function RetentionPage() {
             unit="days"
             onChange={v => setSettings(s => ({ ...s, retention_days_bgp: v }))}
           />
+          
+          <div style={{ height: 1, background: "rgba(255,255,255,0.05)", margin: "24px 0" }} />
+          
+          <h3 className="text-md font-semibold text-slate-200">Targeted Scraping</h3>
+          <p className="text-xs text-slate-400 mb-4">
+            Select specific targets to scrape. Leaving it empty will scrape <b>everything</b>, which might increase device CPU usage.
+          </p>
+
+          {renderTargetSelect(
+            "Target Interfaces", 
+            "Select which physical/logical interfaces to collect data for", 
+            "interfaces", 
+            availableInterfaces
+          )}
+          
+          {renderTargetSelect(
+            "Target BGP Peers", 
+            "Select which BGP peer IP addresses to collect data for", 
+            "bgp", 
+            availablePeers
+          )}
         </div>
 
         <div style={{ marginTop: "2rem", display: "flex", justifyContent: "flex-end" }}>
