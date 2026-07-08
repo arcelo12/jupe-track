@@ -21,6 +21,7 @@ func SetupRoutes(r *gin.Engine) {
 	RegisterHeartbeatRoutes(api)
 	RegisterWebSocketRoutes(api)
 	RegisterLookupRoutes(api)
+	RegisterASMappingRoutes(api)
 
 	// Live Data Endpoints (Instant response from memory)
 	live := api.Group("/live")

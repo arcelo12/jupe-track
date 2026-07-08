@@ -89,6 +89,67 @@ export function LookupResultViewer({ result }: { result: any }) {
           </div>
         </div>
       )}
+
+      {/* Render Routing (looking-glass) */}
+      {data?.rrcs && (
+        <div className="space-y-4">
+          <div className="bg-slate-900/80 border border-slate-700/50 p-5 rounded-xl shadow-inner mb-4">
+            <div className="flex items-center gap-3 mb-2">
+              <Globe className="text-cyan-400" size={20} />
+              <h3 className="text-slate-300 font-semibold">Routing Status (Looking Glass)</h3>
+            </div>
+            <p className="text-sm text-slate-400">
+              Showing BGP routes from RIPE RIS route collectors for resource 
+              <strong className="text-cyan-400 ml-1">{data.parameters?.resource}</strong>
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {data.rrcs.filter((rrc: any) => rrc.peers && rrc.peers.length > 0).map((rrc: any, idx: number) => (
+              <div key={idx} className="bg-slate-800/50 border border-slate-700 p-4 rounded-xl">
+                <div className="flex justify-between items-center mb-3 border-b border-slate-700 pb-2">
+                  <div>
+                    <h4 className="text-slate-200 font-bold flex items-center gap-2">
+                      <Server size={16} className="text-emerald-400" /> {rrc.rrc}
+                    </h4>
+                    <p className="text-xs text-slate-500">{rrc.location}</p>
+                  </div>
+                  <span className="text-xs font-medium px-2 py-1 bg-slate-700 rounded text-slate-300">
+                    {rrc.peers.length} peers
+                  </span>
+                </div>
+                
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                  {rrc.peers.map((peer: any, pIdx: number) => (
+                    <div key={pIdx} className="bg-slate-900/50 rounded p-3 text-sm flex flex-col gap-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-400">Peer: <span className="text-slate-200 font-mono">{peer.peer}</span></span>
+                        <span className="text-slate-400">Origin: <span className="text-purple-400 font-mono">AS{peer.asn_origin}</span></span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 text-xs mr-2">AS Path:</span>
+                        <span className="font-mono text-emerald-400">{peer.as_path}</span>
+                      </div>
+                      {peer.next_hop && (
+                        <div>
+                          <span className="text-slate-500 text-xs mr-2">Next Hop:</span>
+                          <span className="font-mono text-blue-400">{peer.next_hop}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            
+            {data.rrcs.filter((rrc: any) => rrc.peers && rrc.peers.length > 0).length === 0 && (
+              <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-xl text-center">
+                <p className="text-slate-400">No BGP routes found from any RIPE RIS route collector for this resource.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 

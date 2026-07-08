@@ -15,9 +15,10 @@ export default function LookupPage() {
   const detectQueryType = (input: string) => {
     input = input.trim();
     if (input.includes(':')) return 'community';
+    if (input.match(/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\/[0-9]+$/)) return 'routing';
     if (input.match(/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/)) return 'ip';
     if (input.toLowerCase().startsWith('as') || input.match(/^[0-9]+$/)) return 'asn';
-    return 'ip'; // fallback
+    return 'routing'; // fallback to routing for everything else
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -37,6 +38,8 @@ export default function LookupPage() {
       endpoint = `/api/proxy/lookup/ip/${query}`;
     } else if (type === 'community') {
       endpoint = `/api/proxy/lookup/community/${query}`;
+    } else if (type === 'routing') {
+      endpoint = `/api/proxy/lookup/routing/${encodeURIComponent(query)}`;
     }
 
     try {
@@ -76,6 +79,7 @@ export default function LookupPage() {
             <option value="auto">Auto Detect</option>
             <option value="asn">ASN</option>
             <option value="ip">IP Address</option>
+            <option value="routing">Routing (Prefix/ASN)</option>
             <option value="community">BGP Community</option>
           </select>
           
@@ -85,7 +89,7 @@ export default function LookupPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Enter ASN, IP, or Community (e.g., AS2914, 8.8.8.8, 2914:420)"
+              placeholder="Enter ASN, IP, CIDR, or Community (e.g., AS2914, 8.8.8.8, 1.1.1.0/24)"
               className="w-full bg-gray-900 border border-gray-700 text-white rounded-lg pl-10 pr-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             />
           </div>
@@ -112,6 +116,7 @@ export default function LookupPage() {
           <div className="bg-gray-900/50 p-4 border-b border-gray-700 flex items-center gap-2">
             {result.type === 'asn' && <Server className="text-blue-400" />}
             {result.type === 'ip' && <Globe className="text-green-400" />}
+            {result.type === 'routing' && <Globe className="text-cyan-400" />}
             {result.type === 'community' && <Building className="text-purple-400" />}
             <h2 className="text-xl font-bold text-white capitalize">{result.type} Lookup Results</h2>
           </div>

@@ -179,6 +179,19 @@ func RegisterLookupRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, data)
 	})
 
+	lookup.GET("/routing/*resource", func(c *gin.Context) {
+		resource := c.Param("resource")
+		resource = strings.TrimPrefix(resource, "/") // remove leading slash from * parameter
+		url := fmt.Sprintf("https://stat.ripe.net/data/looking-glass/data.json?resource=%s", resource)
+		data, err := fetchLookupAPI(url)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, data)
+	})
+
 	lookup.GET("/community/:community", func(c *gin.Context) {
 		community := c.Param("community")
 		// Basic BGP Community lookup (e.g. 2914:420)

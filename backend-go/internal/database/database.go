@@ -47,6 +47,7 @@ func Connect() {
 	err = database.AutoMigrate(
 		&models.ScraperSettings{},
 		&models.User{},
+		&models.ASMapping{},
 	)
 	if err != nil {
 		log.Printf("Migration failed: %v", err)

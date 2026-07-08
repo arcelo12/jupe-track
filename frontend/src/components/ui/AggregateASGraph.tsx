@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Network, ZoomIn, ZoomOut, Maximize, X } from 'lucide-react';
+import { authFetch } from '@/lib/auth';
 
 interface AggregateASGraphProps {
   paths: string[];
@@ -11,56 +12,71 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [asMappings, setAsMappings] = useState<Record<string, {name: string, type: string}>>({});
+  const [ripeNames, setRipeNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    authFetch('/api/proxy/as-mapping')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const map: Record<string, {name: string, type: string}> = {};
+          data.forEach(m => { map[m.asn] = m; });
+          setAsMappings(map);
+        }
+      })
+      .catch(err => console.error("Failed to load AS mappings", err));
+  }, []);
 
   const { nodes, edges, layers, width, height } = useMemo(() => {
     if (!paths || paths.length === 0) return { nodes: [], edges: [], layers: [], width: 0, height: 0 };
 
-    const nodeMap = new Map<string, { id: string, layer: number }>();
     const edgeSet = new Set<string>();
     const edgeList: { source: string, target: string }[] = [];
+    const uniqueNodes = new Set<string>();
 
     // Parse all paths
     paths.forEach(pathStr => {
-      // Remove trailing origin codes like I, E, ?
       const parts = pathStr.trim().split(/\s+/).filter(p => !['I', 'E', '?'].includes(p));
       if (parts.length === 0) return;
 
-      // Reverse path so Origin is on the left (index 0)
-      const path = [...parts].reverse();
-
-      // Assign layers and edges
+      const path = parts.map(p => p.replace(/[\[\]\(\)\{\}]/g, ''));
+      
       for (let i = 0; i < path.length; i++) {
-        const asn = path[i];
-        
-        // Handle AS Sets (basic parsing to ignore brackets for now, or just keep them)
-        const cleanAsn = asn.replace(/[\[\]\(\)\{\}]/g, ''); 
-        
-        if (!nodeMap.has(cleanAsn)) {
-          nodeMap.set(cleanAsn, { id: cleanAsn, layer: i });
-        } else {
-          // If node already exists, update layer if necessary (keep the max layer to push it right, or min layer to keep it left)
-          // Let's keep the min layer to ensure shortest path to origin dictates its column
-          const existing = nodeMap.get(cleanAsn)!;
-          if (i < existing.layer) {
-            existing.layer = i;
-          }
-        }
+        uniqueNodes.add(path[i]);
+      }
 
-        if (i > 0) {
-          const prevAsn = path[i-1].replace(/[\[\]\(\)\{\}]/g, '');
-          const edgeId = `${prevAsn}->${cleanAsn}`;
-          if (!edgeSet.has(edgeId)) {
-            edgeSet.add(edgeId);
-            edgeList.push({ source: prevAsn, target: cleanAsn });
-          }
+      for (let i = 1; i < path.length; i++) {
+        const u = path[i-1];
+        const v = path[i];
+        if (u === v) continue; // Skip self loops
+
+        const edgeId = `${u}->${v}`;
+        if (!edgeSet.has(edgeId)) {
+          edgeSet.add(edgeId);
+          edgeList.push({ source: u, target: v });
         }
       }
     });
 
-    const nodesArr = Array.from(nodeMap.values());
-    
+    const nodesArr = Array.from(uniqueNodes).map(id => ({ id, layer: 0 }));
+
+    // Assign layers by ensuring target layer > source layer (longest path from source)
+    for (let i = 0; i < nodesArr.length; i++) {
+      let changed = false;
+      edgeList.forEach(edge => {
+        const sourceNode = nodesArr.find(n => n.id === edge.source)!;
+        const targetNode = nodesArr.find(n => n.id === edge.target)!;
+        if (targetNode.layer <= sourceNode.layer) {
+          targetNode.layer = sourceNode.layer + 1;
+          changed = true;
+        }
+      });
+      if (!changed) break; // Optimization: stop if no layers were updated
+    }
+
     // Group by layer
-    const maxLayer = Math.max(...nodesArr.map(n => n.layer));
+    const maxLayer = Math.max(0, ...nodesArr.map(n => n.layer));
     const layerGroups: string[][] = Array.from({ length: maxLayer + 1 }, () => []);
 
     nodesArr.forEach(n => {
@@ -95,7 +111,8 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
           id,
           x: layerIdx * colWidth + paddingX,
           y: startY + nodeIdx * rowHeight,
-          isOrigin: layerIdx === 0
+          // If it has no outgoing edges, it's an Origin
+          isOrigin: !edgeList.some(e => e.source === id)
         });
       });
     });
@@ -109,6 +126,34 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
     };
 
   }, [paths]);
+
+  // Fetch missing AS names from RIPE Stat
+  useEffect(() => {
+    if (nodes.length === 0) return;
+    
+    const missingAsns = nodes.map(n => n.id).filter(id => !asMappings[id] && !ripeNames[id]);
+    if (missingAsns.length === 0) return;
+
+    // To prevent spamming the API too heavily at once if there are hundreds, we limit parallel requests.
+    // However, usually topologies have < 20 ASNs.
+    missingAsns.forEach(asn => {
+      // Mark as fetching immediately to prevent duplicate calls
+      setRipeNames(prev => ({ ...prev, [asn]: 'Fetching...' }));
+      
+      fetch(`https://stat.ripe.net/data/as-overview/data.json?resource=${asn}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.data?.holder) {
+            setRipeNames(prev => ({ ...prev, [asn]: data.data.holder }));
+          } else {
+            setRipeNames(prev => ({ ...prev, [asn]: 'Unknown' }));
+          }
+        })
+        .catch(() => {
+          setRipeNames(prev => ({ ...prev, [asn]: 'Unknown' }));
+        });
+    });
+  }, [nodes, asMappings]);
 
   if (nodes.length === 0) return null;
 
@@ -164,29 +209,42 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
           })}
         </svg>
 
-        {nodes.map(node => (
-          <div
-            key={node.id}
-            className={`absolute flex flex-col items-center justify-center text-center shadow-lg transition-transform hover:scale-105 cursor-pointer
-              ${node.isOrigin 
-                ? 'bg-emerald-950/80 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]' 
-                : 'bg-slate-900 border-slate-700 hover:border-purple-500/50'}
-              border rounded-md px-2 py-1.5`}
-            style={{
-              left: node.x,
-              top: node.y,
-              width: nodeWidth,
-              height: nodeHeight,
-            }}
-          >
-            <span className={`text-xs font-bold font-mono ${node.isOrigin ? 'text-emerald-400' : 'text-slate-200'}`}>
-              AS{node.id}
-            </span>
-            <span className="text-[9px] text-slate-500 uppercase font-semibold">
-              {node.isOrigin ? 'Origin' : 'Transit'}
-            </span>
-          </div>
-        ))}
+        {nodes.map(node => {
+          const mapping = asMappings[node.id];
+          const displayType = mapping?.type || (node.isOrigin ? 'Origin' : 'Transit');
+          
+          return (
+            <div
+              key={node.id}
+              className={`absolute flex flex-col items-center justify-center text-center shadow-lg transition-transform hover:scale-105 cursor-pointer group
+                ${node.isOrigin 
+                  ? 'bg-emerald-950/80 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.2)]' 
+                  : 'bg-slate-900 border-slate-700 hover:border-purple-500/50'}
+                border rounded-md px-2 py-1.5`}
+              style={{
+                left: node.x,
+                top: node.y,
+                width: nodeWidth,
+                height: nodeHeight,
+              }}
+            >
+              <span className={`text-xs font-bold font-mono ${node.isOrigin ? 'text-emerald-400' : 'text-slate-200'}`}>
+                AS{node.id}
+              </span>
+              <span className="text-[9px] text-slate-500 uppercase font-semibold">
+                {displayType}
+              </span>
+              
+              {/* Hover Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800/95 backdrop-blur-sm text-slate-200 text-xs rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.5)] border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none flex flex-col items-center">
+                <div className="font-bold text-emerald-400 text-[13px]">{mapping?.name || ripeNames[node.id] || `AS${node.id}`}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">{mapping?.type || 'Auto Detected'}</div>
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-slate-700"></div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, ChevronLeft, ChevronRight, X, Globe } from 'lucide-react';
+import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, ChevronLeft, ChevronRight, X, Globe, Bookmark } from 'lucide-react';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -38,6 +38,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
       items: [
         { name: 'Device Settings', path: '/settings', icon: Settings },
         { name: 'Data Retention', path: '/settings/retention', icon: Archive },
+        { name: 'AS Mappings', path: '/settings/as-mapping', icon: Bookmark },
       ]
     }
   ];
