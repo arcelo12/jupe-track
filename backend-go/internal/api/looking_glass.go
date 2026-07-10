@@ -264,29 +264,47 @@ func RegisterLookingGlassRoutes(r *gin.RouterGroup) {
 			}
 			rawXML = reply
 
-			var resp struct {
-				Peers []struct {
-					PeerAddress  string `xml:"peer-address"`
-					PeerAS       string `xml:"peer-as"`
-					PeerState    string `xml:"peer-state"`
-					Description  string `xml:"description"`
-					ElapsedTime  string `xml:"elapsed-time"`
-					FlapCount    string `xml:"flap-count"`
-					LocalAddress string `xml:"local-address"`
-					PeerFlags    string `xml:"peer-flags"`
-					LastState    string `xml:"last-state"`
-					LastEvent    string `xml:"last-event"`
-					Ribs         []struct {
-						Name     string `xml:"name"`
-						Active   string `xml:"active-prefix-count"`
-						Received string `xml:"received-prefix-count"`
-						Accepted string `xml:"accepted-prefix-count"`
-					} `xml:"bgp-rib"`
-				} `xml:"bgp-neighbor-information>bgp-peer"`
+			// Junos <get-bgp-neighbor-information> returns <bgp-information><bgp-peer>
+			type BgpPeer struct {
+				PeerAddress  string `xml:"peer-address"`
+				PeerAS       string `xml:"peer-as"`
+				PeerState    string `xml:"peer-state"`
+				Description  string `xml:"description"`
+				ElapsedTime  string `xml:"elapsed-time"`
+				FlapCount    string `xml:"flap-count"`
+				LocalAddress string `xml:"local-address"`
+				PeerFlags    string `xml:"peer-flags"`
+				LastState    string `xml:"last-state"`
+				LastEvent    string `xml:"last-event"`
+				Ribs         []struct {
+					Name       string `xml:"name"`
+					Active     string `xml:"active-prefix-count"`
+					Received   string `xml:"received-prefix-count"`
+					Accepted   string `xml:"accepted-prefix-count"`
+					Advertised string `xml:"advertised-prefix-count"`
+				} `xml:"bgp-rib"`
 			}
-			if err := xml.Unmarshal([]byte(reply), &resp); err != nil {
-				handleError(c, fmt.Errorf("failed to parse XML: %v", err), logs, startTime)
-				return
+			var resp struct {
+				Peers []BgpPeer `xml:"bgp-peer"`
+			}
+			var respFallback struct {
+				Peers []BgpPeer `xml:"bgp-information>bgp-peer"`
+			}
+			
+			// Try both structures
+			err = xml.Unmarshal([]byte(reply), &respFallback)
+			if err == nil && len(respFallback.Peers) > 0 {
+				resp.Peers = respFallback.Peers
+			} else {
+				// Strip root tags and unmarshal just the peers
+				start := strings.Index(reply, "<bgp-peer")
+				if start >= 0 {
+					end := strings.LastIndex(reply, "</bgp-peer>")
+					if end > start {
+						wrapped := "<root>" + reply[start:end+11] + "</root>"
+						xml.Unmarshal([]byte(wrapped), &resp)
+					}
+				}
 			}
 
 			var lines []string
@@ -300,7 +318,10 @@ func RegisterLookingGlassRoutes(r *gin.RouterGroup) {
 				lines = append(lines, fmt.Sprintf("  Uptime: %s    Flap Count: %s", peer.ElapsedTime, peer.FlapCount))
 				for _, rib := range peer.Ribs {
 					lines = append(lines, fmt.Sprintf("  Table %s:", rib.Name))
-					lines = append(lines, fmt.Sprintf("    Active prefixes: %s   Received: %s   Accepted: %s", rib.Active, rib.Received, rib.Accepted))
+					
+					adv := rib.Advertised
+					if adv == "" { adv = "0" }
+					lines = append(lines, fmt.Sprintf("    Active prefixes: %s   Received: %s   Accepted: %s   Advertised: %s", rib.Active, rib.Received, rib.Accepted, adv))
 				}
 				lines = append(lines, "")
 			}
@@ -514,6 +535,7 @@ func RegisterLookingGlassRoutes(r *gin.RouterGroup) {
 				"logs":              logs,
 				"execution_time_ms": totalMs,
 				"raw_xml_bytes":     len(rawXML),
+				"raw_xml":           rawXML,
 			}
 		}
 		c.JSON(http.StatusOK, resp)
