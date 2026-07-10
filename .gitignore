@@ -79,3 +79,8 @@ Desktop.ini
 
 docs/superpowers/
 DESIGN.md
+
+# Internal docs (sensitive — not for public repo)
+AGENTS.md
+SECURITY_AUDIT.md
+CHANGELOG.md
