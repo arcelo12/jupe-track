@@ -17,7 +17,8 @@
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.2",
     "class-variance-authority": "^0.7.0",
-    "@base-ui/react": "^1.0.0-alpha.1"
+    "@base-ui/react": "^1.0.0-alpha.1",
+    "framer-motion": "latest"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

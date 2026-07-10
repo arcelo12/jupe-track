@@ -111,8 +111,8 @@ export default function LookingGlass() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Looking Glass</h1>
-        <p className="text-slate-400 mt-1">Execute read-only diagnostic commands on the MX204.</p>
+        <h1 className="text-3xl font-bold font-display tracking-tight text-primary">Looking Glass</h1>
+        <p className="text-on-surface-variant mt-1">Execute read-only diagnostic commands on the MX204.</p>
       </div>
 
       {/* Command Selector */}
@@ -122,10 +122,10 @@ export default function LookingGlass() {
             <button 
               key={cmd.value}
               onClick={() => { setSelectedCommand(cmd.value); setOutput(null); setError(null); }}
-              className={`p-3 rounded-lg border text-left transition-all ${
+              className={`p-3 rounded border text-left transition-all ${
                 selectedCommand === cmd.value 
-                  ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-300 shadow-lg shadow-emerald-500/5' 
-                  : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:border-slate-600 hover:text-slate-200'
+                  ? 'bg-primary/10 border-primary/50 text-primary shadow-none' 
+                  : 'bg-surface-container-low border-[#2A2E35] text-on-surface-variant hover:border-primary/50 hover:text-on-surface'
               }`}
             >
               <div className="text-lg mb-1">{cmd.icon}</div>
@@ -143,7 +143,7 @@ export default function LookingGlass() {
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && executeCommand()}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 placeholder:text-slate-600 transition-all"
+                className="w-full bg-surface-container border border-[#2A2E35] rounded px-4 py-2.5 text-sm font-mono outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-on-surface-variant/50 transition-all text-on-surface"
               />
             </div>
           )}
@@ -156,28 +156,28 @@ export default function LookingGlass() {
                 value={sourceAddress}
                 onChange={(e) => setSourceAddress(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && executeCommand()}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder:text-slate-600 transition-all"
+                className="w-full bg-surface-container border border-[#2A2E35] rounded px-4 py-2.5 text-sm font-mono outline-none focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-on-surface-variant/50 transition-all text-on-surface"
               />
             </div>
           )}
           
           {(selectedCommand === 'traceroute') && (
-            <div className="flex items-center gap-4 text-sm text-slate-300 px-2 mt-2 sm:mt-0">
-              <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+            <div className="flex items-center gap-4 text-sm text-on-surface px-2 mt-2 sm:mt-0">
+              <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors">
                 <input 
                   type="checkbox" 
                   checked={resolvePtr} 
                   onChange={(e) => setResolvePtr(e.target.checked)}
-                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                  className="rounded border-[#2A2E35] bg-surface-container text-primary focus:ring-primary focus:ring-offset-surface-container"
                 />
                 Resolve PTR
               </label>
-              <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+              <label className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors">
                 <input 
                   type="checkbox" 
                   checked={resolveAsn} 
                   onChange={(e) => setResolveAsn(e.target.checked)}
-                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+                  className="rounded border-[#2A2E35] bg-surface-container text-primary focus:ring-primary focus:ring-offset-surface-container"
                 />
                 Resolve ASN
               </label>
@@ -187,7 +187,7 @@ export default function LookingGlass() {
           <button
             onClick={executeCommand}
             disabled={loading}
-            className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap"
+            className="bg-primary hover:bg-primary-hover disabled:bg-surface-container-highest disabled:text-on-surface-variant text-on-primary px-6 py-2.5 rounded text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap"
           >
             {loading ? (
               <>
@@ -203,34 +203,34 @@ export default function LookingGlass() {
 
       {/* Error Banner */}
       {error && (
-        <div className="bg-rose-500/10 border border-rose-500/30 rounded-lg px-4 py-3 text-rose-300 text-sm flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+        <div className="bg-error/10 border border-error/30 rounded px-4 py-3 text-error text-sm flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-error"></span>
           {error}
         </div>
       )}
 
       {/* Terminal Output */}
       {(output || loading) && (
-        <div className="glass-panel p-0 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-800/80 border-b border-slate-700/50">
+        <div className="glass-panel p-0 overflow-hidden bg-surface-container-low rounded border border-[#2A2E35]">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-surface-container-high border-b border-[#2A2E35]">
             <div className="flex gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-rose-500/80"></div>
-              <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
-              <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+              <div className="w-3 h-3 rounded-full bg-error"></div>
+              <div className="w-3 h-3 rounded-full bg-[#a28c85]"></div>
+              <div className="w-3 h-3 rounded-full bg-primary"></div>
             </div>
-            <span className="text-xs text-slate-400 font-mono ml-2">
+            <span className="text-xs text-on-surface-variant font-mono ml-2">
               mx204 &gt; {currentCmd.label.toLowerCase().replace(/ /g, ' ')}{target ? ` ${target}` : ''}
             </span>
           </div>
-          <div className="p-4 max-h-[600px] overflow-auto">
+          <div className="p-4 max-h-[600px] overflow-auto bg-surface-container">
             {loading ? (
               <div className="space-y-2 animate-pulse">
                 {[1,2,3,4,5].map(i => (
-                  <div key={i} className="h-4 bg-slate-800 rounded" style={{ width: `${Math.random() * 60 + 30}%` }}></div>
+                  <div key={i} className="h-4 bg-surface-container-high rounded" style={{ width: `${Math.random() * 60 + 30}%` }}></div>
                 ))}
               </div>
             ) : (
-              <pre className="text-sm font-mono text-emerald-300 whitespace-pre-wrap leading-relaxed">{output}</pre>
+              <pre className="text-sm font-mono text-primary whitespace-pre-wrap leading-relaxed">{output}</pre>
             )}
           </div>
         </div>
@@ -238,47 +238,47 @@ export default function LookingGlass() {
 
       {/* Debug Panel */}
       {debugInfo && !loading && (
-        <div className="glass-panel p-0 overflow-hidden">
+        <div className="glass-panel p-0 overflow-hidden bg-surface-container-low rounded border border-[#2A2E35]">
           <button 
             onClick={() => setShowDebug(!showDebug)}
-            className="w-full flex justify-between items-center px-4 py-3 bg-slate-800/50 hover:bg-slate-800/80 transition-colors text-left"
+            className="w-full flex justify-between items-center px-4 py-3 bg-surface-container-high hover:bg-surface-container-highest transition-colors text-left"
           >
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-amber-400">⚡</span>
-              <span className="text-slate-300 font-medium">Debug Info</span>
-              <span className="text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded-full">{debugInfo.execution_time_ms}ms</span>
-              <span className="text-xs bg-slate-700 text-slate-400 px-2 py-0.5 rounded-full">{(debugInfo.raw_xml_bytes / 1024).toFixed(1)} KB XML</span>
+              <span className="text-[#a28c85]">⚡</span>
+              <span className="text-on-surface font-medium">Debug Info</span>
+              <span className="text-xs bg-surface-container-low text-on-surface-variant px-2 py-0.5 rounded">{debugInfo.execution_time_ms}ms</span>
+              <span className="text-xs bg-surface-container-low text-on-surface-variant px-2 py-0.5 rounded">{(debugInfo.raw_xml_bytes / 1024).toFixed(1)} KB XML</span>
             </div>
-            <span className="text-slate-500 text-xs">{showDebug ? '▲ Hide' : '▼ Show'}</span>
+            <span className="text-on-surface-variant text-xs">{showDebug ? '▲ Hide' : '▼ Show'}</span>
           </button>
           
           {showDebug && (
-            <div className="border-t border-slate-700/50">
-              <div className="grid grid-cols-3 gap-px bg-slate-700/30">
-                <div className="bg-slate-900/80 p-3">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">Device</div>
-                  <div className="text-sm text-slate-300 font-mono mt-1">{debugInfo.device_model}</div>
+            <div className="border-t border-[#2A2E35]">
+              <div className="grid grid-cols-3 gap-px bg-[#2A2E35]">
+                <div className="bg-surface-container-high p-3">
+                  <div className="text-[10px] text-on-surface-variant uppercase tracking-wider">Device</div>
+                  <div className="text-sm text-on-surface font-mono mt-1">{debugInfo.device_model}</div>
                 </div>
-                <div className="bg-slate-900/80 p-3">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">Hostname</div>
-                  <div className="text-sm text-slate-300 font-mono mt-1">{debugInfo.device_hostname}</div>
+                <div className="bg-surface-container-high p-3">
+                  <div className="text-[10px] text-on-surface-variant uppercase tracking-wider">Hostname</div>
+                  <div className="text-sm text-on-surface font-mono mt-1">{debugInfo.device_hostname}</div>
                 </div>
-                <div className="bg-slate-900/80 p-3">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">JunOS Version</div>
-                  <div className="text-sm text-slate-300 font-mono mt-1">{debugInfo.device_version}</div>
+                <div className="bg-surface-container-high p-3">
+                  <div className="text-[10px] text-on-surface-variant uppercase tracking-wider">JunOS Version</div>
+                  <div className="text-sm text-on-surface font-mono mt-1">{debugInfo.device_version}</div>
                 </div>
               </div>
-              <div className="p-4">
-                <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Execution Log</div>
+              <div className="p-4 bg-surface-container-low">
+                <div className="text-xs text-on-surface-variant uppercase tracking-wider mb-2">Execution Log</div>
                 <div className="space-y-1">
                   {debugInfo.logs.map((log, i) => {
                     const isSuccess = log.includes('✓');
                     const isError = log.includes('✗');
                     return (
                       <div key={i} className={`text-xs font-mono px-2 py-1 rounded ${
-                        isSuccess ? 'text-emerald-400 bg-emerald-500/5' : 
-                        isError ? 'text-rose-400 bg-rose-500/5' : 
-                        'text-slate-400 bg-slate-800/30'
+                        isSuccess ? 'text-primary bg-primary/5' : 
+                        isError ? 'text-error bg-error/5' : 
+                        'text-on-surface-variant bg-surface-container'
                       }`}>
                         {log}
                       </div>
@@ -293,16 +293,16 @@ export default function LookingGlass() {
 
       {/* Command History */}
       {history.length > 0 && (
-        <div className="glass-panel">
-          <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+        <div className="glass-panel bg-surface-container-low rounded border border-[#2A2E35] p-4">
+          <h3 className="text-sm font-semibold text-on-surface mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
             Recent Commands
           </h3>
           <div className="space-y-1.5">
             {history.map((h, i) => (
-              <div key={i} className="flex justify-between items-center text-xs px-3 py-2 bg-slate-800/30 rounded-md">
-                <span className="text-slate-300 font-mono">{h.cmd}</span>
-                <span className="text-slate-500">{h.time}</span>
+              <div key={i} className="flex justify-between items-center text-xs px-3 py-2 bg-surface-container-high rounded">
+                <span className="text-on-surface font-mono">{h.cmd}</span>
+                <span className="text-on-surface-variant">{h.time}</span>
               </div>
             ))}
           </div>

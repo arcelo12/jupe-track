@@ -171,7 +171,7 @@ export default function RetentionPage() {
           background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8,
           padding: 8, display: "grid", gap: 6, gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))"
         }}>
-          {options.length === 0 && <div className="text-slate-500 text-xs p-2">Wait for first scrape to see options...</div>}
+          {options.length === 0 && <div className="text-on-surface-variant text-xs p-2">Wait for first scrape to see options...</div>}
           {options.map(opt => (
             <label key={opt} style={{
               display: "flex", alignItems: "center", gap: 8, fontSize: "0.8rem", color: "#cbd5e1",
@@ -211,7 +211,7 @@ export default function RetentionPage() {
 
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Data Retention</h1>
-        <p className="text-slate-400 mt-1">
+        <p className="text-on-surface-variant mt-1">
           Configure how long metrics are stored and how frequently the device is polled.
         </p>
       </div>
@@ -219,7 +219,7 @@ export default function RetentionPage() {
       {/* Scraper Status Card */}
       <div className="glass-panel">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${status?.enabled ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-slate-600"}`} />
+          <span className={`w-2 h-2 rounded-full ${status?.enabled ? "bg-primary shadow-none" : "bg-[#2A2E35]"}`} />
           Background Scraper Status
         </h2>
         {status && (
@@ -381,8 +381,8 @@ export default function RetentionPage() {
           
           <div style={{ height: 1, background: "rgba(255,255,255,0.05)", margin: "24px 0" }} />
           
-          <h3 className="text-md font-semibold text-slate-200">Targeted Scraping</h3>
-          <p className="text-xs text-slate-400 mb-4">
+          <h3 className="text-md font-semibold text-on-surface">Targeted Scraping</h3>
+          <p className="text-xs text-on-surface-variant mb-4">
             Select specific targets to scrape. Leaving it empty will scrape <b>everything</b>, which might increase device CPU usage.
           </p>
 

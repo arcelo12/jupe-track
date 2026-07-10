@@ -19,10 +19,8 @@ export default function SettingsPage() {
     const fetchSettings = async () => {
       try {
         const res = await authFetch(`/api/proxy/settings/device?t=${Date.now()}`);
-        console.log("[DEBUG] settings response status:", res.status);
         if (res.ok) {
           const data = await res.json();
-          console.log("[DEBUG] device settings raw data:", JSON.stringify(data));
           
           // Handle format: { success: true, config: { host, user, port } }
           if (data.success && data.config) {
@@ -41,11 +39,8 @@ export default function SettingsPage() {
               user: data.user || '',
               password: ''
             });
-          } else {
-            console.warn("[DEBUG] Unexpected settings format:", data);
           }
         } else {
-          console.error("[DEBUG] settings fetch failed with status:", res.status);
           setMessage({ type: 'error', text: `Failed to load settings (HTTP ${res.status}).` });
         }
       } catch (error) {
@@ -78,7 +73,6 @@ export default function SettingsPage() {
       });
       
       const data = await res.json();
-      console.log("[DEBUG] save response:", JSON.stringify(data));
       if (res.ok && (data.success || data.message)) {
         setMessage({ type: 'success', text: data.message || 'Device settings updated successfully!' });
       } else {
@@ -95,32 +89,32 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">System Settings</h1>
-        <p className="text-slate-400 mt-1">Configure Juniper MX204 device connection parameters.</p>
+        <h1 className="text-3xl font-bold font-display tracking-tight text-primary">System Settings</h1>
+        <p className="text-on-surface-variant mt-1">Configure Juniper MX204 device connection parameters.</p>
       </div>
 
-      <div className="glass-panel p-6">
-        <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-          <span className="text-emerald-500">⚙️</span> Device Connection
+      <div className="glass-panel p-6 bg-surface-container-low border-[#2A2E35]">
+        <h2 className="text-xl font-semibold mb-6 flex items-center gap-2 text-on-surface">
+          <span className="text-primary">⚙️</span> Device Connection
         </h2>
 
         {message.text && (
-          <div className={`p-4 rounded-md mb-6 ${message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'}`}>
+          <div className={`p-4 rounded mb-6 ${message.type === 'success' ? 'bg-primary/10 border border-primary/30 text-primary' : 'bg-error/10 border border-error/30 text-error'}`}>
             {message.text}
           </div>
         )}
 
         {isLoading ? (
           <div className="animate-pulse space-y-4">
-            <div className="h-10 bg-slate-800 rounded"></div>
-            <div className="h-10 bg-slate-800 rounded"></div>
-            <div className="h-10 bg-slate-800 rounded"></div>
+            <div className="h-10 bg-surface-container-high rounded"></div>
+            <div className="h-10 bg-surface-container-high rounded"></div>
+            <div className="h-10 bg-surface-container-high rounded"></div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Target Host (IP/Domain)</label>
+                <label className="text-sm font-medium text-on-surface">Target Host (IP/Domain)</label>
                 <input 
                   type="text" 
                   name="host"
@@ -128,11 +122,11 @@ export default function SettingsPage() {
                   onChange={handleChange}
                   placeholder="e.g. 192.168.1.1"
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-md px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors"
+                  className="w-full bg-surface-container-high border border-[#2A2E35] rounded px-4 py-2 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary transition-colors"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">NETCONF Port</label>
+                <label className="text-sm font-medium text-on-surface">NETCONF Port</label>
                 <input 
                   type="number" 
                   name="port"
@@ -140,14 +134,14 @@ export default function SettingsPage() {
                   onChange={handleChange}
                   placeholder="830"
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-md px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors"
+                  className="w-full bg-surface-container-high border border-[#2A2E35] rounded px-4 py-2 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary transition-colors"
                 />
-                <p className="text-xs text-slate-500">Port for NETCONF (default: 830)</p>
+                <p className="text-xs text-on-surface-variant">Port for NETCONF (default: 830)</p>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Username</label>
+              <label className="text-sm font-medium text-on-surface">Username</label>
               <input 
                 type="text" 
                 name="user"
@@ -155,32 +149,32 @@ export default function SettingsPage() {
                 onChange={handleChange}
                 placeholder="admin"
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-md px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors"
+                className="w-full bg-surface-container-high border border-[#2A2E35] rounded px-4 py-2 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary transition-colors"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Password</label>
+              <label className="text-sm font-medium text-on-surface">Password</label>
               <input 
                 type="password" 
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="********"
-                className="w-full bg-slate-900 border border-slate-700 rounded-md px-4 py-2 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-colors"
+                className="w-full bg-surface-container-high border border-[#2A2E35] rounded px-4 py-2 text-on-surface focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary transition-colors"
               />
-              <p className="text-xs text-slate-500">Leave unchanged if you don't want to update the password.</p>
+              <p className="text-xs text-on-surface-variant">Leave unchanged if you don't want to update the password.</p>
             </div>
 
-            <div className="pt-4 border-t border-slate-700/50 flex justify-end">
+            <div className="pt-4 border-t border-[#2A2E35] flex justify-end">
               <button 
                 type="submit" 
                 disabled={isSaving}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2.5 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:opacity-50 flex items-center gap-2"
+                className="bg-primary hover:bg-primary-hover text-on-primary px-6 py-2.5 rounded font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-50 flex items-center gap-2"
               >
                 {isSaving ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    <div className="w-4 h-4 border-2 border-on-primary/20 border-t-on-primary rounded-full animate-spin"></div>
                     Saving...
                   </>
                 ) : (

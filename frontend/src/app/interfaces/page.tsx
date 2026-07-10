@@ -138,41 +138,41 @@ export default function InterfacesDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Interfaces</h1>
-          <p className="text-slate-400 mt-1 mb-4 text-sm">Bandwidth utilization — physical and logical units.</p>
+          <h1 className="text-3xl font-bold font-display tracking-tight text-primary">Interfaces</h1>
+          <p className="text-on-surface-variant mt-1 mb-4 text-sm">Bandwidth utilization — physical and logical units.</p>
           <DeviceStatusWidget />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:w-[250px]">
-          <TabsList className="grid w-full grid-cols-2 bg-slate-900/80 border border-white/10">
-            <TabsTrigger value="live" className="data-[state=active]:bg-emerald-500/10 data-[state=active]:text-emerald-400">⚡ Live</TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-400">📈 Historical</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 bg-surface-container-high border border-[#2A2E35]">
+            <TabsTrigger value="live" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">⚡ Live</TabsTrigger>
+            <TabsTrigger value="history" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">📈 Historical</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
       {activeTab === 'history' && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <Card className="border-white/10 bg-[#0f172a]/60 backdrop-blur-md">
+          <Card className="border-[#2A2E35] bg-surface-container-low shadow-none rounded">
             <CardContent className="pt-6">
               <div className="flex flex-wrap items-center gap-3 mb-6">
                 <select
                   value={selectedIface}
                   onChange={e => setSelectedIface(e.target.value)}
-                  className="bg-slate-900 border border-white/10 rounded-md px-3 py-2 text-sm text-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="bg-surface-container border border-[#2A2E35] rounded px-3 py-2 text-sm text-on-surface focus:ring-2 focus:ring-primary outline-none"
                 >
                   <option value="">All interfaces</option>
                   {interfaceNames.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
 
-                <div className="flex bg-slate-900/80 p-1 rounded-md border border-white/5">
+                <div className="flex bg-surface-container p-1 rounded border border-[#2A2E35]">
                   {([1, 6, 24, 48, 168] as const).map(h => (
                     <Button
                       key={h}
                       variant={!isCustomRange && historyHours === h ? "secondary" : "ghost"}
                       size="sm"
                       onClick={() => { setIsCustomRange(false); setHistoryHours(h); }}
-                      className={`h-8 px-3 text-xs ${!isCustomRange && historyHours === h ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:text-slate-200'}`}
+                      className={`h-8 px-3 text-xs ${!isCustomRange && historyHours === h ? 'bg-primary/20 text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
                     >
                       {h < 24 ? `${h}h` : h === 168 ? '7d' : h === 48 ? '2d' : `${h/24}d`}
                     </Button>
@@ -181,7 +181,7 @@ export default function InterfacesDashboard() {
                     variant={isCustomRange ? "secondary" : "ghost"}
                     size="sm"
                     onClick={() => setIsCustomRange(true)}
-                    className={`h-8 px-3 text-xs ${isCustomRange ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:text-slate-200'}`}
+                    className={`h-8 px-3 text-xs ${isCustomRange ? 'bg-primary/20 text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
                   >
                     Custom
                   </Button>
@@ -193,39 +193,39 @@ export default function InterfacesDashboard() {
                       type="datetime-local"
                       value={customStart}
                       onChange={(e) => setCustomStart(e.target.value)}
-                      className="h-9 bg-slate-900 border-white/10 text-xs"
+                      className="h-9 bg-surface-container border-[#2A2E35] text-xs"
                     />
-                    <span className="text-slate-500 text-xs">to</span>
+                    <span className="text-on-surface-variant text-xs">to</span>
                     <Input
                       type="datetime-local"
                       value={customEnd}
                       onChange={(e) => setCustomEnd(e.target.value)}
-                      className="h-9 bg-slate-900 border-white/10 text-xs"
+                      className="h-9 bg-surface-container border-[#2A2E35] text-xs"
                     />
                   </div>
                 )}
 
-                <Button onClick={fetchHistory} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white h-9">
+                <Button onClick={fetchHistory} size="sm" className="bg-primary hover:bg-primary-hover text-on-primary h-9 rounded">
                   Apply
                 </Button>
               </div>
 
               {historyLoading ? (
-                <div className="h-[200px] flex items-center justify-center text-slate-500 animate-pulse">
+                <div className="h-[200px] flex items-center justify-center text-on-surface-variant animate-pulse">
                   Loading historical data...
                 </div>
               ) : historyData.length === 0 ? (
-                <div className="h-[200px] flex flex-col items-center justify-center text-slate-500 gap-2">
+                <div className="h-[200px] flex flex-col items-center justify-center text-on-surface-variant gap-2">
                   <Activity size={32} className="opacity-50 mb-2" />
                   <span className="text-sm">No historical data yet. Data will appear after the background scraper has run.</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                   {historyData.map(iface => (
-                    <Card key={iface.interface_name} className="bg-slate-900/40 border-white/5">
+                    <Card key={iface.interface_name} className="bg-surface-container border-[#2A2E35] shadow-none rounded">
                       <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                        <CardTitle className="text-sm font-mono text-slate-200">{iface.interface_name}</CardTitle>
-                        <Badge variant="outline" className="text-[10px] uppercase border-white/10 text-slate-400">
+                        <CardTitle className="text-sm font-mono text-on-surface">{iface.interface_name}</CardTitle>
+                        <Badge variant="outline" className="text-[10px] uppercase border-[#2A2E35] text-on-surface-variant rounded">
                           {iface.interface_type}
                         </Badge>
                       </CardHeader>
@@ -245,12 +245,12 @@ export default function InterfacesDashboard() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {loading && groups.length === 0 ? (
             [1,2,3,4].map(i => (
-              <Card key={i} className="h-80 flex items-center justify-center text-slate-500 animate-pulse bg-[#0f172a]/60 border-white/5">
+              <Card key={i} className="h-80 flex items-center justify-center text-on-surface-variant animate-pulse bg-surface-container-low border-[#2A2E35] shadow-none rounded">
                  Loading interface metrics...
               </Card>
             ))
           ) : groups.length === 0 ? (
-            <Card className="col-span-full py-12 text-center text-slate-400 bg-[#0f172a]/60 border-white/5">
+            <Card className="col-span-full py-12 text-center text-on-surface-variant bg-surface-container-low border-[#2A2E35] shadow-none rounded">
               No physical interfaces found for {logicalSystem}.
             </Card>
           ) : (
@@ -263,26 +263,26 @@ export default function InterfacesDashboard() {
               const safeName = physical.name.replace(/[/\.]/g, '-');
               
               return (
-                <Card key={physical.name} className="bg-[#0f172a]/60 backdrop-blur-md border-white/10 overflow-hidden flex flex-col">
+                <Card key={physical.name} className="bg-surface-container-low border-[#2A2E35] shadow-none rounded overflow-hidden flex flex-col">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${up ? "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"}`}></div>
+                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${up ? "bg-primary" : "bg-error"}`}></div>
                         <div className="min-w-0">
-                          <CardTitle className="text-xl font-bold font-mono text-slate-200">{physical.name}</CardTitle>
+                          <CardTitle className="text-xl font-bold font-mono text-on-surface">{physical.name}</CardTitle>
                           {physical.description && (
-                            <p className="text-xs text-slate-400 truncate mt-0.5">{physical.description}</p>
+                            <p className="text-xs text-on-surface-variant truncate mt-0.5">{physical.description}</p>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 text-sm font-mono">
                         <div className="text-right">
-                          <div className="text-slate-400 text-[10px] uppercase tracking-widest mb-0.5">In (Rx)</div>
-                          <div className="text-blue-400 font-bold">{formatBps(physical.bps_in)}</div>
+                          <div className="text-on-surface-variant text-[10px] uppercase tracking-widest mb-0.5">In (Rx)</div>
+                          <div className="text-primary font-bold">{formatBps(physical.bps_in)}</div>
                         </div>
                         <div className="text-right">
-                          <div className="text-slate-400 text-[10px] uppercase tracking-widest mb-0.5">Out (Tx)</div>
-                          <div className="text-orange-400 font-bold">{formatBps(physical.bps_out)}</div>
+                          <div className="text-on-surface-variant text-[10px] uppercase tracking-widest mb-0.5">Out (Tx)</div>
+                          <div className="text-[#f97316] font-bold">{formatBps(physical.bps_out)}</div>
                         </div>
                       </div>
                     </div>
@@ -302,11 +302,11 @@ export default function InterfacesDashboard() {
                               <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                          <XAxis dataKey="time" stroke="#64748b" fontSize={10} tickMargin={8} minTickGap={30} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#64748b" fontSize={10} tickFormatter={(v) => `${v}M`} tickLine={false} axisLine={false} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#2A2E35" vertical={false} />
+                          <XAxis dataKey="time" stroke="#94a3b8" fontSize={10} tickMargin={8} minTickGap={30} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#94a3b8" fontSize={10} tickFormatter={(v) => `${v}M`} tickLine={false} axisLine={false} />
                           <Tooltip 
-                            contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px' }}
+                            contentStyle={{ backgroundColor: '#1a1c1f', borderColor: '#2A2E35', borderRadius: '4px', padding: '8px' }}
                             itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                             labelStyle={{ color: '#94a3b8', fontSize: '10px', marginBottom: '4px' }}
                           />
@@ -323,7 +323,7 @@ export default function InterfacesDashboard() {
                           variant="ghost"
                           size="sm"
                           onClick={() => toggleGroup(physical.name)}
-                          className="w-full justify-start text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 h-8"
+                          className="w-full justify-start text-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container h-8 rounded"
                         >
                           <ChevronRight size={14} className={`mr-2 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
                           {logicals.length} Logical Units
@@ -331,14 +331,14 @@ export default function InterfacesDashboard() {
                         
                         <div className={`grid transition-all duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0'}`}>
                           <div className="overflow-hidden">
-                            <div className="rounded-md border border-white/5 bg-slate-900/30 overflow-hidden">
+                            <div className="rounded border border-[#2A2E35] bg-surface-container overflow-x-auto">
                               <Table>
-                                <TableHeader className="bg-slate-900/50">
-                                  <TableRow className="border-white/5 hover:bg-transparent">
-                                    <TableHead className="py-2 px-3 h-8 text-xs">Unit</TableHead>
-                                    <TableHead className="py-2 px-3 h-8 text-xs text-right">In (Rx)</TableHead>
-                                    <TableHead className="py-2 px-3 h-8 text-xs text-right">Out (Tx)</TableHead>
-                                    <TableHead className="py-2 px-3 h-8 text-xs text-right">Status</TableHead>
+                                <TableHeader className="bg-surface-container-high border-b border-[#2A2E35]">
+                                  <TableRow className="border-[#2A2E35] hover:bg-transparent">
+                                    <TableHead className="py-2 px-3 h-8 text-xs text-on-surface-variant">Unit</TableHead>
+                                    <TableHead className="py-2 px-3 h-8 text-xs text-on-surface-variant text-right">In (Rx)</TableHead>
+                                    <TableHead className="py-2 px-3 h-8 text-xs text-on-surface-variant text-right">Out (Tx)</TableHead>
+                                    <TableHead className="py-2 px-3 h-8 text-xs text-on-surface-variant text-right">Status</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -351,23 +351,22 @@ export default function InterfacesDashboard() {
                                     return (
                                       <TableRow 
                                         key={li.name} 
-                                        className={`border-white/5 cursor-pointer hover:bg-slate-800/60 transition-colors ${isActive ? '' : 'opacity-50 hover:opacity-100'}`}
+                                        className={`border-[#2A2E35] cursor-pointer hover:bg-surface-container-high transition-colors ${isActive ? '' : 'opacity-50 hover:opacity-100'}`}
                                         onMouseEnter={() => setHoveredIface(li.name)}
                                         onMouseLeave={() => setHoveredIface(null)}
                                         onClick={() => setModalIface(li.name)}
                                       >
                                         <TableCell className="py-2 px-3">
-                                          <div className="text-slate-300 font-mono text-xs">{li.name}</div>
-                                          {li.description && <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[150px]">{li.description}</div>}
+                                          <div className="text-on-surface font-mono text-xs">{li.name}</div>
+                                          {li.description && <div className="text-[10px] text-on-surface-variant mt-0.5 truncate max-w-[150px]">{li.description}</div>}
                                         </TableCell>
                                         
                                         <TableCell className="py-2 px-3 text-right relative">
                                           <div className="flex flex-col items-end">
-                                            <span className="text-blue-400 font-mono text-xs">{formatBps(li.bps_in)}</span>
+                                            <span className="text-primary font-mono text-xs">{formatBps(li.bps_in)}</span>
                                             {isHovered && liHistory.length > 1 && (
-                                              <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-32 h-12 bg-slate-950/95 rounded-md border border-slate-700/50 shadow-2xl z-20 hidden md:block animate-in fade-in slide-in-from-right-2">
+                                              <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 w-32 h-12 bg-surface-container-low rounded border border-[#2A2E35] z-20 hidden md:block animate-in fade-in slide-in-from-right-2">
                                                 <div className="w-full h-full p-1 relative">
-                                                  <div className="absolute inset-0 bg-blue-500/5 rounded blur-sm" />
                                                   <ResponsiveContainer width="100%" height="100%">
                                                     <AreaChart data={liHistory}>
                                                       <Area type="monotone" dataKey="in_mbps" stroke="#3b82f6" fillOpacity={0.2} fill="#3b82f6" strokeWidth={1.5} isAnimationActive={false} />
@@ -379,9 +378,9 @@ export default function InterfacesDashboard() {
                                             )}
                                           </div>
                                         </TableCell>
-                                        <TableCell className="py-2 px-3 text-right text-orange-400 font-mono text-xs">{formatBps(li.bps_out)}</TableCell>
+                                        <TableCell className="py-2 px-3 text-right text-[#f97316] font-mono text-xs">{formatBps(li.bps_out)}</TableCell>
                                         <TableCell className="py-2 px-3 text-right">
-                                          <Badge variant={liUp ? 'default' : 'destructive'} className={`text-[9px] px-1.5 py-0 ${liUp ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-none' : 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border-none'}`}>
+                                          <Badge variant={liUp ? 'default' : 'destructive'} className={`text-[9px] px-1.5 py-0 rounded ${liUp ? 'bg-primary/20 text-primary border-none' : 'bg-error/20 text-error border-none'}`}>
                                             {li.oper_status}
                                           </Badge>
                                         </TableCell>
@@ -405,21 +404,20 @@ export default function InterfacesDashboard() {
 
       {/* Logical Unit Traffic Dialog */}
       <Dialog open={!!modalIface} onOpenChange={(open: boolean) => !open && setModalIface(null)}>
-        <DialogContent className="max-w-4xl sm:max-w-4xl md:max-w-5xl w-[95vw] md:w-full bg-slate-950/95 border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.15)] sm:rounded-2xl p-6 sm:p-8 backdrop-blur-xl">
+        <DialogContent className="max-w-4xl sm:max-w-4xl md:max-w-5xl w-[95vw] md:w-full bg-surface-container-lowest border-[#2A2E35] rounded p-6 sm:p-8 backdrop-blur-xl">
           <DialogHeader className="mb-2 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                <Activity className="text-cyan-400" size={24} />
+              <div className="w-12 h-12 rounded bg-surface-container flex items-center justify-center border border-[#2A2E35]">
+                <Activity className="text-primary" size={24} />
               </div>
               <div>
-                <DialogTitle className="text-2xl font-mono font-bold text-white leading-tight">{modalIface}</DialogTitle>
-                <span className="text-xs text-slate-400 font-medium tracking-wide uppercase">Live Traffic Overview</span>
+                <DialogTitle className="text-2xl font-mono font-bold text-on-surface leading-tight">{modalIface}</DialogTitle>
+                <span className="text-xs text-on-surface-variant font-medium tracking-wide uppercase">Live Traffic Overview</span>
               </div>
             </div>
           </DialogHeader>
 
-          {/* Ambient Glow */}
-          <div className="absolute top-0 left-1/4 w-1/2 h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50 shadow-[0_0_20px_rgba(34,211,238,0.4)] pointer-events-none" />
+          {/* Ambient Glow removed */}
 
           {modalIface && (
             <div className="h-[350px] w-full mt-4">
@@ -427,33 +425,33 @@ export default function InterfacesDashboard() {
                 <AreaChart data={trafficHistory[modalIface] || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="modalColorIn" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="modalColorOut" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#f97316" stopOpacity={0.4}/>
                       <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 4" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="time" stroke="#64748b" fontSize={11} tickMargin={12} minTickGap={30} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748b" fontSize={11} tickFormatter={(v) => `${v}M`} tickLine={false} axisLine={false} />
+                  <CartesianGrid strokeDasharray="3 4" stroke="#2A2E35" vertical={false} />
+                  <XAxis dataKey="time" stroke="#94a3b8" fontSize={11} tickMargin={12} minTickGap={30} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(v) => `${v}M`} tickLine={false} axisLine={false} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: 'rgba(15,23,42,0.9)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', padding: '12px' }}
-                    itemStyle={{ fontSize: '13px', fontWeight: '600' }}
+                    contentStyle={{ backgroundColor: '#1a1c1f', borderColor: '#2A2E35', borderRadius: '4px', padding: '12px' }}
+                    itemStyle={{ fontSize: '13px', fontWeight: '600', color: '#e2e2e6' }}
                     labelStyle={{ color: '#94a3b8', fontSize: '11px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}
-                    cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2, strokeDasharray: '4 4' }}
+                    cursor={{ stroke: '#2A2E35', strokeWidth: 2, strokeDasharray: '4 4' }}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}/>
-                  <Area type="monotone" dataKey="in_mbps" name="Ingress Mbps" stroke="#06b6d4" strokeWidth={3} fillOpacity={1} fill={`url(#modalColorIn)`} isAnimationActive={true} animationDuration={800} />
+                  <Area type="monotone" dataKey="in_mbps" name="Ingress Mbps" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill={`url(#modalColorIn)`} isAnimationActive={true} animationDuration={800} />
                   <Area type="monotone" dataKey="out_mbps" name="Egress Mbps" stroke="#f97316" strokeWidth={3} fillOpacity={1} fill={`url(#modalColorOut)`} isAnimationActive={true} animationDuration={800} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
           
-          <div className="mt-6 text-center text-xs text-slate-500 bg-slate-800/30 rounded-lg p-3 border border-slate-700/50">
-            <span className="text-slate-400">💡 Tip:</span> You can check the 'Historical' tab for long-term data if this router supports background scraping.
+          <div className="mt-6 text-center text-xs text-on-surface-variant bg-surface-container rounded p-3 border border-[#2A2E35]">
+            <span className="text-on-surface">💡 Tip:</span> You can check the 'Historical' tab for long-term data if this router supports background scraping.
           </div>
         </DialogContent>
       </Dialog>

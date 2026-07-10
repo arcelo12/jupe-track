@@ -48,24 +48,25 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
       {/* Mobile Drawer Overlay */}
       {isMobileOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-surface-container-lowest/80 backdrop-blur-sm z-40 md:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
-      <aside className={`h-screen border-r border-white/5 bg-[#0f172a]/90 md:bg-[#0f172a]/70 backdrop-blur-2xl flex flex-col fixed top-0 z-50 shadow-[4px_0_24px_rgba(0,0,0,0.2)] transition-all duration-300 ${
-        isMobileOpen ? 'left-0 w-64' : '-left-64 md:left-0'
+      <aside className={`h-[calc(100vh-2rem)] border border-[#2A2E35] bg-surface-container-low backdrop-blur-xl flex flex-col fixed top-4 z-50 rounded shadow-none transition-all duration-300 overflow-hidden ${
+        isMobileOpen ? 'left-4 w-64' : '-left-72 md:left-4'
       } ${
         isCollapsed ? 'md:w-20' : 'md:w-64'
       }`}>
+        <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
         {/* Header / Brand Logo */}
-        <div className="h-16 flex items-center justify-between px-4 md:px-5 border-b border-white/5">
+        <div className="h-16 flex items-center justify-between px-4 md:px-5 border-b border-[#2A2E35] relative z-10">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex-shrink-0 flex items-center justify-center text-emerald-400 font-bold border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+            <div className="w-8 h-8 rounded bg-primary/10 flex-shrink-0 flex items-center justify-center text-primary font-bold border border-primary/20">
               J
             </div>
             {!isCollapsed && (
-              <span className="text-lg font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 whitespace-nowrap">
+              <span className="text-lg font-bold font-display tracking-tight text-primary whitespace-nowrap">
                 JupeTrack
               </span>
             )}
@@ -75,13 +76,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
           <div className="flex items-center">
             <button 
               onClick={() => setIsMobileOpen(false)}
-              className="md:hidden text-slate-400 hover:text-slate-200 p-1"
+              className="md:hidden text-on-surface-variant hover:text-on-surface p-1"
             >
               <X size={18} />
             </button>
             <button 
               onClick={() => setIsCollapsed(!isCollapsed)}
-              className="hidden md:flex text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 p-1.5 rounded-lg transition-colors"
+              className="hidden md:flex text-on-surface-variant hover:text-on-surface hover:bg-[#2A2E35]/50 p-1.5 rounded transition-colors"
             >
               {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             </button>
@@ -89,15 +90,15 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
         </div>
         
         {/* Navigation Items */}
-        <div className="px-3 py-4 flex-1 overflow-y-auto overflow-x-hidden space-y-4">
+        <div className="px-3 py-4 flex-1 overflow-y-auto overflow-x-hidden space-y-4 relative z-10">
           {menuGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="mb-4">
               {!isCollapsed ? (
-                <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 whitespace-nowrap">
+                <p className="px-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2 whitespace-nowrap">
                   {group.title}
                 </p>
               ) : (
-                <div className="h-px bg-white/5 my-3" />
+                <div className="h-px bg-[#2A2E35] my-3" />
               )}
               <nav className="space-y-1">
                 {group.items.map((item) => {
@@ -109,16 +110,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
                       href={item.path}
                       title={isCollapsed ? item.name : undefined}
                       onClick={() => setIsMobileOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden group ${
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded transition-all duration-300 relative overflow-hidden group ${
                         isActive 
-                          ? 'bg-gradient-to-r from-emerald-500/10 to-transparent text-emerald-400 border border-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.05)]' 
-                          : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40 border border-transparent'
+                          ? 'bg-primary/10 text-primary border border-primary/20' 
+                          : 'text-on-surface-variant hover:text-on-surface hover:bg-[#2A2E35]/50 border border-transparent'
                       }`}
                     >
-                      {isActive && (
-                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] rounded-r"></div>
-                      )}
-                      <Icon size={18} className={`flex-shrink-0 transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'group-hover:scale-110'}`} />
+                      <Icon size={18} className={`flex-shrink-0 transition-transform duration-300 ${isActive ? 'text-primary scale-110' : 'group-hover:scale-110'}`} />
                       {!isCollapsed && <span className="font-medium text-[13px] whitespace-nowrap">{item.name}</span>}
                     </Link>
                   );
@@ -129,18 +127,18 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
         </div>
 
         {/* Footer connected state */}
-        <div className="mt-auto p-4 border-t border-white/5 bg-black/20">
-          <div className={`glass-card flex items-center border-white/5 hover:border-emerald-500/30 transition-all ${
+        <div className="mt-auto p-4 border-t border-[#2A2E35] bg-surface-container-lowest relative z-10">
+          <div className={`glass-card flex items-center border-[#2A2E35] hover:border-primary/30 transition-all ${
             isCollapsed ? 'justify-center p-2' : 'gap-3 p-3'
           }`}>
             <div className="relative flex items-center justify-center flex-shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-              <div className="absolute w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping opacity-75"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>
+              <div className="absolute w-2.5 h-2.5 rounded-full bg-primary animate-ping opacity-75"></div>
             </div>
             {!isCollapsed && (
               <div className="text-[11px] overflow-hidden">
-                <p className="text-slate-200 font-semibold leading-none mb-0.5">Online</p>
-                <p className="text-slate-500 leading-none truncate">MX204 SSH</p>
+                <p className="text-on-surface font-semibold leading-none mb-0.5">Online</p>
+                <p className="text-on-surface-variant leading-none truncate">MX204 SSH</p>
               </div>
             )}
           </div>

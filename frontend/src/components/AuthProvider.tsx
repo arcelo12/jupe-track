@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Redirect logic
   useEffect(() => {
     if (isLoading) return;
-    const isPublic = PUBLIC_PATHS.some(p => pathname?.startsWith(p));
+    const isPublic = PUBLIC_PATHS.some(p => pathname === p);
     if (!user && !isPublic) {
       router.push("/login");
     } else if (user && isPublic) {

@@ -4,6 +4,9 @@ import React, { useState } from 'react';
 import { authFetch } from '@/lib/auth';
 import { Search, Server, Globe, MapPin, Building, ShieldAlert } from 'lucide-react';
 import { LookupResultViewer } from '@/components/ui/LookupResultViewer';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export default function LookupPage() {
   const [query, setQuery] = useState('');
@@ -63,67 +66,78 @@ export default function LookupPage() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div>
-        <h1 className="text-3xl font-bold text-gray-100">Global Lookup</h1>
-        <p className="text-gray-400 mt-2">Lookup ASN, IP, or BGP Community via RIPEstat</p>
+        <h1 className="text-3xl font-bold font-display tracking-tight flex items-center gap-3 text-primary">
+          <Globe className="text-primary" size={28} />
+          Global Route Lookup
+        </h1>
+        <p className="text-on-surface-variant mt-2 text-sm">
+          Query ASN, IP, or BGP Community routing status via RIPE Stat Looking Glass.
+        </p>
       </div>
 
-      <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 p-6">
-        <form onSubmit={handleSearch} className="flex gap-4">
-          <select 
-            value={queryType}
-            onChange={(e) => setQueryType(e.target.value)}
-            className="bg-gray-900 border border-gray-700 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          >
-            <option value="auto">Auto Detect</option>
-            <option value="asn">ASN</option>
-            <option value="ip">IP Address</option>
-            <option value="routing">Routing (Prefix/ASN)</option>
-            <option value="community">BGP Community</option>
-          </select>
-          
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Enter ASN, IP, CIDR, or Community (e.g., AS2914, 8.8.8.8, 1.1.1.0/24)"
-              className="w-full bg-gray-900 border border-gray-700 text-white rounded-lg pl-10 pr-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
-          </div>
-          
-          <button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-          >
-            {loading ? 'Searching...' : 'Lookup'}
-          </button>
-        </form>
-      </div>
+      <Card className="bg-surface-container border-[#2A2E35] shadow-none rounded">
+        <CardContent className="pt-6">
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+            <select 
+              value={queryType}
+              onChange={(e) => setQueryType(e.target.value)}
+              className="flex h-10 w-full md:w-48 items-center justify-between rounded border border-[#2A2E35] bg-surface-container-high px-3 py-2 text-sm text-on-surface ring-offset-surface-container focus:outline-none focus:ring-1 focus:ring-primary transition-colors cursor-pointer"
+            >
+              <option value="auto">Auto Detect</option>
+              <option value="asn">ASN</option>
+              <option value="ip">IP Address</option>
+              <option value="routing">Routing (Prefix/ASN)</option>
+              <option value="community">BGP Community</option>
+            </select>
+            
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 text-on-surface-variant" size={18} />
+              <Input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Enter ASN, IP, CIDR, or Community (e.g., AS2914, 8.8.8.8, 1.1.1.0/24)"
+                className="w-full bg-surface-container-high border-[#2A2E35] text-on-surface rounded pl-10 h-10 focus-visible:ring-primary"
+              />
+            </div>
+            
+            <Button
+              type="submit"
+              disabled={loading || !query.trim()}
+              className="bg-primary hover:bg-primary-hover text-on-primary h-10 px-8 rounded transition-all font-semibold w-full md:w-auto shadow-none"
+            >
+              {loading ? 'Searching...' : 'Lookup'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
       {error && (
-        <div className="bg-red-900/50 border border-red-500/50 text-red-200 p-4 rounded-lg flex items-center gap-3">
-          <ShieldAlert size={20} />
+        <div className="bg-error/10 border border-error/30 text-error p-4 rounded flex items-center gap-3 text-sm animate-in fade-in slide-in-from-top-2">
+          <ShieldAlert size={18} className="shrink-0" />
           {error}
         </div>
       )}
 
       {result && (
-        <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 overflow-hidden">
-          <div className="bg-gray-900/50 p-4 border-b border-gray-700 flex items-center gap-2">
-            {result.type === 'asn' && <Server className="text-blue-400" />}
-            {result.type === 'ip' && <Globe className="text-green-400" />}
-            {result.type === 'routing' && <Globe className="text-cyan-400" />}
-            {result.type === 'community' && <Building className="text-purple-400" />}
-            <h2 className="text-xl font-bold text-white capitalize">{result.type} Lookup Results</h2>
-          </div>
-          
-          <div className="p-6">
-            <LookupResultViewer result={result.data} />
-          </div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <Card className="bg-surface-container-low border-[#2A2E35] rounded shadow-none overflow-hidden">
+            <CardHeader className="bg-surface-container-high border-b border-[#2A2E35] py-4">
+              <CardTitle className="flex items-center gap-3 text-lg text-on-surface">
+                {result.type === 'asn' && <Server className="text-primary" size={20} />}
+                {result.type === 'ip' && <Globe className="text-primary" size={20} />}
+                {result.type === 'routing' && <Globe className="text-primary" size={20} />}
+                {result.type === 'community' && <Building className="text-[#a28c85]" size={20} />}
+                <span className="capitalize">{result.type} Lookup Results</span>
+              </CardTitle>
+            </CardHeader>
+            
+            <CardContent className="p-0 md:p-6">
+              <LookupResultViewer result={result.data} />
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

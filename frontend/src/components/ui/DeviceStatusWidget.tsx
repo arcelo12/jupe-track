@@ -52,51 +52,46 @@ export function DeviceStatusWidget() {
   if (!status) return null;
 
   return (
-    <div style={{
-      display: "flex", gap: "1rem", flexWrap: "wrap",
-      background: "rgba(8,15,26,0.3)",
-      border: "1px solid rgba(255,255,255,0.06)",
-      borderRadius: 12, padding: "1rem", marginBottom: "1.5rem"
-    }}>
-      <div style={{ flex: "1 1 auto", minWidth: 150 }}>
-        <p style={{ fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>System Model</p>
-        <p style={{ fontSize: "1.1rem", fontWeight: 600, color: "#cbd5e1", marginTop: 4 }}>{status.hw_model}</p>
+    <div className="flex flex-wrap gap-4 bg-surface-container-high border border-[#2A2E35] rounded-xl p-4 mb-6">
+      <div className="flex-1 min-w-[150px]">
+        <p className="text-xs text-on-surface-variant uppercase tracking-wider">System Model</p>
+        <p className="text-lg font-semibold text-on-surface mt-1">{status.hw_model}</p>
       </div>
 
-      <div style={{ flex: "1 1 auto", minWidth: 120 }}>
-        <p style={{ fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>RE CPU Usage</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-          <p style={{ fontSize: "1.1rem", fontWeight: 600, color: status.cpu_usage > 80 ? "#ef4444" : "#06b6d4" }}>
+      <div className="flex-1 min-w-[120px]">
+        <p className="text-xs text-on-surface-variant uppercase tracking-wider">RE CPU Usage</p>
+        <div className="flex items-center gap-2 mt-1">
+          <p className={`text-lg font-semibold ${status.cpu_usage > 80 ? 'text-error' : 'text-primary'}`}>
             {status.cpu_usage}%
           </p>
-          <div style={{ width: 60, height: 6, background: "rgba(255,255,255,0.1)", borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${status.cpu_usage}%`, background: status.cpu_usage > 80 ? "#ef4444" : "#06b6d4" }} />
+          <div className="w-[60px] h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+            <div className={`h-full ${status.cpu_usage > 80 ? 'bg-error' : 'bg-primary'}`} style={{ width: `${status.cpu_usage}%` }} />
           </div>
         </div>
       </div>
 
-      <div style={{ flex: "1 1 auto", minWidth: 120 }}>
-        <p style={{ fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Memory (Buffer)</p>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-          <p style={{ fontSize: "1.1rem", fontWeight: 600, color: status.memory_utilization > 80 ? "#ef4444" : "#8b5cf6" }}>
+      <div className="flex-1 min-w-[120px]">
+        <p className="text-xs text-on-surface-variant uppercase tracking-wider">Memory (Buffer)</p>
+        <div className="flex items-center gap-2 mt-1">
+          <p className={`text-lg font-semibold ${status.memory_utilization > 80 ? 'text-error' : 'text-primary'}`}>
             {status.memory_utilization}%
           </p>
-          <div style={{ width: 60, height: 6, background: "rgba(255,255,255,0.1)", borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${status.memory_utilization}%`, background: status.memory_utilization > 80 ? "#ef4444" : "#8b5cf6" }} />
+          <div className="w-[60px] h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+            <div className={`h-full ${status.memory_utilization > 80 ? 'bg-error' : 'bg-primary'}`} style={{ width: `${status.memory_utilization}%` }} />
           </div>
         </div>
       </div>
 
-      <div style={{ flex: "1 1 auto", minWidth: 100 }}>
-        <p style={{ fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Temperature</p>
-        <p style={{ fontSize: "1.1rem", fontWeight: 600, color: status.re_temperature > 65 ? "#ef4444" : "#10b981", marginTop: 4 }}>
+      <div className="flex-1 min-w-[100px]">
+        <p className="text-xs text-on-surface-variant uppercase tracking-wider">Temperature</p>
+        <p className={`text-lg font-semibold mt-1 ${status.re_temperature > 65 ? 'text-error' : 'text-primary'}`}>
           {status.re_temperature > 0 ? `${status.re_temperature}°C` : "N/A"}
         </p>
       </div>
 
-      <div style={{ flex: "1 1 auto", minWidth: 120 }}>
-        <p style={{ fontSize: "0.75rem", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Uptime</p>
-        <p style={{ fontSize: "1.1rem", fontWeight: 500, color: "#cbd5e1", marginTop: 4 }}>
+      <div className="flex-1 min-w-[120px]">
+        <p className="text-xs text-on-surface-variant uppercase tracking-wider">Uptime</p>
+        <p className="text-lg font-medium text-on-surface mt-1">
           {formatUptime(status.uptime_seconds)}
         </p>
       </div>
