@@ -64,8 +64,14 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Failed to change password");
+        let errMessage = "Failed to change password";
+        try {
+          const data = await res.json();
+          errMessage = data.error || data.detail || errMessage;
+        } catch {
+          errMessage = await res.text();
+        }
+        throw new Error(errMessage);
       }
 
       setPassSuccess(true);

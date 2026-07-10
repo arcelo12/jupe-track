@@ -249,6 +249,38 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 	protected := r.Group("/auth")
 	protected.Use(AuthMiddleware())
 
+	protected.POST("/change-password", func(c *gin.Context) {
+		var req struct {
+			CurrentPassword string `json:"current_password" binding:"required"`
+			NewPassword     string `json:"new_password" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+			return
+		}
+
+		username, _ := c.Get("username")
+		var user models.User
+		if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.CurrentPassword)); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect current password"})
+			return
+		}
+
+		hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash new password"})
+			return
+		}
+
+		database.DB.Model(&user).Update("hashed_password", string(hashed))
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Password updated successfully"})
+	})
+
 	protected.GET("/me", func(c *gin.Context) {
 		username, _ := c.Get("username")
 		var user models.User
