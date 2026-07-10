@@ -14,6 +14,26 @@ dist/
 # Go
 backend-go/bin/
 backend-go/tmp/
+backend-go/server
+backend-go/*.exe
+backend-go/coverage.out
+backend-go/coverage.*
+*.out
+*.coverprofile
+go.work
+go.work.sum
+
+# Secrets / Certs
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# SQLite extras (WAL/SHM sidecar files)
+*.db-shm
+*.db-wal
+*.db-journal
 
 # Python (Legacy)
 __pycache__/
@@ -39,7 +59,23 @@ device_config.json
 # OS generated
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# IDE / Editor
+.vscode/
+.idea/
+.history/
+*.swp
+*.swo
+*~
+
+# TypeScript / Next.js extras
+*.tsbuildinfo
+.turbo/
+.cache/
+*.local
 
 .agents
 
 docs/superpowers/
+DESIGN.md

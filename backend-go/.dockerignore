@@ -1,0 +1,11 @@
+.env
+.env.*
+data/
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+device_config.json
+bin/
+tmp/
+*.out

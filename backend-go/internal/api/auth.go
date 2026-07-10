@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/arcelo12/jupe-track/backend-go/internal/database"
@@ -15,20 +17,93 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var JWTSecret []byte
+var (
+	JWTSecret        []byte
+	accessTokenTTL   time.Duration
+	refreshTokenTTL  time.Duration
+	loginRateLimiter = newLoginLimiter()
+)
 
 func init() {
+	// SA-005: Read JWT_SECRET first, fall back to SECRET_KEY for back-compat
 	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = os.Getenv("SECRET_KEY")
+	}
 	if secret != "" {
 		JWTSecret = []byte(secret)
 	} else {
-		log.Println("JWT_SECRET not provided. Generating a random 32-byte secure key for this session.")
+		log.Println("WARNING: JWT_SECRET and SECRET_KEY not provided. Generating a random ephemeral key for this session — all tokens invalidate on restart.")
 		key := make([]byte, 32)
 		if _, err := rand.Read(key); err != nil {
 			log.Fatalf("Failed to generate secure random key: %v", err)
 		}
 		JWTSecret = key
 	}
+
+	// SA-005 / SA-033: honor env-configured token lifetimes
+	accessMins := 60
+	if v := os.Getenv("ACCESS_TOKEN_EXPIRE_MINUTES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			accessMins = n
+		}
+	}
+	accessTokenTTL = time.Duration(accessMins) * time.Minute
+
+	refreshDays := 7
+	if v := os.Getenv("REFRESH_TOKEN_EXPIRE_DAYS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			refreshDays = n
+		}
+	}
+	refreshTokenTTL = time.Duration(refreshDays) * 24 * time.Hour
+}
+
+// loginLimiter is a simple in-memory per-IP failed-attempt rate limiter (SA-018)
+type loginLimiter struct {
+	mu       sync.Mutex
+	failures map[string][]time.Time
+}
+
+func newLoginLimiter() *loginLimiter {
+	return &loginLimiter{failures: make(map[string][]time.Time)}
+}
+
+const (
+	loginMaxFailures   = 5
+	loginWindow        = 5 * time.Minute
+	loginLockoutWindow = 5 * time.Minute
+)
+
+func (l *loginLimiter) locked(ip string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-loginLockoutWindow)
+	attempts := l.failures[ip]
+	pruned := attempts[:0]
+	for _, t := range attempts {
+		if t.After(cutoff) {
+			pruned = append(pruned, t)
+		}
+	}
+	l.failures[ip] = pruned
+	return len(pruned) >= loginMaxFailures
+}
+
+func (l *loginLimiter) recordFailure(ip string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-loginWindow)
+	pruned := l.failures[ip][:0]
+	for _, t := range l.failures[ip] {
+		if t.After(cutoff) {
+			pruned = append(pruned, t)
+		}
+	}
+	pruned = append(pruned, now)
+	l.failures[ip] = pruned
 }
 
 type LoginRequest struct {
@@ -48,7 +123,7 @@ type RefreshRequest struct {
 
 func RegisterAuthRoutes(r *gin.RouterGroup) {
 	auth := r.Group("/auth")
-	
+
 	auth.POST("/refresh", func(c *gin.Context) {
 		var req RefreshRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -68,33 +143,55 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 			return
 		}
 
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			username := claims["sub"].(string)
-			var user models.User
-			if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-				return
-			}
-
-			// Generate new access token
-			newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-				"sub":      user.Username,
-				"exp":      time.Now().Add(time.Hour * 24).Unix(),
-				"is_admin": user.IsAdmin,
-			})
-			newTokenString, _ := newToken.SignedString(JWTSecret)
-
-			c.JSON(http.StatusOK, TokenResponse{
-				AccessToken:  newTokenString,
-				RefreshToken: req.RefreshToken,
-				TokenType:    "bearer",
-			})
-		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims"})
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+			return
 		}
+
+		// SA-006: require type == "refresh"
+		if t, _ := claims["type"].(string); t != "refresh" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token is not a refresh token"})
+			return
+		}
+
+		// SA-034: use comma-ok form to avoid panic on bad claims
+		username, ok := claims["sub"].(string)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
+			return
+		}
+
+		var user models.User
+		if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			return
+		}
+
+		// Generate new access token (SA-006: add type=access, SA-005/SA-033: env-configured TTL)
+		newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"sub":      user.Username,
+			"exp":      time.Now().Add(accessTokenTTL).Unix(),
+			"is_admin": user.IsAdmin,
+			"type":     "access",
+		})
+		newTokenString, _ := newToken.SignedString(JWTSecret)
+
+		c.JSON(http.StatusOK, TokenResponse{
+			AccessToken:  newTokenString,
+			RefreshToken: req.RefreshToken,
+			TokenType:    "bearer",
+		})
 	})
 
 	auth.POST("/login", func(c *gin.Context) {
+		// SA-018: per-IP rate limit on failed logins
+		ip := c.ClientIP()
+		if loginRateLimiter.locked(ip) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many failed login attempts. Try again later."})
+			return
+		}
+
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
@@ -103,21 +200,24 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 
 		var user models.User
 		if err := database.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
+			loginRateLimiter.recordFailure(ip)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
 		}
 
 		// Verify password
 		if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
+			loginRateLimiter.recordFailure(ip)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			return
 		}
 
-		// Generate JWT Token
+		// Generate JWT Token (SA-006: type=access; SA-005/SA-033: env-configured TTL)
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"sub": user.Username,
-			"exp": time.Now().Add(time.Hour * 24).Unix(),
+			"sub":      user.Username,
+			"exp":      time.Now().Add(accessTokenTTL).Unix(),
 			"is_admin": user.IsAdmin,
+			"type":     "access",
 		})
 
 		tokenString, err := token.SignedString(JWTSecret)
@@ -125,15 +225,15 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 			return
 		}
-		
-		// Generate Refresh Token
+
+		// Generate Refresh Token (SA-005: env-configured TTL)
 		refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"sub": user.Username,
-			"exp": time.Now().Add(time.Hour * 24 * 7).Unix(),
+			"sub":  user.Username,
+			"exp":  time.Now().Add(refreshTokenTTL).Unix(),
 			"type": "refresh",
 		})
 		refreshTokenString, _ := refreshToken.SignedString(JWTSecret)
-		
+
 		// Update last login
 		now := time.Now()
 		database.DB.Model(&user).Update("last_login", &now)

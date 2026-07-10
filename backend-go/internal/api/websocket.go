@@ -1,8 +1,13 @@
 package api
 
 import (
+	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,6 +15,7 @@ import (
 	"github.com/arcelo12/jupe-track/backend-go/internal/database"
 	"github.com/arcelo12/jupe-track/backend-go/internal/models"
 	"github.com/arcelo12/jupe-track/backend-go/internal/scraper"
+	"github.com/arcelo12/jupe-track/backend-go/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
@@ -19,8 +25,37 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow all origins for simplicity in dev/Docker environments
-		return true
+		// SA-019: validate Origin against an allowlist
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		allowed := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+		filtered := make([]string, 0, len(allowed))
+		for _, a := range allowed {
+			if a = strings.TrimSpace(a); a != "" {
+				filtered = append(filtered, a)
+			}
+		}
+		for _, a := range filtered {
+			if origin == a {
+				return true
+			}
+		}
+		if len(filtered) == 0 {
+			// No allowlist configured: permit same-hostname origins only.
+			// Ports differ (UI on :3040, WS API on :8085), so compare hostnames.
+			u, err := url.Parse(origin)
+			if err != nil {
+				return false
+			}
+			reqHost := r.Host
+			if h, _, splitErr := net.SplitHostPort(reqHost); splitErr == nil {
+				reqHost = h
+			}
+			return u.Hostname() == reqHost
+		}
+		return false
 	},
 }
 
@@ -175,6 +210,10 @@ func RegisterWebSocketRoutes(r *gin.RouterGroup) {
 
 		// Verify token (reusing logic from auth.go AuthMiddleware)
 		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+			// SA-014: validate signing method (consistent with AuthMiddleware)
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
 			return JWTSecret, nil
 		})
 
@@ -189,9 +228,18 @@ func RegisterWebSocketRoutes(r *gin.RouterGroup) {
 			return
 		}
 
+		// SA-002: sanitize logicalSystem before storing on client
 		logicalSystem := c.DefaultQuery("logical_system", "global")
 		if logicalSystem == "" {
 			logicalSystem = "global"
+		}
+		if logicalSystem != "global" {
+			sanitized, err := utils.SanitizeJunosInput(logicalSystem)
+			if err != nil {
+				logicalSystem = "global"
+			} else {
+				logicalSystem = sanitized
+			}
 		}
 
 		client := &Client{
@@ -208,8 +256,8 @@ func RegisterWebSocketRoutes(r *gin.RouterGroup) {
 		go client.writePump()
 	})
 
-	// Get total active scraper settings
-	r.GET("/ws/settings", func(c *gin.Context) {
+	// Get total active scraper settings — SA-001: require auth
+	r.GET("/ws/settings", AuthMiddleware(), func(c *gin.Context) {
 		var settings models.ScraperSettings
 		if database.DB != nil {
 			database.DB.First(&settings)
@@ -225,8 +273,8 @@ func RegisterWebSocketRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, settings)
 	})
 
-	// Save total scraper settings
-	r.POST("/ws/settings", func(c *gin.Context) {
+	// Save total scraper settings — SA-001: auth; SA-004: admin-only
+	r.POST("/ws/settings", AuthMiddleware(), AdminMiddleware(), func(c *gin.Context) {
 		var req models.ScraperSettings
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid settings payload"})

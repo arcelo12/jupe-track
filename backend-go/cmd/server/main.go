@@ -2,8 +2,8 @@ package main
 
 import (
 	"log"
-	"time"
 	"net/http"
+	"time"
 
 	"github.com/arcelo12/jupe-track/backend-go/internal/api"
 	"github.com/arcelo12/jupe-track/backend-go/internal/database"
@@ -19,8 +19,15 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
+	// SA-031: limit request body to 1MB to mitigate DoS
+	r.Use(func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20)
+		c.Next()
+	})
+
+	// SA-032: minimal health response (no framework leak)
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Go backend is running via Gin"})
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
 	api.SetupRoutes(r)
@@ -39,7 +46,7 @@ func main() {
 			ScrapeInterval:   30 * time.Second,
 		}
 	}
-	
+
 	// Start scraper worker with settings
 	scraper.StartWorker(&settings)
 

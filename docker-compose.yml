@@ -6,13 +6,18 @@ services:
     container_name: jupetrack
     ports:
       - "3040:3040"
-    restart: always
+    restart: unless-stopped
     environment:
       - INTERNAL_API_URL=http://localhost:3041
     env_file:
       - ./backend-go/.env
     volumes:
       - ./backend-go/data:/app/backend-go/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend-go:
     build:
@@ -21,26 +26,33 @@ services:
     container_name: jupetrack_go
     ports:
       - "8085:8080"
-    restart: always
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
+    restart: unless-stopped
     env_file:
       - ./backend-go/.env
     volumes:
       - ./backend-go/data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:latest
+    image: victoriametrics/victoria-metrics:v1.108.1
     container_name: jupetrack_victoriametrics
     ports:
-      - "8428:8428"
+      - "127.0.0.1:8428:8428"
     volumes:
       - victoriametrics-data:/victoria-metrics-data
     command:
       - "-storageDataPath=/victoria-metrics-data"
       - "-retentionPeriod=1y"
-    restart: always
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 # volumes:
 #   mysql_data:

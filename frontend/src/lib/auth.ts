@@ -19,6 +19,9 @@ interface User {
 // In-memory access token (not persisted, cleared on page refresh)
 let _accessToken: string | null = null;
 
+// SA-023: single-flight refresh — concurrent 401s share one refresh promise.
+let _refreshPromise: Promise<boolean> | null = null;
+
 export function setAccessToken(token: string | null) {
   _accessToken = token;
 }
@@ -110,23 +113,34 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
 }
 
 export async function tryRefreshToken(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
+  // SA-023: if a refresh is already in flight, reuse it.
+  if (_refreshPromise) return _refreshPromise;
+
+  _refreshPromise = (async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return false;
+
+    try {
+      const res = await fetch("/api/proxy/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      setAccessToken(data.access_token);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
 
   try {
-    const res = await fetch("/api/proxy/auth/refresh", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-
-    if (!res.ok) return false;
-
-    const data = await res.json();
-    setAccessToken(data.access_token);
-    return true;
-  } catch {
-    return false;
+    return await _refreshPromise;
+  } finally {
+    _refreshPromise = null;
   }
 }
 

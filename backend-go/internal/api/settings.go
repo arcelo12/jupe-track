@@ -15,7 +15,7 @@ func RegisterSettingsRoutes(r *gin.RouterGroup) {
 
 	settings.GET("/device", func(c *gin.Context) {
 		config := junos.GetDeviceConfig()
-		
+
 		maskedPass := ""
 		if config.Password != "" {
 			maskedPass = "********"
@@ -24,15 +24,21 @@ func RegisterSettingsRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"config": gin.H{
-				"host": config.Host,
-				"user": config.User,
-				"port": config.Port,
+				"host":     config.Host,
+				"user":     config.User,
+				"port":     config.Port,
 				"password": maskedPass, // Mask password instead of exposing plaintext
 			},
 		})
 	})
 
 	settings.POST("/device", func(c *gin.Context) {
+		// SA-004: admin-only
+		isAdmin, _ := c.Get("is_admin")
+		if isAdmin != true {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Admin privileges required"})
+			return
+		}
 		var req junos.DeviceConfig
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})

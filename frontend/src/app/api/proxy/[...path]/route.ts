@@ -20,10 +20,17 @@ async function proxyRequest(
   method: string,
   body?: string,
 ): Promise<NextResponse> {
+  // SA-022: reject path-traversal segments before building the target URL.
+  if (path.some(seg => seg === '..' || seg.startsWith('/') || seg.includes('..'))) {
+    return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+  }
   const targetPath = path.join('/');
+  if (targetPath.includes('..')) {
+    return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+  }
   const searchParams = request.nextUrl.searchParams.toString();
   const queryStr = searchParams ? `?${searchParams}` : '';
-  
+
   // Smart Routing: ALL traffic now goes to Go Backend (Phase 3 Cutover)
   const targetUrl = `${GO_BACKEND_URL}/api/v1/${targetPath}${queryStr}`;
 

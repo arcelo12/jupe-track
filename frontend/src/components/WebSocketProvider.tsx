@@ -85,15 +85,22 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       }
 
       const host = window.location.hostname;
-      const wsUrl = `ws://${host}:8085/api/v1/ws?token=${token}&logical_system=${logicalSystem}`;
+      // SA-008: use wss:// when page is served over HTTPS.
+      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const wsUrl = `${proto}://${host}:8085/api/v1/ws?token=${token}&logical_system=${logicalSystem}`;
 
-      console.log(`[WS][${connId}] Connecting to ${wsUrl}`);
+      // SA-009: never log the URL (contains token). Log only connection id.
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[WS][${connId}] Connecting`);
+      }
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
         if (isStale()) { ws.close(); return; }
-        console.log(`[WS][${connId}] Connection established`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[WS][${connId}] Connection established`);
+        }
         setIsConnected(true);
         setError(null);
         retryCountRef.current = 0;
@@ -115,24 +122,35 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
               }
               break;
             default:
-              console.log('[WS] Unhandled message type:', msg.type);
+              if (process.env.NODE_ENV === 'development') {
+                console.log('[WS] Unhandled message type:', msg.type);
+              }
           }
         } catch (err) {
-          console.error('[WS] Failed to parse message:', err);
+          if (process.env.NODE_ENV === 'development') {
+            console.error('[WS] Failed to parse message:', err);
+          }
         }
       };
 
-      ws.onerror = (err) => {
+      ws.onerror = () => {
         if (isStale()) return;
-        console.error(`[WS][${connId}] Socket error:`, err);
+        if (process.env.NODE_ENV === 'development') {
+          console.error(`[WS][${connId}] Socket error`);
+        }
       };
 
       ws.onclose = async (event) => {
         if (isStale()) {
-          console.log(`[WS][${connId}] Stale socket closed, ignoring.`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[WS][${connId}] Stale socket closed, ignoring.`);
+          }
           return;
         }
-        console.log(`[WS][${connId}] Connection closed:`, event.code, event.reason);
+        // SA-009: log only the code, never the reason (could contain token/error detail).
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[WS][${connId}] Connection closed:`, event.code);
+        }
         setIsConnected(false);
 
         if (event.code === 4001 || event.code === 1008 || (event.reason && event.reason.includes("Unauthorized"))) {
@@ -148,7 +166,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         const delay = Math.min(1000 * Math.pow(2, retryCountRef.current), 30000);
         retryCountRef.current += 1;
 
-        console.log(`[WS][${connId}] Reconnecting in ${delay}ms...`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[WS][${connId}] Reconnecting in ${delay}ms...`);
+        }
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
         }

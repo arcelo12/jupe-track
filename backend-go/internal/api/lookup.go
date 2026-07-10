@@ -2,12 +2,12 @@ package api
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -45,22 +45,15 @@ func setToCache(key string, data interface{}, duration time.Duration) {
 }
 
 func resolveDoH(hostname string) (string, error) {
-	// Use 1.1.1.1 directly to completely bypass the need for any local DNS resolution.
-	// 1.1.1.1 has a valid TLS certificate for the IP itself.
-	req, err := http.NewRequest("GET", "https://1.1.1.1/dns-query?name="+hostname+"&type=A", nil)
+	// SA-017: use the one.one.one.one hostname (valid TLS cert) and verify it.
+	dohURL := "https://one.one.one.one/dns-query?name=" + url.QueryEscape(hostname) + "&type=A"
+	req, err := http.NewRequest("GET", dohURL, nil)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Accept", "application/dns-json")
-	
-	// Use a standard client for DoH, assuming 1.1.1.1 resolves correctly locally.
-	// Skip TLS verify because some environments reject certificates for raw IPs.
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -76,7 +69,7 @@ func resolveDoH(hostname string) (string, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", err
 	}
-	
+
 	for _, ans := range result.Answer {
 		if ans.Type == 1 { // A record
 			return ans.Data, nil
@@ -97,14 +90,14 @@ func fetchLookupAPI(url string) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
-			
+
 			// Resolve IP using DoH
 			ip, err := resolveDoH(host)
 			if err != nil {
 				fmt.Printf("DoH failed for %s: %v\n", host, err)
 				return nil, fmt.Errorf("DoH resolution failed for %s: %v", host, err)
 			}
-			
+
 			fmt.Printf("DoH success for %s -> %s\n", host, ip)
 			d := net.Dialer{Timeout: 5 * time.Second}
 			return d.DialContext(ctx, network, net.JoinHostPort(ip, port))
@@ -115,7 +108,7 @@ func fetchLookupAPI(url string) (interface{}, error) {
 		Timeout:   15 * time.Second,
 		Transport: transport,
 	}
-	
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -156,7 +149,7 @@ func RegisterLookupRoutes(r *gin.RouterGroup) {
 	lookup.GET("/asn/:asn", func(c *gin.Context) {
 		asn := c.Param("asn")
 		asn = strings.TrimPrefix(strings.ToUpper(asn), "AS")
-		
+
 		url := fmt.Sprintf("https://stat.ripe.net/data/as-overview/data.json?resource=%s", asn)
 		data, err := fetchLookupAPI(url)
 		if err != nil {
@@ -200,7 +193,7 @@ func RegisterLookupRoutes(r *gin.RouterGroup) {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid community format. Use AS:VAL"})
 			return
 		}
-		
+
 		asn := parts[0]
 		// Fetch ASN to get its description/IRR which might contain community info
 		url := fmt.Sprintf("https://stat.ripe.net/data/as-overview/data.json?resource=%s", asn)
@@ -209,12 +202,12 @@ func RegisterLookupRoutes(r *gin.RouterGroup) {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 			return
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
-			"success": true, 
-			"community": community,
+			"success":     true,
+			"community":   community,
 			"asn_context": data,
-			"note": "Community values are ASN-specific. Review the ASN owner's routing policy.",
+			"note":        "Community values are ASN-specific. Review the ASN owner's routing policy.",
 		})
 	})
 }

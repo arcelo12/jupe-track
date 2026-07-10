@@ -41,11 +41,35 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
-		if ok && token.Valid {
-			c.Set("username", claims["sub"])
-			c.Set("is_admin", claims["is_admin"])
+		if !ok || !token.Valid {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+			c.Abort()
+			return
 		}
 
+		// SA-006: refresh tokens must not be usable as access tokens
+		if t, _ := claims["type"].(string); t == "refresh" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Refresh token cannot be used for access"})
+			c.Abort()
+			return
+		}
+
+		c.Set("username", claims["sub"])
+		c.Set("is_admin", claims["is_admin"])
+
+		c.Next()
+	}
+}
+
+// AdminMiddleware requires the authenticated user to be an admin (SA-004)
+func AdminMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isAdmin, _ := c.Get("is_admin")
+		if isAdmin != true {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Admin privileges required"})
+			c.Abort()
+			return
+		}
 		c.Next()
 	}
 }

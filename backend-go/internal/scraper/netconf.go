@@ -10,6 +10,7 @@ import (
 
 	"github.com/arcelo12/jupe-track/backend-go/internal/cache"
 	"github.com/arcelo12/jupe-track/backend-go/internal/junos"
+	"github.com/arcelo12/jupe-track/backend-go/internal/utils"
 )
 
 // Helper to determine if an interface is internal
@@ -33,7 +34,12 @@ func removeXMLNamespaces(xmlStr string) string {
 func FetchBGP(logicalSystem string) ([]cache.BGPPeer, error) {
 	lsStr := ""
 	if logicalSystem != "" && logicalSystem != "global" {
-		lsStr = fmt.Sprintf("<logical-system>%s</logical-system>", logicalSystem)
+		// SA-002: sanitize + escape before interpolating into RPC XML
+		sanitized, err := utils.SanitizeJunosInput(logicalSystem)
+		if err != nil {
+			return nil, fmt.Errorf("invalid logical_system: %v", err)
+		}
+		lsStr = fmt.Sprintf("<logical-system>%s</logical-system>", utils.EscapeXML(sanitized))
 	}
 	rpcXML := fmt.Sprintf("<get-bgp-summary-information>%s</get-bgp-summary-information>", lsStr)
 	replyXML, err := junos.RunNetconfRPC(rpcXML)
@@ -46,13 +52,13 @@ func FetchBGP(logicalSystem string) ([]cache.BGPPeer, error) {
 	var resp struct {
 		XMLName xml.Name `xml:"rpc-reply"`
 		Peers   []struct {
-			PeerAddress      string `xml:"peer-address"`
-			PeerAS           string `xml:"peer-as"`
-			PeerState        string `xml:"peer-state"`
-			ElapsedTime      string `xml:"elapsed-time"`
-			Description      string `xml:"description"`
-			PeerID           string `xml:"peer-id"`
-			BgpRibs []struct {
+			PeerAddress string `xml:"peer-address"`
+			PeerAS      string `xml:"peer-as"`
+			PeerState   string `xml:"peer-state"`
+			ElapsedTime string `xml:"elapsed-time"`
+			Description string `xml:"description"`
+			PeerID      string `xml:"peer-id"`
+			BgpRibs     []struct {
 				Name               string `xml:"name"`
 				ActivePrefixes     int    `xml:"active-prefix-count"`
 				ReceivedPrefixes   int    `xml:"received-prefix-count"`
@@ -73,7 +79,7 @@ func FetchBGP(logicalSystem string) ([]cache.BGPPeer, error) {
 		if state == "" {
 			state = "Idle"
 		}
-		
+
 		var active, recv, acc, adv int
 		for _, rib := range p.BgpRibs {
 			active += rib.ActivePrefixes
@@ -81,7 +87,7 @@ func FetchBGP(logicalSystem string) ([]cache.BGPPeer, error) {
 			acc += rib.AcceptedPrefixes
 			adv += rib.AdvertisedPrefixes
 		}
-		
+
 		peer := cache.BGPPeer{
 			PeerAddress:        strings.TrimSpace(p.PeerAddress),
 			RouterId:           strings.TrimSpace(p.PeerID),
@@ -134,7 +140,7 @@ func FetchDeviceStatus() (*cache.DeviceStatus, error) {
 	}
 
 	re := resp.RouteEngine[0]
-	
+
 	// Helper to extract numbers from string that might contain other things (e.g. "35 degrees C")
 	extractFloat := func(s string) float64 {
 		s = strings.TrimSpace(s)
@@ -152,13 +158,13 @@ func FetchDeviceStatus() (*cache.DeviceStatus, error) {
 	}
 
 	cpuIdle := extractFloat(re.CPUIdle)
-	
+
 	status := &cache.DeviceStatus{
 		CPUUsage:          100.0 - cpuIdle,
 		CPUIdle:           cpuIdle,
 		MemoryUtilization: extractFloat(re.MemoryUtilization),
 		RETemperature:     extractFloat(re.Temperature),
-		UptimeSeconds:     0, 
+		UptimeSeconds:     0,
 		HWModel:           "MX204", // Hardcoded for now
 	}
 
@@ -223,7 +229,7 @@ func FetchInterfaces() ([]cache.InterfaceStat, error) {
 	var ifaces []cache.InterfaceStat
 	for _, i := range resp.Interfaces {
 		name := strings.TrimSpace(i.Name)
-		
+
 		// Only allow physical interfaces starting with 'ge', 'et' or 'xe'
 		if !strings.HasPrefix(name, "ge") && !strings.HasPrefix(name, "et") && !strings.HasPrefix(name, "xe") {
 			continue

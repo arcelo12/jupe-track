@@ -1,6 +1,7 @@
 package junos
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -25,7 +26,7 @@ type DeviceConfig struct {
 	Host     string `json:"host"`
 	User     string `json:"user"`
 	Password string `json:"password"`
-	Port     string `json:"port"`      // NETCONF port
+	Port     string `json:"port"` // NETCONF port
 }
 
 func GetDeviceConfig() DeviceConfig {
@@ -92,7 +93,7 @@ func getNetconfSession() (*netconf.Session, error) {
 		Auth: []ssh.AuthMethod{
 			ssh.Password(config.Password),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: getHostKeyCallback(),
 		Timeout:         15 * time.Second,
 	}
 
@@ -107,6 +108,39 @@ func getNetconfSession() (*netconf.Session, error) {
 	persistentSession = session
 	sessionConfig = config
 	return persistentSession, nil
+}
+
+// getHostKeyCallback returns an SSH host-key callback (SA-003).
+// If JUNOS_HOST_KEY is set (base64-encoded public key wire format, or an
+// authorized_keys-style "type base64" string), the key is pinned via
+// ssh.FixedHostKey and mismatches fail closed. If unset, host-key
+// verification is disabled with a loud warning for back-compat.
+func getHostKeyCallback() ssh.HostKeyCallback {
+	raw := strings.TrimSpace(os.Getenv("JUNOS_HOST_KEY"))
+	if raw == "" {
+		log.Println("WARNING: JUNOS_HOST_KEY not set — SSH host-key verification DISABLED (MITM risk on management network).")
+		return ssh.InsecureIgnoreHostKey()
+	}
+
+	// Accept authorized_keys-style "ssh-ed25519 AAAA..." input.
+	if pubKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(raw)); err == nil {
+		log.Println("[NETCONF] Host key pinned via JUNOS_HOST_KEY (authorized_keys format).")
+		return ssh.FixedHostKey(pubKey)
+	}
+
+	// Otherwise treat the value as a base64-encoded wire-format public key.
+	decoded, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		log.Printf("WARNING: JUNOS_HOST_KEY is set but not valid base64 — falling back to insecure host-key verification: %v", err)
+		return ssh.InsecureIgnoreHostKey()
+	}
+	pubKey, err := ssh.ParsePublicKey(decoded)
+	if err != nil {
+		log.Printf("WARNING: JUNOS_HOST_KEY is set but could not be parsed as an SSH public key — falling back to insecure host-key verification: %v", err)
+		return ssh.InsecureIgnoreHostKey()
+	}
+	log.Println("[NETCONF] Host key pinned via JUNOS_HOST_KEY (base64 wire format).")
+	return ssh.FixedHostKey(pubKey)
 }
 
 // RunNetconfRPC executes an RPC XML string via NETCONF and returns the raw response XML.
@@ -134,11 +168,11 @@ func RunNetconfRPC(rpcXML string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("RPC execution failed and reconnect failed: %v", err)
 		}
-		
+
 		rpcMutex.Lock()
 		reply, err = session.Exec(netconf.RawMethod(rpcXML))
 		rpcMutex.Unlock()
-		
+
 		if err != nil {
 			return "", fmt.Errorf("RPC execution failed after retry: %v", err)
 		}
@@ -146,7 +180,6 @@ func RunNetconfRPC(rpcXML string) (string, error) {
 
 	return reply.RawReply, nil
 }
-
 
 // RunCLICommand executes a CLI command on the Junos device via NETCONF <command> wrapper.
 func RunCLICommand(cmd string) (string, error) {

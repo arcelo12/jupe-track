@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -60,6 +61,12 @@ func RegisterMetricsRoutes(r *gin.RouterGroup) {
 			handleGetRetention(c)
 			return
 		case path == "/retention" && method == "PUT":
+			// SA-004: admin-only
+			isAdmin, _ := c.Get("is_admin")
+			if isAdmin != true {
+				c.JSON(http.StatusForbidden, gin.H{"error": "Admin privileges required"})
+				return
+			}
 			handlePutRetention(c)
 			return
 
@@ -89,21 +96,54 @@ func RegisterMetricsRoutes(r *gin.RouterGroup) {
 			return
 		}
 
-		// ── Generic TSDB reverse proxy ──────────────────────────────────────
-		targetURL := tsdbURL + "/api/v1" + path
-		if strings.HasPrefix(path, "/api/v1") {
-			targetURL = tsdbURL + path
+		// ── Generic TSDB reverse proxy (SA-016) ─────────────────────────────
+		normPath := strings.TrimPrefix(path, "/api/v1")
+
+		// Allowlist only read endpoints; reject write/admin/delete paths
+		allowed := false
+		switch {
+		case normPath == "/query" || normPath == "/query_range" || normPath == "/series" || normPath == "/labels":
+			allowed = true
+		case strings.HasPrefix(normPath, "/label/") && strings.HasSuffix(normPath, "/values"):
+			allowed = true
 		}
+		if !allowed {
+			c.JSON(http.StatusForbidden, gin.H{"error": "TSDB endpoint not allowed"})
+			return
+		}
+		if method != http.MethodGet {
+			c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "Only GET allowed on TSDB proxy"})
+			return
+		}
+
+		targetURL := tsdbURL + "/api/v1" + normPath
 
 		reqURL, _ := url.Parse(targetURL)
 		reqURL.RawQuery = c.Request.URL.RawQuery
 
 		req, err := http.NewRequest(method, reqURL.String(), c.Request.Body)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			log.Printf("[metrics] failed to build TSDB request: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 			return
 		}
+
+		// Strip Authorization and hop-by-hop headers before forwarding
+		hopByHop := map[string]bool{
+			"Connection":          true,
+			"Keep-Alive":          true,
+			"Proxy-Authenticate":  true,
+			"Proxy-Authorization": true,
+			"Te":                  true,
+			"Trailers":            true,
+			"Transfer-Encoding":   true,
+			"Upgrade":             true,
+			"Authorization":       true,
+		}
 		for k, v := range c.Request.Header {
+			if hopByHop[http.CanonicalHeaderKey(k)] {
+				continue
+			}
 			req.Header[k] = v
 		}
 
@@ -133,13 +173,13 @@ func handleGetRetention(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"retention_days_interface": settings.RetentionDaysInterface,
-		"retention_days_bgp":      settings.RetentionDaysBGP,
-		"scrape_interval_seconds": int(settings.ScrapeInterval.Seconds()),
-		"scrape_enabled":          settings.BackgroundScrape,
-		"enable_bgp":              settings.EnableBGP,
-		"enable_interfaces":       settings.EnableInterfaces,
+		"retention_days_bgp":       settings.RetentionDaysBGP,
+		"scrape_interval_seconds":  int(settings.ScrapeInterval.Seconds()),
+		"scrape_enabled":           settings.BackgroundScrape,
+		"enable_bgp":               settings.EnableBGP,
+		"enable_interfaces":        settings.EnableInterfaces,
 		"scrape_interface_targets": settings.ScrapeInterfaceTargets,
-		"scrape_bgp_targets":      settings.ScrapeBGPTargets,
+		"scrape_bgp_targets":       settings.ScrapeBGPTargets,
 	})
 }
 
@@ -188,8 +228,6 @@ func handleGetStatus(c *gin.Context) {
 	if database.DB != nil {
 		database.DB.First(&settings)
 	}
-
-
 
 	c.JSON(http.StatusOK, gin.H{
 		"enabled":                 settings.BackgroundScrape,
@@ -249,13 +287,28 @@ func handleGetInterfaceHistory(c *gin.Context, tsdbURL string) {
 	startParam := c.Query("start")
 	endParam := c.Query("end")
 
+	// SA-015: validate ifaceName against cached interface names to prevent PromQL injection
+	if ifaceName != "" {
+		valid := false
+		for _, iface := range cache.GlobalCache.GetInterfaces() {
+			if iface.Name == ifaceName {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Unknown interface_name"})
+			return
+		}
+	}
+
 	queryIn := `jupetrack_interface_bps_in`
 	queryOut := `jupetrack_interface_bps_out`
 	if ifaceName != "" {
 		queryIn = `jupetrack_interface_bps_in{interface="` + ifaceName + `"}`
 		queryOut = `jupetrack_interface_bps_out{interface="` + ifaceName + `"}`
 	}
-	
+
 	var start, end, step string
 	if startParam != "" && endParam != "" {
 		start = startParam
@@ -310,7 +363,7 @@ func handleGetInterfaceHistory(c *gin.Context, tsdbURL string) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch from TSDB"})
 		return
 	}
-	
+
 	// Merge results
 	type pointData struct {
 		In  int64
@@ -332,18 +385,18 @@ func handleGetInterfaceHistory(c *gin.Context, tsdbURL string) {
 			}
 			tsFloat, _ := v[0].(float64)
 			ts := int64(tsFloat)
-			
+
 			valStr, _ := v[1].(string)
 			var val int64
 			fmt.Sscanf(valStr, "%d", &val)
-			
+
 			if merged[iface][ts] == nil {
 				merged[iface][ts] = &pointData{}
 			}
 			merged[iface][ts].In = val
 		}
 	}
-	
+
 	for _, res := range resOut.Data.Result {
 		iface := res.Metric["interface"]
 		ifaceTypes[iface] = res.Metric["type"]
@@ -356,11 +409,11 @@ func handleGetInterfaceHistory(c *gin.Context, tsdbURL string) {
 			}
 			tsFloat, _ := v[0].(float64)
 			ts := int64(tsFloat)
-			
+
 			valStr, _ := v[1].(string)
 			var val int64
 			fmt.Sscanf(valStr, "%d", &val)
-			
+
 			if merged[iface][ts] == nil {
 				merged[iface][ts] = &pointData{}
 			}
@@ -386,14 +439,14 @@ func handleGetInterfaceHistory(c *gin.Context, tsdbURL string) {
 		// Actually time format strings are sortable alphabetically
 		// but let's leave it as is or sort it if needed.
 		// It's better to sort:
-		
+
 		response = append(response, InterfaceHistoryResponse{
 			InterfaceName: iface,
 			InterfaceType: ifaceTypes[iface],
 			Points:        points,
 		})
 	}
-	
+
 	// We need to sort the points for each interface
 	for i := range response {
 		pts := response[i].Points

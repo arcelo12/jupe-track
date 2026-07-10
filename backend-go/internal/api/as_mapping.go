@@ -3,14 +3,15 @@ package api
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/arcelo12/jupe-track/backend-go/internal/database"
 	"github.com/arcelo12/jupe-track/backend-go/internal/models"
+	"github.com/gin-gonic/gin"
 )
 
 func RegisterASMappingRoutes(r *gin.RouterGroup) {
 	group := r.Group("/as-mapping")
-	
+	group.Use(AuthMiddleware()) // SA-001: require auth
+
 	// Get all mappings
 	group.GET("", func(c *gin.Context) {
 		var mappings []models.ASMapping
@@ -21,14 +22,18 @@ func RegisterASMappingRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, mappings)
 	})
 
+	// Mutations require admin (SA-004)
+	admin := group.Group("")
+	admin.Use(AdminMiddleware())
+
 	// Upsert a mapping
-	group.POST("", func(c *gin.Context) {
+	admin.POST("", func(c *gin.Context) {
 		var input models.ASMapping
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 			return
 		}
-		
+
 		if input.ASN == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ASN is required"})
 			return
@@ -59,7 +64,7 @@ func RegisterASMappingRoutes(r *gin.RouterGroup) {
 	})
 
 	// Delete a mapping
-	group.DELETE("/:asn", func(c *gin.Context) {
+	admin.DELETE("/:asn", func(c *gin.Context) {
 		asn := c.Param("asn")
 		if err := database.DB.Where("asn = ?", asn).Delete(&models.ASMapping{}).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete mapping"})

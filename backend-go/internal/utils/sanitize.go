@@ -13,9 +13,11 @@ func SanitizeJunosInput(input string) (string, error) {
 	if input == "" {
 		return "", nil
 	}
-	// Only allow alphanumeric, dot, colon, hyphen, and underscore.
-	// This covers IP addresses, ASNs, hostnames, and Juniper logical system names safely.
-	validRegex := regexp.MustCompile(`^[a-zA-Z0-9\.\:\-\_]+$`)
+	// Allow alphanumeric, dot, colon, hyphen, underscore, and forward slash.
+	// This covers IP addresses, CIDR prefixes (e.g. 10.0.0.0/8), ASNs,
+	// hostnames, and Juniper logical system names safely.
+	// Forward slash is safe in Junos CLI — it is not a shell metacharacter.
+	validRegex := regexp.MustCompile(`^[a-zA-Z0-9\.\:\-\_\/]+$`)
 	if !validRegex.MatchString(input) {
 		return "", fmt.Errorf("invalid input detected (contains unsafe characters)")
 	}

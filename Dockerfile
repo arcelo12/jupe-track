@@ -6,18 +6,14 @@ RUN npm install --legacy-peer-deps
 COPY frontend/ .
 RUN npm run build
 
-# Final Stage: Node.js only
+# Final Stage: Node.js only (standalone output)
 FROM node:20-alpine
 WORKDIR /app
-
-# Copy Frontend Build
-COPY --from=frontend-builder /app/package*.json ./frontend/
-COPY --from=frontend-builder /app/.next ./frontend/.next
-COPY --from=frontend-builder /app/public ./frontend/public
-COPY --from=frontend-builder /app/node_modules ./frontend/node_modules
-
-# Expose NextJS port
+ENV NODE_ENV=production
+ENV PORT=3040
+COPY --from=frontend-builder --chown=node:node /app/.next/standalone ./
+COPY --from=frontend-builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=frontend-builder --chown=node:node /app/public ./public
+USER node
 EXPOSE 3040
-
-WORKDIR /app/frontend
-CMD ["npm", "start", "--", "-p", "3040"]
+CMD ["node", "server.js"]

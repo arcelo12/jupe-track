@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/xml"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,12 +21,12 @@ type LookingGlassRequest struct {
 	LogicalSystem string `json:"logical_system"`
 	ResolvePtr    bool   `json:"resolve_ptr"`
 	ResolveAsn    bool   `json:"resolve_asn"`
-	
+
 	// Route Lookup parameters
-	Protocol      string `json:"protocol"`
-	DetailLevel   string `json:"detail_level"`
-	BGPMode       string `json:"bgp_mode"`
-	NeighborIP    string `json:"neighbor_ip"`
+	Protocol    string `json:"protocol"`
+	DetailLevel string `json:"detail_level"`
+	BGPMode     string `json:"bgp_mode"`
+	NeighborIP  string `json:"neighbor_ip"`
 }
 
 func RegisterLookingGlassRoutes(r *gin.RouterGroup) {
@@ -428,39 +429,63 @@ func RegisterLookingGlassRoutes(r *gin.RouterGroup) {
 		case "route_lookup":
 			var parts []string
 			parts = append(parts, "show route")
-			
+
 			if req.BGPMode == "advertising" {
-				ip, _ := utils.SanitizeJunosInput(req.NeighborIP)
+				ip, err := utils.SanitizeJunosInput(req.NeighborIP)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid neighbor IP"})
+					return
+				}
 				parts = append(parts, "advertising-protocol bgp", ip)
 			} else if req.BGPMode == "receive" {
-				ip, _ := utils.SanitizeJunosInput(req.NeighborIP)
+				ip, err := utils.SanitizeJunosInput(req.NeighborIP)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid neighbor IP"})
+					return
+				}
 				parts = append(parts, "receive-protocol bgp", ip)
 			}
-			
+
 			if req.Target != "" {
-				target, _ := utils.SanitizeJunosInput(req.Target)
+				target, err := utils.SanitizeJunosInput(req.Target)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid target (allowed: alphanumeric, dot, colon, hyphen, underscore, slash)"})
+					return
+				}
 				parts = append(parts, target)
 			}
-			
+
 			if req.BGPMode != "advertising" && req.BGPMode != "receive" {
 				if req.Protocol != "" && req.Protocol != "all" {
-					proto, _ := utils.SanitizeJunosInput(req.Protocol)
+					proto, err := utils.SanitizeJunosInput(req.Protocol)
+					if err != nil {
+						c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid protocol"})
+						return
+					}
 					parts = append(parts, "protocol", proto)
 				}
 				if req.DetailLevel != "" && req.DetailLevel != "brief" {
-					detail, _ := utils.SanitizeJunosInput(req.DetailLevel)
+					detail, err := utils.SanitizeJunosInput(req.DetailLevel)
+					if err != nil {
+						c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid detail level"})
+						return
+					}
 					parts = append(parts, detail)
 				}
 			}
-			
+
 			if req.LogicalSystem != "" && req.LogicalSystem != "global" {
-				ls, _ := utils.SanitizeJunosInput(req.LogicalSystem)
+				ls, err := utils.SanitizeJunosInput(req.LogicalSystem)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid logical system"})
+					return
+				}
 				parts = append(parts, "logical-system", ls)
 			}
-			
+
 			cliCmd := strings.Join(parts, " ")
 			logs = append(logs, fmt.Sprintf("[%s] Executing SSH CLI command: %s", time.Now().Format("15:04:05.000"), cliCmd))
-			
+
 			out, err := junos.RunCLICommand(cliCmd)
 			if err != nil {
 				handleError(c, err, logs, startTime)
@@ -477,29 +502,38 @@ func RegisterLookingGlassRoutes(r *gin.RouterGroup) {
 		totalMs := time.Since(startTime).Milliseconds()
 		logs = append(logs, fmt.Sprintf("[%s] ✓ Command executed successfully (%d bytes XML)", time.Now().Format("15:04:05.000"), len(rawXML)))
 
-		c.JSON(http.StatusOK, gin.H{
+		// SA-020: only surface debug block to admins
+		resp := gin.H{
 			"success": true,
 			"output":  result,
 			"command": req.Command,
 			"target":  req.Target,
-			"debug": gin.H{
+		}
+		if isAdmin, _ := c.Get("is_admin"); isAdmin == true {
+			resp["debug"] = gin.H{
 				"logs":              logs,
 				"execution_time_ms": totalMs,
 				"raw_xml_bytes":     len(rawXML),
-			},
-		})
+			}
+		}
+		c.JSON(http.StatusOK, resp)
 	})
 }
 
 func handleError(c *gin.Context, err error, logs []string, startTime time.Time) {
 	totalMs := time.Since(startTime).Milliseconds()
 	logs = append(logs, fmt.Sprintf("[%s] Error: %v", time.Now().Format("15:04:05.000"), err))
-	c.JSON(http.StatusInternalServerError, gin.H{
+	// SA-020: log detail server-side, return generic error to client
+	log.Printf("[looking-glass] error: %v", err)
+	resp := gin.H{
 		"success": false,
-		"error":   err.Error(),
-		"debug": gin.H{
+		"error":   "internal error",
+	}
+	if isAdmin, _ := c.Get("is_admin"); isAdmin == true {
+		resp["debug"] = gin.H{
 			"logs":              logs,
 			"execution_time_ms": totalMs,
-		},
-	})
+		}
+	}
+	c.JSON(http.StatusInternalServerError, resp)
 }
