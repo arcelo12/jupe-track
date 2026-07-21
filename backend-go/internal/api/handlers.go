@@ -24,18 +24,19 @@ func SetupRoutes(r *gin.Engine) {
 	RegisterWebSocketRoutes(api)
 	RegisterLookupRoutes(api)
 	RegisterASMappingRoutes(api)
+	RegisterAPIKeyRoutes(api) // enforces JWT + admin internally
 
 	// Live Data Endpoints (Instant response from memory) — SA-001: require auth
 	live := api.Group("/live")
-	live.Use(AuthMiddleware())
+	live.Use(AuthAnyMiddleware())
 
-	live.GET("/bgp", func(c *gin.Context) {
+	live.GET("/bgp", RequireScope(ScopeReadBGP), func(c *gin.Context) {
 		sys := c.DefaultQuery("logical_system", "global")
 		peers := cache.GlobalCache.GetBGP(sys)
 		c.JSON(http.StatusOK, peers)
 	})
 
-	live.GET("/interfaces", func(c *gin.Context) {
+	live.GET("/interfaces", RequireScope(ScopeReadInterfaces), func(c *gin.Context) {
 		ifaces := cache.GlobalCache.GetInterfaces()
 		c.JSON(http.StatusOK, ifaces)
 	})

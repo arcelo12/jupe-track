@@ -48,6 +48,7 @@ func Connect() {
 		&models.ScraperSettings{},
 		&models.User{},
 		&models.ASMapping{},
+		&models.APIKey{},
 	)
 	if err != nil {
 		log.Printf("Migration failed: %v", err)

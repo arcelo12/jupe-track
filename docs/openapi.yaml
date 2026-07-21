@@ -1,0 +1,547 @@
+openapi: 3.0.3
+info:
+  title: JupeTrack API
+  version: 1.1.0
+  description: |
+    REST API for JupeTrack — a monitoring dashboard for Juniper MX204 edge routers.
+    Data is collected over NETCONF, cached in memory, and stored long-term in
+    VictoriaMetrics. All endpoints below sit under `/api/v1` unless noted.
+
+    Authentication: JWT Bearer token (from `/auth/login`) or an API key sent in
+    the `X-API-Key` header with the appropriate scope.
+servers:
+  - url: http://localhost:8085/api/v1
+    description: Local docker-compose deployment (host port 8085)
+tags:
+  - name: auth
+  - name: bgp
+  - name: interfaces
+  - name: live
+  - name: metrics
+  - name: as-mapping
+  - name: lookup
+  - name: looking-glass
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Log in and obtain a JWT token pair
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+      responses:
+        "200":
+          description: Token pair
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Exchange a refresh token for a new access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        "200":
+          description: New token pair (refresh token returned unchanged)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /logical-systems:
+    get:
+      tags: [bgp]
+      summary: List logical systems configured on the device
+      description: "Scope: read:bgp"
+      responses:
+        "200":
+          description: Logical system names (always includes "global")
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+              example: ["global", "LS-CUSTOMER-A"]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /bgp-summary/{logical_system}:
+    get:
+      tags: [bgp]
+      summary: BGP peers for a logical system (from in-memory cache)
+      description: "Scope: read:bgp"
+      parameters:
+        - $ref: "#/components/parameters/LogicalSystem"
+      responses:
+        "200":
+          description: Array of BGP peers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BGPPeer" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /bgp-policy/{logical_system}:
+    get:
+      tags: [bgp]
+      summary: Import/export routing policies per BGP neighbor
+      description: "Scope: read:bgp"
+      parameters:
+        - $ref: "#/components/parameters/LogicalSystem"
+      responses:
+        "200":
+          description: Neighbor policies plus parsed policy statements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  neighbors:
+                    type: array
+                    items: { type: object }
+                  policies:
+                    type: object
+                    additionalProperties: true
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/ServerError" }
+  /bgp-logs/{logical_system}/{peer}:
+    get:
+      tags: [bgp]
+      summary: Last 50 log lines matching a peer address
+      description: "Scope: read:bgp"
+      parameters:
+        - $ref: "#/components/parameters/LogicalSystem"
+        - name: peer
+          in: path
+          required: true
+          schema: { type: string }
+          description: Peer IP address
+      responses:
+        "200":
+          description: Log lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /interfaces/traffic/{logical_system}:
+    get:
+      tags: [interfaces]
+      summary: Live traffic counters for all interfaces (from cache)
+      description: "Scope: read:interfaces"
+      parameters:
+        - $ref: "#/components/parameters/LogicalSystem"
+      responses:
+        "200":
+          description: Array of interface stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InterfaceStat" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /live/bgp:
+    get:
+      tags: [live]
+      summary: Instant BGP peers from in-memory cache
+      description: "Scope: read:bgp"
+      parameters:
+        - name: logical_system
+          in: query
+          schema: { type: string, default: global }
+      responses:
+        "200":
+          description: Array of BGP peers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BGPPeer" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /live/interfaces:
+    get:
+      tags: [live]
+      summary: Instant interface stats from in-memory cache
+      description: "Scope: read:interfaces"
+      responses:
+        "200":
+          description: Array of interface stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InterfaceStat" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /metrics/status:
+    get:
+      tags: [metrics]
+      summary: Scraper scheduler status
+      description: "Scope: read:metrics"
+      responses:
+        "200":
+          description: Scraper status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: { type: boolean }
+                  last_scrape_interface: { type: string, format: date-time, nullable: true }
+                  last_scrape_bgp: { type: string, format: date-time, nullable: true }
+                  next_run: { type: string, nullable: true }
+                  total_interface_records: { type: integer, format: int64 }
+                  total_bgp_records: { type: integer, format: int64 }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /metrics/interfaces/names:
+    get:
+      tags: [metrics]
+      summary: Physical interface names available for history queries
+      description: "Scope: read:metrics"
+      responses:
+        "200":
+          description: Interface names
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+              example: ["et-0/0/0", "et-0/0/1"]
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /metrics/bgp/peers:
+    get:
+      tags: [metrics]
+      summary: Unique BGP peer addresses across active logical systems
+      description: "Scope: read:metrics"
+      responses:
+        "200":
+          description: Peer addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /metrics/device/status:
+    get:
+      tags: [metrics]
+      summary: Device health (CPU, memory, temperature, uptime)
+      description: "Scope: read:device"
+      responses:
+        "200":
+          description: Device status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceStatus" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /metrics/interfaces/history:
+    get:
+      tags: [metrics]
+      summary: Time-series bps in/out per interface (proxied from VictoriaMetrics)
+      description: "Scope: read:metrics"
+      parameters:
+        - name: hours
+          in: query
+          schema: { type: string, default: "24", enum: ["1", "6", "24", "48", "168"] }
+          description: Lookback window; ignored when start/end are given
+        - name: interface_name
+          in: query
+          schema: { type: string }
+          description: Must be a known interface name (see /metrics/interfaces/names)
+        - name: start
+          in: query
+          schema: { type: string, format: date-time }
+        - name: end
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: History points per interface
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/InterfaceHistory" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /as-mapping:
+    get:
+      tags: [as-mapping]
+      summary: List all ASN-to-name mappings
+      description: "Scope: read:bgp"
+      responses:
+        "200":
+          description: Array of AS mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ASMapping" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /lookup/asn/{asn}:
+    get:
+      tags: [lookup]
+      summary: RIPEstat as-overview for an ASN (cached 24h server-side)
+      description: "Scope: read:lookup. The AS prefix is optional (AS7713 or 7713)."
+      parameters:
+        - name: asn
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: RIPEstat response (passthrough)
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/ServerError" }
+  /lookup/ip/{ip}:
+    get:
+      tags: [lookup]
+      summary: RIPEstat network-info for an IP address (cached 24h server-side)
+      description: "Scope: read:lookup"
+      parameters:
+        - name: ip
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: RIPEstat response (passthrough)
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/ServerError" }
+  /lookup/community/{community}:
+    get:
+      tags: [lookup]
+      summary: ASN context for a BGP community in AS:VAL format
+      description: "Scope: read:lookup"
+      parameters:
+        - name: community
+          in: path
+          required: true
+          schema: { type: string }
+          example: "2914:420"
+      responses:
+        "200":
+          description: Community context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  community: { type: string }
+                  asn_context: { type: object }
+                  note: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /looking-glass:
+    post:
+      tags: [looking-glass]
+      summary: Run a diagnostic command on the router via NETCONF
+      description: |
+        Scope: exec:looking-glass. All inputs are sanitized before being built
+        into NETCONF RPCs or Junos CLI commands. Admin JWT users additionally
+        receive a `debug` block (logs, execution time, raw XML).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LookingGlassRequest" }
+      responses:
+        "200":
+          description: Command output
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LookingGlassResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/ServerError" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from /auth/login
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key in the format jpt_<40 hex chars>, created by an admin via /api-keys
+  parameters:
+    LogicalSystem:
+      name: logical_system
+      in: path
+      required: true
+      schema: { type: string }
+      description: Logical system name; use "global" for the master routing instance
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing/invalid/expired credentials
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authenticated but lacking the required scope or admin role
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServerError:
+      description: Internal error or device unreachable
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    TokenResponse:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, example: bearer }
+        expires_in: { type: integer, example: 3600, description: Access token lifetime in seconds }
+      required: [access_token, refresh_token, token_type]
+    BGPPeer:
+      type: object
+      properties:
+        peer_address: { type: string, example: "103.147.8.9" }
+        peer_as: { type: string, example: "AS7713" }
+        state: { type: string, example: Established }
+        description: { type: string }
+        uptime: { type: string, example: "12w3d 04:15:22" }
+        active_prefixes: { type: integer }
+        received_prefixes: { type: integer }
+        accepted_prefixes: { type: integer }
+        advertised_prefixes: { type: integer }
+        afi: { type: string, example: "inet.0" }
+        router_id: { type: string, example: "10.0.255.1" }
+    InterfaceStat:
+      type: object
+      properties:
+        name: { type: string, example: "et-0/0/0" }
+        description: { type: string }
+        type: { type: string, enum: [physical, logical] }
+        admin_status: { type: string, example: up }
+        oper_status: { type: string, example: up }
+        bps_in: { type: integer, format: int64 }
+        bps_out: { type: integer, format: int64 }
+    DeviceStatus:
+      type: object
+      properties:
+        cpu_usage: { type: number, format: double }
+        cpu_idle: { type: number, format: double }
+        memory_utilization: { type: number, format: double }
+        re_temperature: { type: number, format: double }
+        uptime_seconds: { type: integer, format: int64 }
+        hw_model: { type: string, example: MX204 }
+    ASMapping:
+      type: object
+      properties:
+        asn: { type: string, example: "7713" }
+        name: { type: string, example: "Telkom Indonesia" }
+        type: { type: string, example: Transit, description: "Transit, IX, Customer, Peer, etc." }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    HistoryPoint:
+      type: object
+      properties:
+        timestamp: { type: string, format: date-time }
+        bps_in: { type: integer, format: int64 }
+        bps_out: { type: integer, format: int64 }
+    InterfaceHistory:
+      type: object
+      properties:
+        interface_name: { type: string }
+        interface_type: { type: string }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/HistoryPoint" }
+    LookingGlassRequest:
+      type: object
+      required: [command]
+      properties:
+        command:
+          type: string
+          enum: [show_route, ping, traceroute, show_bgp_neighbor, show_bgp_summary, show_interfaces, route_lookup]
+        target:
+          type: string
+          description: Destination IP/prefix/interface/neighbor. Required for ping and traceroute.
+        source_address: { type: string, description: Source address for ping/traceroute }
+        logical_system: { type: string, default: global }
+        resolve_ptr: { type: boolean }
+        resolve_asn: { type: boolean }
+        protocol: { type: string, description: "(route_lookup) protocol filter, e.g. bgp; 'all' disables the filter" }
+        detail_level: { type: string, description: "(route_lookup) brief, detail, extensive" }
+        bgp_mode: { type: string, enum: [advertising, receive], description: "(route_lookup) use with neighbor_ip" }
+        neighbor_ip: { type: string, description: "(route_lookup) required when bgp_mode is set" }
+    LookingGlassResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        output: { type: string, description: Rendered text output of the command }
+        command: { type: string }
+        target: { type: string }
+        debug:
+          type: object
+          description: Present only for admin JWT users
+          properties:
+            logs:
+              type: array
+              items: { type: string }
+            execution_time_ms: { type: integer }
+            raw_xml_bytes: { type: integer }
+            raw_xml: { type: string }
+security:
+  - bearerAuth: []
+  - ApiKeyAuth: []

@@ -31,9 +31,9 @@ type LookingGlassRequest struct {
 
 func RegisterLookingGlassRoutes(r *gin.RouterGroup) {
 	lgGroup := r.Group("/")
-	lgGroup.Use(AuthMiddleware())
+	lgGroup.Use(AuthAnyMiddleware())
 
-	lgGroup.POST("/looking-glass", func(c *gin.Context) {
+	lgGroup.POST("/looking-glass", RequireScope(ScopeExecLookingGlass), func(c *gin.Context) {
 		var req LookingGlassRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Invalid request payload"})

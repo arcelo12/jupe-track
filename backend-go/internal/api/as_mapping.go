@@ -10,10 +10,10 @@ import (
 
 func RegisterASMappingRoutes(r *gin.RouterGroup) {
 	group := r.Group("/as-mapping")
-	group.Use(AuthMiddleware()) // SA-001: require auth
+	group.Use(AuthAnyMiddleware()) // SA-001: require auth or API key
 
 	// Get all mappings
-	group.GET("", func(c *gin.Context) {
+	group.GET("", RequireScope(ScopeReadBGP), func(c *gin.Context) {
 		var mappings []models.ASMapping
 		if err := database.DB.Find(&mappings).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch mappings"})

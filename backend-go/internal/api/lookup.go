@@ -144,9 +144,9 @@ func fetchLookupAPI(url string) (interface{}, error) {
 
 func RegisterLookupRoutes(r *gin.RouterGroup) {
 	lookup := r.Group("/lookup")
-	lookup.Use(AuthMiddleware()) // require login
+	lookup.Use(AuthAnyMiddleware()) // require login or API key
 
-	lookup.GET("/asn/:asn", func(c *gin.Context) {
+	lookup.GET("/asn/:asn", RequireScope(ScopeReadLookup), func(c *gin.Context) {
 		asn := c.Param("asn")
 		asn = strings.TrimPrefix(strings.ToUpper(asn), "AS")
 
@@ -160,7 +160,7 @@ func RegisterLookupRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, data)
 	})
 
-	lookup.GET("/ip/:ip", func(c *gin.Context) {
+	lookup.GET("/ip/:ip", RequireScope(ScopeReadLookup), func(c *gin.Context) {
 		ip := c.Param("ip")
 		url := fmt.Sprintf("https://stat.ripe.net/data/network-info/data.json?resource=%s", ip)
 		data, err := fetchLookupAPI(url)
@@ -172,7 +172,7 @@ func RegisterLookupRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, data)
 	})
 
-	lookup.GET("/routing/*resource", func(c *gin.Context) {
+	lookup.GET("/routing/*resource", RequireScope(ScopeReadLookup), func(c *gin.Context) {
 		resource := c.Param("resource")
 		resource = strings.TrimPrefix(resource, "/") // remove leading slash from * parameter
 		url := fmt.Sprintf("https://stat.ripe.net/data/looking-glass/data.json?resource=%s", resource)
@@ -185,7 +185,7 @@ func RegisterLookupRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, data)
 	})
 
-	lookup.GET("/community/:community", func(c *gin.Context) {
+	lookup.GET("/community/:community", RequireScope(ScopeReadLookup), func(c *gin.Context) {
 		community := c.Param("community")
 		// Basic BGP Community lookup (e.g. 2914:420)
 		parts := strings.Split(community, ":")

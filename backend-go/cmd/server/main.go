@@ -25,6 +25,10 @@ func main() {
 		c.Next()
 	})
 
+	// External API support: CORS (ALLOWED_ORIGINS env) + global rate limit
+	r.Use(api.CORSMiddleware())
+	r.Use(api.GlobalRateLimitMiddleware())
+
 	// SA-032: minimal health response (no framework leak)
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})

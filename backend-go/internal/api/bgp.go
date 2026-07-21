@@ -16,9 +16,9 @@ import (
 
 func RegisterBGPRoutes(r *gin.RouterGroup) {
 	bgp := r.Group("/")
-	bgp.Use(AuthMiddleware())
+	bgp.Use(AuthAnyMiddleware())
 
-	bgp.GET("/logical-systems", func(c *gin.Context) {
+	bgp.GET("/logical-systems", RequireScope(ScopeReadBGP), func(c *gin.Context) {
 		systems := []string{"global"}
 		rpcXML := `<get-configuration><configuration><logical-systems/></configuration></get-configuration>`
 		replyXML, err := junos.RunNetconfRPC(rpcXML)
@@ -37,7 +37,7 @@ func RegisterBGPRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, systems)
 	})
 
-	bgp.GET("/bgp-summary/:logical_system", func(c *gin.Context) {
+	bgp.GET("/bgp-summary/:logical_system", RequireScope(ScopeReadBGP), func(c *gin.Context) {
 		ls := c.Param("logical_system")
 		ls, err := utils.SanitizeJunosInput(ls)
 		if err != nil {
@@ -66,7 +66,7 @@ func RegisterBGPRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, peers)
 	})
 
-	bgp.GET("/bgp-policy/:logical_system", func(c *gin.Context) {
+	bgp.GET("/bgp-policy/:logical_system", RequireScope(ScopeReadBGP), func(c *gin.Context) {
 		ls := c.Param("logical_system")
 		ls, err := utils.SanitizeJunosInput(ls)
 		if err != nil {
@@ -83,7 +83,7 @@ func RegisterBGPRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, policies)
 	})
 
-	bgp.GET("/bgp-logs/:logical_system/:peer", func(c *gin.Context) {
+	bgp.GET("/bgp-logs/:logical_system/:peer", RequireScope(ScopeReadBGP), func(c *gin.Context) {
 		peer := c.Param("peer")
 		peer, err := utils.SanitizeJunosInput(peer)
 		if err != nil {

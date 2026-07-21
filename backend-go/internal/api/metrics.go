@@ -43,7 +43,7 @@ type PromResponse struct {
 
 func RegisterMetricsRoutes(r *gin.RouterGroup) {
 	metrics := r.Group("/metrics")
-	metrics.Use(AuthMiddleware())
+	metrics.Use(AuthAnyMiddleware())
 
 	tsdbURL := os.Getenv("TSDB_URL")
 	if tsdbURL == "" {
@@ -54,6 +54,27 @@ func RegisterMetricsRoutes(r *gin.RouterGroup) {
 	metrics.Any("/*path", func(c *gin.Context) {
 		path := c.Param("path")
 		method := c.Request.Method
+
+		// API-key clients (service accounts) are restricted to read-only,
+		// scope-gated endpoints. Generic TSDB proxy below stays JWT-only.
+		if c.GetString("auth_type") == "api_key" {
+			scoped := map[string]string{
+				"/status":             ScopeReadMetrics,
+				"/interfaces/names":   ScopeReadMetrics,
+				"/bgp/peers":          ScopeReadMetrics,
+				"/device/status":      ScopeReadDevice,
+				"/interfaces/history": ScopeReadMetrics,
+			}
+			scope, ok := scoped[path]
+			if !ok || method != "GET" {
+				c.JSON(http.StatusForbidden, gin.H{"error": "endpoint not available for api keys"})
+				return
+			}
+			if !apiKeyHasScope(c, scope) {
+				c.JSON(http.StatusForbidden, gin.H{"error": "insufficient scope"})
+				return
+			}
+		}
 
 		switch {
 		// ── Retention settings (GET / PUT) ──────────────────────────────────

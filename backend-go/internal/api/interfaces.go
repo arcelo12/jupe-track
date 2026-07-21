@@ -9,9 +9,9 @@ import (
 
 func RegisterInterfacesRoutes(r *gin.RouterGroup) {
 	interfaces := r.Group("/interfaces")
-	interfaces.Use(AuthMiddleware())
+	interfaces.Use(AuthAnyMiddleware())
 
-	interfaces.GET("/traffic/:logical_system", func(c *gin.Context) {
+	interfaces.GET("/traffic/:logical_system", RequireScope(ScopeReadInterfaces), func(c *gin.Context) {
 		// Serve from cache
 		c.JSON(http.StatusOK, cache.GlobalCache.GetInterfaces())
 	})
