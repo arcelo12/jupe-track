@@ -395,7 +395,7 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
-      description: API key in the format jpt_<40 hex chars>, created by an admin via /api-keys. Available scopes: read:bgp, read:interfaces, read:metrics, read:device, read:lookup, exec:looking-glass. The wildcard `read:*` grants all read scopes (never exec).
+      description: "API key in the format jpt_<40 hex chars>, created by an admin via /api-keys. Available scopes: read:bgp, read:interfaces, read:metrics, read:device, read:lookup, exec:looking-glass. The wildcard 'read:*' grants all read scopes (never exec)."
   parameters:
     LogicalSystem:
       name: logical_system
