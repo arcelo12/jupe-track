@@ -29,11 +29,13 @@ func usage() {
 Usage:
   apikey create --name <nama> [--scopes s1,s2] [--expires-in-days N]
   apikey list
+  apikey update --id <id> [--name <nama>] [--scopes s1,s2] [--activate|--deactivate]
   apikey revoke --id <id>
 
 Perintah:
   create   Buat API key baru. Key plaintext (jpt_...) dicetak SEKALI.
   list     Tampilkan semua key (tanpa secret).
+  update   Ubah nama/scopes/status aktif key berdasarkan ID.
   revoke   Nonaktifkan key berdasarkan ID.
 
 Scope valid: %s
@@ -53,11 +55,36 @@ func main() {
 		cmdCreate(os.Args[2:])
 	case "list":
 		cmdList()
+	case "update":
+		cmdUpdate(os.Args[2:])
 	case "revoke":
 		cmdRevoke(os.Args[2:])
 	default:
 		usage()
 	}
+}
+
+// parseScopes memvalidasi daftar scope (dipisah koma) terhadap whitelist.
+func parseScopes(flag string) []string {
+	if flag == "" {
+		return nil
+	}
+	var scopes []string
+	for _, s := range strings.Split(flag, ",") {
+		s = strings.TrimSpace(s)
+		valid := false
+		for _, v := range api.ValidScopes() {
+			if s == v {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			log.Fatalf("error: scope tidak valid: %q (valid: %s)", s, strings.Join(api.ValidScopes(), ", "))
+		}
+		scopes = append(scopes, s)
+	}
+	return scopes
 }
 
 func cmdCreate(args []string) {
@@ -72,23 +99,7 @@ func cmdCreate(args []string) {
 		log.Fatal("error: --name wajib diisi (maks 128 karakter)")
 	}
 
-	var scopes []string
-	if *scopesFlag != "" {
-		for _, s := range strings.Split(*scopesFlag, ",") {
-			s = strings.TrimSpace(s)
-			valid := false
-			for _, v := range api.ValidScopes() {
-				if s == v {
-					valid = true
-					break
-				}
-			}
-			if !valid {
-				log.Fatalf("error: scope tidak valid: %q (valid: %s)", s, strings.Join(api.ValidScopes(), ", "))
-			}
-			scopes = append(scopes, s)
-		}
-	}
+	scopes := parseScopes(*scopesFlag)
 
 	database.Connect()
 
@@ -152,6 +163,60 @@ func cmdList() {
 		fmt.Printf("%-4d %-20s %-14s %-30s %-8t %-12s %s\n",
 			k.ID, k.Name, k.Prefix, k.Scopes, k.IsActive, exp, used)
 	}
+}
+
+func cmdUpdate(args []string) {
+	fs := flag.NewFlagSet("update", flag.ExitOnError)
+	id := fs.String("id", "", "ID key yang diubah (wajib)")
+	name := fs.String("name", "", "nama baru (opsional)")
+	scopesFlag := fs.String("scopes", "", "daftar scope baru dipisah koma (opsional)")
+	activate := fs.Bool("activate", false, "aktifkan key")
+	deactivate := fs.Bool("deactivate", false, "nonaktifkan key")
+	fs.Parse(args)
+
+	n, err := strconv.ParseUint(*id, 10, 64)
+	if *id == "" || err != nil {
+		log.Fatal("error: --id wajib berupa angka (lihat: apikey list)")
+	}
+	if *activate && *deactivate {
+		log.Fatal("error: --activate dan --deactivate tidak boleh dipakai bersamaan")
+	}
+
+	updates := map[string]interface{}{}
+	if *name != "" {
+		trimmed := strings.TrimSpace(*name)
+		if len(trimmed) > 128 {
+			log.Fatal("error: --name maks 128 karakter")
+		}
+		updates["name"] = trimmed
+	}
+	if *scopesFlag != "" {
+		updates["scopes"] = strings.Join(parseScopes(*scopesFlag), ",")
+	}
+	if *activate {
+		updates["is_active"] = true
+	}
+	if *deactivate {
+		updates["is_active"] = false
+	}
+	if len(updates) == 0 {
+		log.Fatal("error: tidak ada yang diubah — berikan --name, --scopes, --activate, atau --deactivate")
+	}
+
+	database.Connect()
+
+	result := database.DB.Model(&models.APIKey{}).Where("id = ?", n).Updates(updates)
+	if result.Error != nil {
+		log.Fatalf("error: gagal update: %v", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		log.Fatalf("error: key dengan ID %d tidak ditemukan", n)
+	}
+
+	var key models.APIKey
+	database.DB.First(&key, n)
+	fmt.Printf("Key ID %d diperbarui. Nama: %s | Scopes: [%s] | Aktif: %t\n",
+		key.ID, key.Name, key.Scopes, key.IsActive)
 }
 
 func cmdRevoke(args []string) {

@@ -752,6 +752,8 @@ langsung, berguna saat password admin hilang):
 ```bash
 docker exec jupetrack_go /app/apikey create --name grafana --scopes read:metrics,read:device
 docker exec jupetrack_go /app/apikey list
+docker exec jupetrack_go /app/apikey update --id 3 --scopes 'read:*,exec:looking-glass'
+docker exec jupetrack_go /app/apikey update --id 3 --deactivate
 docker exec jupetrack_go /app/apikey revoke --id 3
 ```
 
