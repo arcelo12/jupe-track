@@ -44,6 +44,7 @@ const (
 	ScopeReadMetrics      = "read:metrics"
 	ScopeReadDevice       = "read:device"
 	ScopeReadLookup       = "read:lookup"
+	ScopeReadAll          = "read:*" // wildcard: semua scope read:*
 	ScopeExecLookingGlass = "exec:looking-glass"
 )
 
@@ -55,6 +56,7 @@ func ValidScopes() []string {
 		ScopeReadMetrics,
 		ScopeReadDevice,
 		ScopeReadLookup,
+		ScopeReadAll,
 		ScopeExecLookingGlass,
 	}
 }
@@ -294,6 +296,21 @@ func APIKeyMiddleware() gin.HandlerFunc {
 	}
 }
 
+// scopeGranted reports whether the held scopes satisfy the required scope.
+// A key holding "read:*" satisfies any "read:<x>" requirement; exact match
+// covers the rest. Wildcard never grants exec:* scopes.
+func scopeGranted(held []string, required string) bool {
+	for _, s := range held {
+		if s == required {
+			return true
+		}
+		if s == ScopeReadAll && strings.HasPrefix(required, "read:") {
+			return true
+		}
+	}
+	return false
+}
+
 // RequireScope enforces a scope for API-key-authenticated requests.
 // JWT-authenticated requests pass through unconditionally.
 func RequireScope(scope string) gin.HandlerFunc {
@@ -306,11 +323,9 @@ func RequireScope(scope string) gin.HandlerFunc {
 
 		scopesVal, _ := c.Get("api_key_scopes")
 		scopes, _ := scopesVal.([]string)
-		for _, s := range scopes {
-			if s == scope {
-				c.Next()
-				return
-			}
+		if scopeGranted(scopes, scope) {
+			c.Next()
+			return
 		}
 
 		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient scope"})
@@ -327,12 +342,7 @@ func apiKeyHasScope(c *gin.Context, scope string) bool {
 	}
 	scopesVal, _ := c.Get("api_key_scopes")
 	scopes, _ := scopesVal.([]string)
-	for _, s := range scopes {
-		if s == scope {
-			return true
-		}
-	}
-	return false
+	return scopeGranted(scopes, scope)
 }
 
 // AuthAnyMiddleware dispatches between API key auth and JWT auth:

@@ -82,6 +82,7 @@ akan ditolak dengan `403`.
 | `read:metrics`       | `/metrics/status`, `/metrics/interfaces/*`, `/metrics/bgp/peers` |
 | `read:device`        | `/metrics/device/status` |
 | `read:lookup`        | `/lookup/asn/*`, `/lookup/ip/*`, `/lookup/community/*` |
+| `read:*`             | **Wildcard** — mencakup semua scope `read:*` di atas (tidak termasuk `exec:*`) |
 | `exec:looking-glass` | `POST /looking-glass` |
 
 Endpoint admin (`/api-keys`, `PUT /metrics/retention`, `/settings/device`,
