@@ -33,7 +33,8 @@ Tidak memerlukan autentikasi. Respons:
 {"status": "ok"}
 ```
 
-> Catatan: `/health` berada di root server (bukan di bawah `/api/v1`).
+> Catatan: `/health` tersedia di root server **dan** sebagai alias di
+> `/api/v1/health` — respons identik, keduanya publik.
 
 ---
 

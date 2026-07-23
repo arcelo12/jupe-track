@@ -30,9 +30,11 @@ func main() {
 	r.Use(api.GlobalRateLimitMiddleware())
 
 	// SA-032: minimal health response (no framework leak)
-	r.GET("/health", func(c *gin.Context) {
+	health := func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
+	}
+	r.GET("/health", health)
+	r.GET("/api/v1/health", health) // alias supaya probe bisa pakai prefix konsisten
 
 	api.SetupRoutes(r)
 

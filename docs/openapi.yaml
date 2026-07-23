@@ -71,8 +71,8 @@ paths:
   /health:
     get:
       tags: [auth]
-      summary: Liveness probe (server root, outside /api/v1)
-      description: "Public endpoint served at the server root: `GET http://host:8085/health` (not under `/api/v1`)."
+      summary: Liveness probe
+      description: "Public endpoint. Available both at the server root (`GET http://host:8085/health`) and under the API prefix (`GET /api/v1/health`) — identical responses."
       security: []
       responses:
         "200":
