@@ -155,7 +155,7 @@ paths:
   /bgp-summary/{logical_system}:
     get:
       tags: [bgp]
-      summary: BGP peers for a logical system (from in-memory cache)
+      summary: Fetch current BGP peers for a logical system via NETCONF
       description: "Scope: read:bgp"
       parameters:
         - $ref: "#/components/parameters/LogicalSystem"

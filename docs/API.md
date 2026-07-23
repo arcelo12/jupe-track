@@ -257,7 +257,9 @@ curl -s "$JUPETRACK/logical-systems" -H "X-API-Key: $API_KEY"
 
 #### `GET /bgp-summary/:logical_system`
 
-Daftar BGP peer dari cache in-memory (diisi scraper tiap interval).
+Daftar BGP peer untuk logical system yang diminta. Endpoint menjalankan RPC
+NETCONF langsung, mengembalikan data terbaru, lalu memperbarui cache
+`/live/bgp` untuk logical system tersebut.
 Gunakan `global` untuk routing instance utama.
 
 **Auth**: JWT atau API key scope `read:bgp`.

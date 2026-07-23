@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"net/http"
@@ -37,34 +36,7 @@ func RegisterBGPRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, systems)
 	})
 
-	bgp.GET("/bgp-summary/:logical_system", RequireScope(ScopeReadBGP), func(c *gin.Context) {
-		ls := c.Param("logical_system")
-		ls, err := utils.SanitizeJunosInput(ls)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid logical system parameter"})
-			return
-		}
-		lsStr := ""
-		if ls != "" && ls != "global" {
-			lsStr = fmt.Sprintf(" logical-system %s", ls)
-		}
-		
-		cmd := fmt.Sprintf("show bgp summary%s | display json", lsStr)
-		out, err := junos.RunCLICommand(cmd)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		// Very basic parsing or just returning raw depending on frontend expectation
-		// Wait, the frontend expects a specific BGPPeer format. Let's just return raw if it's too complex or dummy.
-		var rawJson map[string]interface{}
-		json.Unmarshal([]byte(out), &rawJson)
-		
-		// Use the scraper cache instead of empty mock to allow frontend testing
-		peers := cache.GlobalCache.GetBGP(ls)
-		c.JSON(http.StatusOK, peers)
-	})
+	bgp.GET("/bgp-summary/:logical_system", RequireScope(ScopeReadBGP), handleBGPSummary(scraper.FetchBGP))
 
 	bgp.GET("/bgp-policy/:logical_system", RequireScope(ScopeReadBGP), func(c *gin.Context) {
 		ls := c.Param("logical_system")
@@ -73,7 +45,7 @@ func RegisterBGPRoutes(r *gin.RouterGroup) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid logical system parameter"})
 			return
 		}
-		
+
 		policies, err := scraper.FetchBGPPolicies(ls)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -105,4 +77,24 @@ func RegisterBGPRoutes(r *gin.RouterGroup) {
 		}
 		c.JSON(http.StatusOK, lines)
 	})
+}
+
+func handleBGPSummary(fetch func(string) ([]cache.BGPPeer, error)) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ls := c.Param("logical_system")
+		ls, err := utils.SanitizeJunosInput(ls)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid logical system parameter"})
+			return
+		}
+
+		peers, err := fetch(ls)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		cache.GlobalCache.SetBGP(ls, peers)
+		c.JSON(http.StatusOK, peers)
+	}
 }
