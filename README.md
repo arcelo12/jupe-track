@@ -24,6 +24,7 @@
 - [Environment Configuration](#-environment-configuration)
 - [Juniper Device Configuration](#-juniper-device-configuration)
 - [Local Development Setup](#-local-development-setup)
+- [External API & Integrations](#-external-api--integrations)
 - [Screenshots](#-screenshots)
 
 ---
@@ -170,6 +171,48 @@ npm install
 npm run dev
 ```
 *Frontend will run on `http://localhost:3000`*
+
+---
+
+## 🔌 External API & Integrations
+
+JupeTrack exposes a REST API (`/api/v1`) for integrating with other services
+(Grafana, Zabbix, custom tooling, etc.). Authentication supports JWT (user
+login) and **API keys** (`X-API-Key` header) with fine-grained scopes.
+
+**Quick start — create an API key via CLI (no login needed):**
+
+```bash
+docker exec jupetrack_go /app/apikey create --name grafana --scopes 'read:*'
+docker exec jupetrack_go /app/apikey list
+docker exec jupetrack_go /app/apikey update --id 1 --scopes 'read:*,exec:looking-glass'
+```
+
+**Use it:**
+
+```bash
+curl -s http://localhost:8085/api/v1/live/bgp \
+  -H "X-API-Key: jpt_<your-key>"
+```
+
+**Documentation:**
+
+- 📘 [docs/API.md](docs/API.md) — full API reference (Bahasa Indonesia): auth,
+  scopes, rate limits, every endpoint with curl examples, WebSocket, admin routes.
+- 📄 [docs/openapi.yaml](docs/openapi.yaml) — OpenAPI 3.0 spec (import into
+  Swagger UI / Postman / Insomnia).
+- 💡 [docs/examples/](docs/examples/) — ready-to-run client examples in
+  [Python](docs/examples/python_client.py) and [Go](docs/examples/go_client.go).
+
+| Scope | Access |
+|---|---|
+| `read:bgp` | BGP summary, policies, logs, live peers, AS mappings |
+| `read:interfaces` | Interface traffic stats (live) |
+| `read:metrics` | Scraper status, TSDB history, interface/peer lists |
+| `read:device` | Device CPU/memory/uptime status |
+| `read:lookup` | External RIPEstat ASN/IP/community lookups |
+| `read:*` | Wildcard — all read scopes above |
+| `exec:looking-glass` | Looking glass (ping, traceroute, show route, BGP) on the router |
 
 ---
 
