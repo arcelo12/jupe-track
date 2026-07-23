@@ -68,6 +68,74 @@ paths:
               schema: { $ref: "#/components/schemas/TokenResponse" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /health:
+    get:
+      tags: [auth]
+      summary: Liveness probe (server root, outside /api/v1)
+      description: "Public endpoint served at the server root: `GET http://host:8085/health` (not under `/api/v1`)."
+      security: []
+      responses:
+        "200":
+          description: Server is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Current user profile
+      description: JWT only — API keys are not tied to a user account.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  username: { type: string }
+                  email: { type: string, nullable: true }
+                  is_active: { type: boolean }
+                  is_admin: { type: boolean }
+                  created_at: { type: string, format: date-time }
+                  last_login: { type: string, format: date-time, nullable: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /auth/change-password:
+    post:
+      tags: [auth]
+      summary: Change own password
+      description: JWT only.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string, format: password }
+                new_password: { type: string, format: password }
+      responses:
+        "200":
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
   /logical-systems:
     get:
       tags: [bgp]

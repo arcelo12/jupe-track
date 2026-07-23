@@ -741,7 +741,7 @@ API key tidak berlaku, kecuali bila dinyatakan lain.
 | POST   | `/settings/device`     | Simpan host/user/port/password NETCONF perangkat |
 | POST   | `/as-mapping`          | Upsert AS mapping. Body: `{"asn", "name", "type"}` |
 | DELETE | `/as-mapping/:asn`     | Hapus AS mapping |
-| POST   | `/live/refresh`        | Picu scrape manual segera |
+| POST   | `/live/refresh`        | Picu scrape manual segera (memanggil NETCONF; **khusus admin**, API key ditolak) |
 | GET    | `/diagnose`            | Uji konektivitas NETCONF + CLI ke perangkat |
 | GET    | `/test-bgp`            | Dump raw XML `get-bgp-summary-information` |
 | GET    | `/test-iface`          | Fetch interface langsung (bypass cache) |

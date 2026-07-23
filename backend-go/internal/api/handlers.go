@@ -41,7 +41,8 @@ func SetupRoutes(r *gin.Engine) {
 		c.JSON(http.StatusOK, ifaces)
 	})
 
-	live.POST("/refresh", func(c *gin.Context) {
+	// Manual scrape trigger hits the router over NETCONF — admin only
+	live.POST("/refresh", AdminMiddleware(), func(c *gin.Context) {
 		scraper.TriggerScrape()
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "Manual scrape triggered"})
 	})
