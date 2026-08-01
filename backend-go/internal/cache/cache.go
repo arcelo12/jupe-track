@@ -2,6 +2,8 @@ package cache
 
 import (
 	"sync"
+
+	"github.com/arcelo12/jupe-track/backend-go/internal/metrics"
 )
 
 // Define basic metric structures for the cache
@@ -77,21 +79,34 @@ func (c *StateCache) GetBGP(system string) []BGPPeer {
 	if system == "" {
 		system = "global"
 	}
-	if c.bgpPeers == nil {
+	
+	// Track cache hits/misses for BGP
+	metrics.SetCacheMetrics(len(c.bgpPeers), len(c.interfaces), 0)
+	
+	if c.bgpPeers == nil || c.bgpPeers[system] == nil {
+		metrics.IncrementCacheMisses()
 		return []BGPPeer{}
 	}
-	peers, ok := c.bgpPeers[system]
-	if !ok {
-		return []BGPPeer{}
-	}
-	res := make([]BGPPeer, len(peers))
-	copy(res, peers)
-	return res
+	
+	metrics.IncrementCacheHits()
+	peers := make([]BGPPeer, len(c.bgpPeers[system]))
+	copy(peers, c.bgpPeers[system])
+	return peers
 }
 
 func (c *StateCache) GetInterfaces() []InterfaceStat {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	
+	// Track cache hits/misses for interfaces
+	metrics.SetCacheMetrics(len(c.bgpPeers), len(c.interfaces), 0)
+	
+	if len(c.interfaces) == 0 {
+		metrics.IncrementCacheMisses()
+		return []InterfaceStat{}
+	}
+	
+	metrics.IncrementCacheHits()
 	ifaces := make([]InterfaceStat, len(c.interfaces))
 	copy(ifaces, c.interfaces)
 	return ifaces

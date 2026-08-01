@@ -795,3 +795,92 @@ curl -s -X PUT "$JUPETRACK/metrics/retention" \
 |-------|------------|-----------|
 | 1.1.0 | 2026-07-21 | Autentikasi API key (`X-API-Key`) + scope; rate limit API key dengan `Retry-After` |
 | 1.0.0 | 2026-01-01 | Rilis awal: JWT auth, BGP/interface/live/metrics, looking glass, WebSocket |
+
+---
+
+## 📊 Monitoring & Metrics (Prometheus/VictoriaMetrics)
+
+JupeTrack provides comprehensive Prometheus-compatible metrics at `/metrics` endpoint, enabling integration with VictoriaMetrics for long-term storage, Grafana dashboards, and alerting.
+
+### Available Metrics
+
+**Scraper Performance** (`jupetrack_scraper_*`, `jupetrack_bgp_*`, `jupetrack_interfaces_*`)
+- `scrape_duration_seconds` - Time spent scraping Juniper devices (histogram)
+- `scrape_total` - Total scrape operations by result (counter)
+- `peer_count` - Number of BGP peers per logical system (gauge)
+- `interface_count` - Network interfaces tracked (gauge)
+
+**API Performance** (`jupetrack_api_*`)
+- `request_duration_seconds` - HTTP request duration (histogram)
+- `requests_total` - Total requests by endpoint (counter)
+- `active_requests` - Currently active HTTP requests (gauge)
+
+**Cache Performance** (`jupetrack_cache_*`)
+- `cache_hits_total` - Cache hits (counter)
+- `cache_misses_total` - Cache misses (counter)
+- `cache_size` - Items cached by key type (gauge)
+
+**Database** (`jupetrack_database_*`)
+- `query_duration_seconds` - Database query execution time (histogram)
+- `connections` - Active DB connections (gauge)
+
+**System Status**
+- `active_sessions` - WebSocket/API sessions (gauge)
+- `system_uptime_seconds` - Uptime since start (gauge)
+
+### Accessing Metrics
+
+Metrics are automatically available at:
+```bash
+curl http://localhost:8085/metrics
+```
+
+Or directly from backend container:
+```bash
+docker exec jupetrack_go curl http://localhost:8080/metrics
+```
+
+### VictoriaMetrics Integration
+
+VictoriaMetrics receives scraped data from the Prometheus client library in Go. To query historical data:
+
+```bash
+# Get current BGP peer count
+curl 'http://localhost:8428/api/v1/query?query=jupetrack_bgp_peer_count{logical_system="global"}'
+
+# Get interface throughput over last hour
+curl 'http://localhost:8428/api/v1/query_range?query=jupetrack_interface_bps_in&start=<timestamp>&end=<timestamp>&step=60s'
+```
+
+### Alerting Rules
+
+Example Prometheus alerting rules:
+
+```yaml
+groups:
+  - name: jupetrack_alerts
+    rules:
+      - alert: BgpSessionDown
+        expr: jupetrack_bgp_peer_count{logical_system="global"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "BGP session down on global system"
+          
+      - alert: HighScrapeLatency
+        expr: histogram_quantile(0.99, rate(jupetrack_scraper_scrape_duration_seconds_bucket[5m])) > 10
+        labels:
+          severity: warning
+        annotations:
+          summary: "High scrape latency detected"
+```
+
+### Troubleshooting
+
+If metrics not appearing:
+1. Verify endpoint accessible: `curl http://localhost:8080/metrics`
+2. Check logs: `docker logs jupetrack_go --tail 50`
+3. Confirm metrics package imported correctly
+4. Ensure no firewall blocking port 8080
+

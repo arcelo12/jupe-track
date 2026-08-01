@@ -3,15 +3,31 @@ package api
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/arcelo12/jupe-track/backend-go/internal/cache"
 	"github.com/arcelo12/jupe-track/backend-go/internal/junos"
+	"github.com/arcelo12/jupe-track/backend-go/internal/metrics"
 	"github.com/arcelo12/jupe-track/backend-go/internal/scraper"
 	"github.com/gin-gonic/gin"
 )
 
 // SetupRoutes registers all API endpoints
 func SetupRoutes(r *gin.Engine) {
+	// Add request timing middleware to all routes for metrics
+	r.Use(func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		
+		duration := time.Since(start)
+		endpoint := c.FullPath()
+		if endpoint == "" {
+			endpoint = "/unknown"
+		}
+		
+		metrics.RecordAPIRequest(endpoint, c.Request.Method, c.Writer.Status(), duration)
+	})
+
 	api := r.Group("/api/v1") // Using v1 to match Python convention
 
 	RegisterAuthRoutes(api)
