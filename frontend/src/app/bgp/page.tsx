@@ -71,32 +71,24 @@ export default function BGPDashboard() {
   }, [rawBgpData, logicalSystem]);
 
   useEffect(() => {
-    if (selectedPeer) {
-      const fetchHistory = async () => {
-        setChartLoading(true);
-        try {
-          const now = Date.now();
-          const mockPoints = [];
-          const pts = timeRange === "1h" ? 60 : timeRange === "24h" ? 96 : 30;
-          const msStep = (timeRange === "1h" ? 60000 : timeRange === "24h" ? 900000 : 86400000);
-          
-          for (let i = pts; i >= 0; i--) {
-            mockPoints.push({
-              timestamp: new Date(now - i * msStep).toISOString(),
-              state: selectedPeer.state,
-              active_prefixes: (selectedPeer.active_prefixes || 0) - Math.floor(Math.random() * 5),
-              received_prefixes: (selectedPeer.received_prefixes || 0) - Math.floor(Math.random() * 2),
-            });
-          }
-          setChartData(mockPoints);
-        } catch (e) {
-          console.warn("Failed to fetch historical data", e);
-        } finally {
-          setChartLoading(false);
-        }
-      };
-      fetchHistory();
-    }
+    if (!selectedPeer) return;
+
+    const fetchHistory = async () => {
+      setChartLoading(true);
+      setChartData([]);
+      const hours = { "1h": 1, "24h": 24, "7d": 168, "30d": 720, all: 8760 }[timeRange];
+      try {
+        const response = await authFetch(`/api/proxy/metrics/bgp/history?peer=${encodeURIComponent(selectedPeer.peer_address)}&hours=${hours}`);
+        if (!response.ok) throw new Error("Failed to fetch BGP history");
+        setChartData(await response.json());
+      } catch (error) {
+        console.warn("Failed to fetch historical data", error);
+      } finally {
+        setChartLoading(false);
+      }
+    };
+
+    fetchHistory();
   }, [selectedPeer, timeRange]);
 
   useEffect(() => {

@@ -94,6 +94,17 @@ func (c *StateCache) GetBGP(system string) []BGPPeer {
 	return peers
 }
 
+// Systems returns every logical system currently held in the BGP cache.
+func (c *StateCache) Systems() []string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	systems := make([]string, 0, len(c.bgpPeers))
+	for system := range c.bgpPeers {
+		systems = append(systems, system)
+	}
+	return systems
+}
+
 func (c *StateCache) GetInterfaces() []InterfaceStat {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

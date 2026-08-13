@@ -45,9 +45,9 @@ const CustomTooltip = ({ active, payload, label }: {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: "rgba(15,23,42,0.95)",
-      border: "1px solid rgba(51,65,85,0.8)",
-      borderRadius: "8px",
+      background: "#282a2d",
+      border: "1px solid #54433d",
+      borderRadius: "4px",
       padding: "10px 14px",
       fontSize: "12px",
       boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
@@ -99,15 +99,15 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
         <AreaChart data={formatted} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
           <defs>
             <linearGradient id={`colorInHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-            </linearGradient>
-            <linearGradient id={`colorOutHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+               <stop offset="5%" stopColor="#ffc6b2" stopOpacity={0.3}/>
+               <stop offset="95%" stopColor="#ffc6b2" stopOpacity={0}/>
+             </linearGradient>
+             <linearGradient id={`colorOutHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
+               <stop offset="5%" stopColor="#c5c6cc" stopOpacity={0.22}/>
+               <stop offset="95%" stopColor="#c5c6cc" stopOpacity={0}/>
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#54433d" vertical={false} />
           <XAxis
             dataKey="time"
             stroke="#94a3b8" 
@@ -131,7 +131,7 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
             type="monotone"
             dataKey="in_mbps"
             name="Ingress Mbps"
-            stroke="#3b82f6"
+            stroke="#ffc6b2"
             strokeWidth={2}
             fillOpacity={1}
             fill={`url(#colorInHistory-${safeName})`}
@@ -141,7 +141,7 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
             type="monotone"
             dataKey="out_mbps"
             name="Egress Mbps"
-            stroke="#f97316"
+            stroke="#c5c6cc"
             strokeWidth={2}
             fillOpacity={1}
             fill={`url(#colorOutHistory-${safeName})`}

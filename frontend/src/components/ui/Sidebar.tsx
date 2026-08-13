@@ -4,6 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, ChevronLeft, ChevronRight, X, Globe, Bookmark } from 'lucide-react';
+import { useWebSocket } from '@/components/WebSocketProvider';
+import { authFetch } from '@/lib/auth';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -14,6 +16,19 @@ interface SidebarProps {
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }: SidebarProps) => {
   const pathname = usePathname();
+  const [lastScrape, setLastScrape] = React.useState<string | null>(null);
+
+  const { isConnected } = useWebSocket();
+  React.useEffect(() => {
+    let alive = true;
+    authFetch('/api/proxy/metrics/status').then(r => r.ok ? r.json() : null).then(d => {
+      if (!alive || !d?.last_scrape_bgp) return;
+      const ts = new Date(d.last_scrape_bgp as string).getTime();
+      const mins = Math.floor((Date.now() - ts) / 60000);
+      setLastScrape(mins < 1 ? 'just now' : mins === 1 ? '1m ago' : `${mins}m ago`);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [isConnected]);
 
   const menuGroups = [
     {
@@ -132,13 +147,15 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
             isCollapsed ? 'justify-center p-2' : 'gap-3 p-3'
           }`}>
             <div className="relative flex items-center justify-center flex-shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full bg-primary"></div>
-              <div className="absolute w-2.5 h-2.5 rounded-full bg-primary animate-ping opacity-75"></div>
+              <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-primary' : 'bg-error'}`}></div>
+              {isConnected && <div className="absolute w-2.5 h-2.5 rounded-full bg-primary animate-ping opacity-75"></div>}
             </div>
             {!isCollapsed && (
               <div className="text-[11px] overflow-hidden">
-                <p className="text-on-surface font-semibold leading-none mb-0.5">Online</p>
-                <p className="text-on-surface-variant leading-none truncate">MX204 SSH</p>
+                <p className="text-on-surface font-semibold leading-none mb-0.5">{isConnected ? 'Online' : 'Disconnected'}</p>
+                <p className="text-on-surface-variant leading-none truncate">
+                  {lastScrape ? `Scraped ${lastScrape}` : 'MX204 SSH'}
+                </p>
               </div>
             )}
           </div>

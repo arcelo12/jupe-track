@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -114,6 +116,11 @@ func RegisterMetricsRoutes(r *gin.RouterGroup) {
 		// ── Interface history (TSDB proxy) ──────────────────────────────────
 		case path == "/interfaces/history" && method == "GET":
 			handleGetInterfaceHistory(c, tsdbURL)
+			return
+
+		// ── BGP prefix history (TSDB proxy) ─────────────────────────────────
+		case path == "/bgp/history" && method == "GET":
+			handleGetBGPHistory(c, tsdbURL)
 			return
 		}
 
@@ -481,6 +488,116 @@ func handleGetInterfaceHistory(c *gin.Context, tsdbURL string) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func handleGetBGPHistory(c *gin.Context, tsdbURL string) {
+	peer := c.Query("peer")
+	if peer == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "peer is required"})
+		return
+	}
+	if net.ParseIP(peer) == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "peer harus alamat IP yang valid"})
+		return
+	}
+
+	activeSystems := make(map[string]bool)
+	for _, sys := range GetActiveLogicalSystems() {
+		activeSystems[sys] = true
+	}
+	for _, sys := range cache.GlobalCache.Systems() {
+		activeSystems[sys] = true
+	}
+	valid := false
+	for sys := range activeSystems {
+		for _, cachedPeer := range cache.GlobalCache.GetBGP(sys) {
+			if cachedPeer.PeerAddress == peer {
+				valid = true
+				break
+			}
+		}
+		if valid {
+			break
+		}
+	}
+	if !valid {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown peer"})
+		return
+	}
+
+	hours := c.DefaultQuery("hours", "1")
+	start := "now-" + hours + "h"
+	step := calculateStep(hours)
+
+	fetch := func(metric string) (*PromResponse, error) {
+		reqURL, _ := url.Parse(tsdbURL + "/api/v1/query_range")
+		query := reqURL.Query()
+		query.Set("query", metric+`{peer="`+peer+`"}`)
+		query.Set("start", start)
+		query.Set("end", "now")
+		query.Set("step", step)
+		reqURL.RawQuery = query.Encode()
+
+		resp, err := (&http.Client{Timeout: 10 * time.Second}).Get(reqURL.String())
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		var result PromResponse
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return nil, err
+		}
+		return &result, nil
+	}
+
+	active, activeErr := fetch("jupetrack_bgp_active_prefixes")
+	received, receivedErr := fetch("jupetrack_bgp_received_prefixes")
+	if activeErr != nil || receivedErr != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "TSDB unreachable"})
+		return
+	}
+
+	type prefixPoint struct {
+		Timestamp        string `json:"timestamp"`
+		State            string `json:"state"`
+		ActivePrefixes   int64  `json:"active_prefixes"`
+		ReceivedPrefixes int64  `json:"received_prefixes"`
+	}
+	points := make(map[int64]*prefixPoint)
+	merge := func(response *PromResponse, activeMetric bool) {
+		for _, series := range response.Data.Result {
+			for _, value := range series.Values {
+				if len(value) != 2 {
+					continue
+				}
+				timestamp, ok := value[0].(float64)
+				if !ok {
+					continue
+				}
+				var count int64
+				fmt.Sscanf(fmt.Sprint(value[1]), "%d", &count)
+				key := int64(timestamp)
+				if points[key] == nil {
+					points[key] = &prefixPoint{Timestamp: time.Unix(key, 0).UTC().Format(time.RFC3339), State: "Established"}
+				}
+				if activeMetric {
+					points[key].ActivePrefixes = count
+				} else {
+					points[key].ReceivedPrefixes = count
+				}
+			}
+		}
+	}
+	merge(active, true)
+	merge(received, false)
+
+	result := make([]prefixPoint, 0, len(points))
+	for _, point := range points {
+		result = append(result, *point)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Timestamp < result[j].Timestamp })
+	c.JSON(http.StatusOK, result)
 }
 
 func calculateStep(hours string) string {

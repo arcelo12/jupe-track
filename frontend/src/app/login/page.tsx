@@ -175,19 +175,19 @@ export default function LoginPage() {
         }
         .login-orb-1 {
           width: 400px; height: 400px;
-          background: radial-gradient(circle, rgba(6,182,212,0.25), transparent 70%);
+          background: radial-gradient(circle, rgba(255,181,154,0.18), transparent 70%);
           top: -100px; left: -100px;
           animation-delay: 0s;
         }
         .login-orb-2 {
           width: 500px; height: 500px;
-          background: radial-gradient(circle, rgba(139,92,246,0.2), transparent 70%);
+          background: radial-gradient(circle, rgba(255,198,178,0.13), transparent 70%);
           bottom: -150px; right: -100px;
           animation-delay: -3s;
         }
         .login-orb-3 {
           width: 300px; height: 300px;
-          background: radial-gradient(circle, rgba(16,185,129,0.15), transparent 70%);
+          background: radial-gradient(circle, rgba(220,190,175,0.10), transparent 70%);
           top: 50%; left: 50%;
           transform: translate(-50%, -50%);
           animation-delay: -6s;
