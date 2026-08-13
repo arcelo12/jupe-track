@@ -5,6 +5,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend
 } from "recharts";
+import { CHART_AXIS, CHART_GRID, CHART_IN, CHART_OUT, CHART_TOOLTIP_BG, CHART_TOOLTIP_BORDER } from "@/lib/chart-colors";
 
 interface DataPoint {
   timestamp: string;
@@ -45,8 +46,8 @@ const CustomTooltip = ({ active, payload, label }: {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: "#282a2d",
-      border: "1px solid #54433d",
+      background: CHART_TOOLTIP_BG,
+      border: `1px solid ${CHART_TOOLTIP_BORDER}`,
       borderRadius: "4px",
       padding: "10px 14px",
       fontSize: "12px",
@@ -99,18 +100,18 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
         <AreaChart data={formatted} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
           <defs>
             <linearGradient id={`colorInHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
-               <stop offset="5%" stopColor="#ffc6b2" stopOpacity={0.3}/>
-               <stop offset="95%" stopColor="#ffc6b2" stopOpacity={0}/>
+               <stop offset="5%" stopColor={CHART_IN} stopOpacity={0.35}/>
+               <stop offset="95%" stopColor={CHART_IN} stopOpacity={0}/>
              </linearGradient>
              <linearGradient id={`colorOutHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
-               <stop offset="5%" stopColor="#c5c6cc" stopOpacity={0.22}/>
-               <stop offset="95%" stopColor="#c5c6cc" stopOpacity={0}/>
+               <stop offset="5%" stopColor={CHART_OUT} stopOpacity={0.35}/>
+               <stop offset="95%" stopColor={CHART_OUT} stopOpacity={0}/>
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#54433d" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
           <XAxis
             dataKey="time"
-            stroke="#94a3b8" 
+            stroke={CHART_AXIS} 
             fontSize={10} 
             tickMargin={8} 
             minTickGap={30}
@@ -119,7 +120,7 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
             tickFormatter={(val) => formatTime(val)}
           />
           <YAxis
-            stroke="#94a3b8" 
+            stroke={CHART_AXIS} 
             fontSize={10} 
             tickFormatter={(v) => `${v}M`}
             axisLine={false}
@@ -131,7 +132,7 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
             type="monotone"
             dataKey="in_mbps"
             name="Ingress Mbps"
-            stroke="#ffc6b2"
+            stroke={CHART_IN}
             strokeWidth={2}
             fillOpacity={1}
             fill={`url(#colorInHistory-${safeName})`}
@@ -141,7 +142,7 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
             type="monotone"
             dataKey="out_mbps"
             name="Egress Mbps"
-            stroke="#c5c6cc"
+            stroke={CHART_OUT}
             strokeWidth={2}
             fillOpacity={1}
             fill={`url(#colorOutHistory-${safeName})`}

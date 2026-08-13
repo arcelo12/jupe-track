@@ -5,6 +5,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer
 } from "recharts";
+import { CHART_ACTIVE, CHART_GRID, CHART_IN, CHART_TOOLTIP_BG, CHART_TOOLTIP_BORDER } from "@/lib/chart-colors";
 
 interface BGPPoint {
   timestamp: string;
@@ -34,8 +35,8 @@ const CustomTooltip = ({ active, payload, label }: {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: "#282a2d",
-      border: "1px solid #54433d",
+      background: CHART_TOOLTIP_BG,
+      border: `1px solid ${CHART_TOOLTIP_BORDER}`,
       borderRadius: "4px",
       padding: "10px 14px",
       fontSize: "0.78rem",
@@ -82,16 +83,16 @@ export function BGPPrefixChart({ data, peerAddress, compact = false }: BGPPrefix
       <AreaChart data={formatted} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id={`grad-a-${peerAddress}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#ffc6b2" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#ffc6b2" stopOpacity={0} />
+            <stop offset="5%" stopColor={CHART_ACTIVE} stopOpacity={0.35} />
+            <stop offset="95%" stopColor={CHART_ACTIVE} stopOpacity={0} />
           </linearGradient>
           <linearGradient id={`grad-r-${peerAddress}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#c5c6cc" stopOpacity={0.2} />
-            <stop offset="95%" stopColor="#c5c6cc" stopOpacity={0} />
+            <stop offset="5%" stopColor={CHART_IN} stopOpacity={0.25} />
+            <stop offset="95%" stopColor={CHART_IN} stopOpacity={0} />
           </linearGradient>
         </defs>
         {!compact && (
-          <CartesianGrid strokeDasharray="3 3" stroke="#54433d" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
         )}
         {!compact && (
           <XAxis
@@ -115,7 +116,7 @@ export function BGPPrefixChart({ data, peerAddress, compact = false }: BGPPrefix
           type="monotone"
           dataKey="received"
           name="Received Prefixes"
-          stroke="#c5c6cc"
+          stroke={CHART_IN}
           strokeWidth={compact ? 1.5 : 2}
           fill={`url(#grad-r-${peerAddress})`}
           dot={false}
@@ -124,7 +125,7 @@ export function BGPPrefixChart({ data, peerAddress, compact = false }: BGPPrefix
           type="monotone"
           dataKey="active"
           name="Active Prefixes"
-          stroke="#ffc6b2"
+          stroke={CHART_ACTIVE}
           strokeWidth={compact ? 1.5 : 2}
           fill={`url(#grad-a-${peerAddress})`}
           dot={false}
