@@ -30,7 +30,6 @@ func FetchBGPPolicies(logicalSystem string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("failed to run CLI command for BGP config: %v", err)
 	}
 
-
 	// If it's a logical system, the XML path is configuration>logical-systems>protocols>bgp>group
 	// So let's do a trick: we can use a wrapper or just replace `<logical-systems><name>...</name>` with empty
 	// Actually, `show configuration logical-systems LS protocols bgp | display xml` outputs:
@@ -39,7 +38,7 @@ func FetchBGPPolicies(logicalSystem string) (map[string]interface{}, error) {
 	// No, better to just have two structs or unmarshal dynamically.
 	// Actually, `| display xml` might not output the parent tags if you query specifically!
 	// But let's just make a generic struct.
-	
+
 	type Neighbor struct {
 		Name    string   `xml:"name"`
 		Imports []string `xml:"import"`
@@ -51,16 +50,16 @@ func FetchBGPPolicies(logicalSystem string) (map[string]interface{}, error) {
 		Exports   []string   `xml:"export"`
 		Neighbors []Neighbor `xml:"neighbor"`
 	}
-	
+
 	var conf struct {
-		Groups []Group `xml:"configuration>protocols>bgp>group"`
+		Groups   []Group `xml:"configuration>protocols>bgp>group"`
 		LSGroups []Group `xml:"configuration>logical-systems>protocols>bgp>group"`
 	}
-	
+
 	if err := xml.Unmarshal([]byte(outBGP), &conf); err != nil {
 		log.Printf("BGP XML parse error: %v", err)
 	}
-	
+
 	groups := conf.Groups
 	if len(conf.LSGroups) > 0 {
 		groups = conf.LSGroups
@@ -73,7 +72,7 @@ func FetchBGPPolicies(logicalSystem string) (map[string]interface{}, error) {
 		for _, n := range g.Neighbors {
 			var imp []string
 			var exp []string
-			
+
 			// Combine group and neighbor policies
 			seen := make(map[string]bool)
 			for _, p := range append(n.Imports, g.Imports...) {
@@ -91,7 +90,7 @@ func FetchBGPPolicies(logicalSystem string) (map[string]interface{}, error) {
 					allPolicyNames[p] = true
 				}
 			}
-			
+
 			policies[n.Name] = map[string]interface{}{
 				"peer_address":    n.Name,
 				"import_policies": imp,
@@ -136,13 +135,13 @@ func FetchBGPPolicies(logicalSystem string) (map[string]interface{}, error) {
 		GlobalPolicies []PolicyStatement `xml:"configuration>policy-options>policy-statement"`
 		LSPolicies     []PolicyStatement `xml:"configuration>logical-systems>policy-options>policy-statement"`
 	}
-	
+
 	if err := xml.Unmarshal([]byte(outPol), &pconf); err != nil {
 		if err.Error() != "EOF" && !strings.Contains(err.Error(), "expected element type") {
 			log.Printf("Policy XML parse error: %v", err)
 		}
 	}
-	
+
 	stmts := append(pconf.GlobalPolicies, pconf.LSPolicies...)
 
 	parsedPolicies := make(map[string]map[string]interface{})
@@ -152,7 +151,7 @@ func FetchBGPPolicies(logicalSystem string) (map[string]interface{}, error) {
 			// Extract from the whole term inner XML because show policy flattens tags differently
 			froms := extractFromTags(t.TermInner)
 			thens := extractThenTags(t.TermInner)
-			
+
 			name := t.Name
 			if name == "" {
 				name = "unnamed"
@@ -173,7 +172,7 @@ func FetchBGPPolicies(logicalSystem string) (map[string]interface{}, error) {
 	for _, pFace := range policies {
 		pMap := pFace.(map[string]interface{})
 		details := make(map[string]interface{})
-		
+
 		for _, pName := range pMap["import_policies"].([]string) {
 			if pd, ok := parsedPolicies[pName]; ok {
 				details[pName] = pd
@@ -189,7 +188,7 @@ func FetchBGPPolicies(logicalSystem string) (map[string]interface{}, error) {
 
 	return map[string]interface{}{
 		"neighbors": policies,
-		"policies": parsedPolicies,
+		"policies":  parsedPolicies,
 	}, nil
 }
 
@@ -226,14 +225,14 @@ func extractFriendly(xmlStr string) []string {
 	if xmlStr == "" {
 		return res
 	}
-	
+
 	// 1. Extract empty tags like <accept/>, <exact/>
 	reEmpty := regexp.MustCompile(`<([a-zA-Z0-9-]+)\s*/>`)
 	matchesEmpty := reEmpty.FindAllStringSubmatch(xmlStr, -1)
 	for _, m := range matchesEmpty {
 		res = append(res, m[1])
 	}
-	
+
 	// 2. Extract tags with content like <protocol>bgp</protocol>
 	// Only leaf nodes (no nested `<` inside)
 	reContent := regexp.MustCompile(`<([a-zA-Z0-9-]+)>([^<]+)</([a-zA-Z0-9-]+)>`)

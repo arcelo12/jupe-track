@@ -36,10 +36,10 @@ func RegisterActiveUser() {
 	atomic.AddInt64(&activeUsers, 1)
 	count := atomic.LoadInt64(&activeUsers)
 	log.Printf("Worker: Active user connected (total: %d)", count)
-	
+
 	// Update session metrics
 	metrics.SetActiveSessions(int(count))
-	
+
 	ensureWorkerRunning()
 }
 
@@ -51,7 +51,7 @@ func UnregisterActiveUser() {
 	}
 	count := atomic.LoadInt64(&activeUsers)
 	log.Printf("Worker: Active user disconnected (total: %d)", count)
-	
+
 	// Update session metrics
 	metrics.SetActiveSessions(int(count))
 }
@@ -126,17 +126,17 @@ func startWorkerLoop() {
 					start := time.Now()
 					bgpData, err := FetchBGP(sys)
 					duration := time.Since(start).Seconds()
-					
+
 					// Record scrape metrics
 					metrics.RecordScrapeDuration(duration)
-					
+
 					if err == nil {
 						cache.GlobalCache.SetBGP(sys, bgpData)
 						if OnBGPUpdate != nil {
 							OnBGPUpdate(sys, bgpData)
 						}
 						allBgpData = append(allBgpData, bgpData...)
-						
+
 						// Record BGP count
 						establishedCount := 0
 						for _, p := range bgpData {
