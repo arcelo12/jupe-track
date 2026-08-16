@@ -8,9 +8,13 @@ const GO_BACKEND_URL = process.env.INTERNAL_GO_API_URL || 'http://jupetrack_go:8
 
 function buildHeaders(request: NextRequest): HeadersInit {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  // Forward Authorization header for authenticated routes
+  // Forward Authorization header for authenticated (JWT) routes
   const auth = request.headers.get('Authorization');
   if (auth) headers['Authorization'] = auth;
+  // Forward X-API-Key so API-key-scoped routes (AuthAnyMiddleware) work from the
+  // browser proxy, not just JWT-bearer routes.
+  const apiKey = request.headers.get('X-API-Key');
+  if (apiKey) headers['X-API-Key'] = apiKey;
   return headers;
 }
 
