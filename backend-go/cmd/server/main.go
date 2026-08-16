@@ -18,7 +18,7 @@ import (
 
 func main() {
 	startTime := time.Now()
-	
+
 	// Initialize Database Connection (SQLite)
 	database.Connect()
 
@@ -37,7 +37,7 @@ func main() {
 
 	// Health check endpoint with Prometheus integration
 	metrics.SetUptime("server", time.Since(startTime))
-	
+
 	health := func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	}
@@ -68,10 +68,10 @@ func main() {
 	scraper.StartWorker(&settings)
 
 	log.Println("Starting Gin server on :8080")
-	
+
 	// Graceful shutdown handling
 	go handleShutdown(startTime)
-	
+
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
@@ -81,18 +81,18 @@ func main() {
 func handleShutdown(startTime time.Time) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	
+
 	<-sigChan // Wait for signal
-	
+
 	log.Println("Received shutdown signal, performing graceful shutdown...")
-	
+
 	// Record final metrics before shutdown
 	metrics.SetUptime("server", time.Since(startTime))
 	metrics.SetUptime("scraper", 0) // Scraper stops during shutdown
-	
+
 	// Let existing requests finish (optional timeout)
 	time.Sleep(5 * time.Second)
-	
+
 	log.Println("Shutdown complete")
 	os.Exit(0)
 }

@@ -18,13 +18,13 @@ func SetupRoutes(r *gin.Engine) {
 	r.Use(func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
-		
+
 		duration := time.Since(start)
 		endpoint := c.FullPath()
 		if endpoint == "" {
 			endpoint = "/unknown"
 		}
-		
+
 		metrics.RecordAPIRequest(endpoint, c.Request.Method, c.Writer.Status(), duration)
 	})
 

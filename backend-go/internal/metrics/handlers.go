@@ -11,7 +11,7 @@ import (
 func SetupRoutes(router *gin.Engine) {
 	// Prometheus scrape endpoint
 	router.GET("/metrics", prometheusHandler())
-	
+
 	// Health check endpoint that includes metric info (optional)
 	router.GET("/api/v1/metrics", metricsInfoHandler)
 }
@@ -19,7 +19,7 @@ func SetupRoutes(router *gin.Engine) {
 // prometheusHandler returns a HandlerFunc that serves Prometheus metrics
 func prometheusHandler() gin.HandlerFunc {
 	handler := promhttp.Handler()
-	
+
 	return func(c *gin.Context) {
 		handler.ServeHTTP(c.Writer, c.Request)
 	}

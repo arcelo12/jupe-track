@@ -161,7 +161,7 @@ func RecordScrapeResult(success bool) {
 // UpdateBGPPeers updates BGP peer count metrics for a logical system
 func UpdateBGPPeers(logicalSystem string, totalCount, establishedCount int) {
 	bgpPeerCount.WithLabelValues(logicalSystem).Set(float64(totalCount))
-	
+
 	// You can add additional BGP state metrics here if needed
 }
 
@@ -183,14 +183,14 @@ func SetDBConnections(count int) {
 // RecordAPIRequest records an API request's performance
 func RecordAPIRequest(endpoint, method string, statusCode int, duration time.Duration) {
 	apiRequestTotal.WithLabelValues(endpoint, method).Inc()
-	
+
 	status := "success"
 	if statusCode >= 400 && statusCode < 500 {
 		status = "client_error"
 	} else if statusCode >= 500 {
 		status = "server_error"
 	}
-	
+
 	apiRequestDuration.WithLabelValues(endpoint, method, status).Observe(duration.Seconds())
 }
 

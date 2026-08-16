@@ -8,17 +8,17 @@ import (
 
 // Define basic metric structures for the cache
 type BGPPeer struct {
-	PeerAddress      string `json:"peer_address"`
-	PeerAS           string `json:"peer_as"`
-	State            string `json:"state"`
-	Description      string `json:"description"`
-	Uptime           string `json:"uptime"`
-	ActivePrefixes   int    `json:"active_prefixes"`
-	ReceivedPrefixes int    `json:"received_prefixes"`
-	AcceptedPrefixes    int    `json:"accepted_prefixes"`
-	AdvertisedPrefixes  int    `json:"advertised_prefixes"`
-	Afi                 string `json:"afi"`
-	RouterId            string `json:"router_id"`
+	PeerAddress        string `json:"peer_address"`
+	PeerAS             string `json:"peer_as"`
+	State              string `json:"state"`
+	Description        string `json:"description"`
+	Uptime             string `json:"uptime"`
+	ActivePrefixes     int    `json:"active_prefixes"`
+	ReceivedPrefixes   int    `json:"received_prefixes"`
+	AcceptedPrefixes   int    `json:"accepted_prefixes"`
+	AdvertisedPrefixes int    `json:"advertised_prefixes"`
+	Afi                string `json:"afi"`
+	RouterId           string `json:"router_id"`
 }
 
 type InterfaceStat struct {
@@ -32,12 +32,12 @@ type InterfaceStat struct {
 }
 
 type DeviceStatus struct {
-	CPUUsage           float64 `json:"cpu_usage"`
-	CPUIdle            float64 `json:"cpu_idle"`
-	MemoryUtilization  float64 `json:"memory_utilization"`
-	RETemperature      float64 `json:"re_temperature"`
-	UptimeSeconds      int64   `json:"uptime_seconds"`
-	HWModel            string  `json:"hw_model"`
+	CPUUsage          float64 `json:"cpu_usage"`
+	CPUIdle           float64 `json:"cpu_idle"`
+	MemoryUtilization float64 `json:"memory_utilization"`
+	RETemperature     float64 `json:"re_temperature"`
+	UptimeSeconds     int64   `json:"uptime_seconds"`
+	HWModel           string  `json:"hw_model"`
 }
 
 type StateCache struct {
@@ -79,15 +79,15 @@ func (c *StateCache) GetBGP(system string) []BGPPeer {
 	if system == "" {
 		system = "global"
 	}
-	
+
 	// Track cache hits/misses for BGP
 	metrics.SetCacheMetrics(len(c.bgpPeers), len(c.interfaces), 0)
-	
+
 	if c.bgpPeers == nil || c.bgpPeers[system] == nil {
 		metrics.IncrementCacheMisses()
 		return []BGPPeer{}
 	}
-	
+
 	metrics.IncrementCacheHits()
 	peers := make([]BGPPeer, len(c.bgpPeers[system]))
 	copy(peers, c.bgpPeers[system])
@@ -108,15 +108,15 @@ func (c *StateCache) Systems() []string {
 func (c *StateCache) GetInterfaces() []InterfaceStat {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
+
 	// Track cache hits/misses for interfaces
 	metrics.SetCacheMetrics(len(c.bgpPeers), len(c.interfaces), 0)
-	
+
 	if len(c.interfaces) == 0 {
 		metrics.IncrementCacheMisses()
 		return []InterfaceStat{}
 	}
-	
+
 	metrics.IncrementCacheHits()
 	ifaces := make([]InterfaceStat, len(c.interfaces))
 	copy(ifaces, c.interfaces)

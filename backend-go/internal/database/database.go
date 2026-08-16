@@ -6,10 +6,10 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
 	"github.com/arcelo12/jupe-track/backend-go/internal/models"
+	"github.com/glebarez/sqlite"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 var DB *gorm.DB

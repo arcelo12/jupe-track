@@ -290,7 +290,7 @@ func RegisterLookingGlassRoutes(r *gin.RouterGroup) {
 			var respFallback struct {
 				Peers []BgpPeer `xml:"bgp-information>bgp-peer"`
 			}
-			
+
 			// Try both structures
 			err = xml.Unmarshal([]byte(reply), &respFallback)
 			if err == nil && len(respFallback.Peers) > 0 {
@@ -318,9 +318,11 @@ func RegisterLookingGlassRoutes(r *gin.RouterGroup) {
 				lines = append(lines, fmt.Sprintf("  Uptime: %s    Flap Count: %s", peer.ElapsedTime, peer.FlapCount))
 				for _, rib := range peer.Ribs {
 					lines = append(lines, fmt.Sprintf("  Table %s:", rib.Name))
-					
+
 					adv := rib.Advertised
-					if adv == "" { adv = "0" }
+					if adv == "" {
+						adv = "0"
+					}
 					lines = append(lines, fmt.Sprintf("    Active prefixes: %s   Received: %s   Accepted: %s   Advertised: %s", rib.Active, rib.Received, rib.Accepted, adv))
 				}
 				lines = append(lines, "")
