@@ -131,6 +131,13 @@ func FetchDeviceStatus() (*cache.DeviceStatus, error) {
 		return nil, fmt.Errorf("RE NETCONF RPC failed: %v", err)
 	}
 
+	return parseDeviceStatus(replyXML)
+}
+
+// parseDeviceStatus converts a get-route-engine-information NETCONF reply into a
+// DeviceStatus. Split from FetchDeviceStatus so the numeric extraction and
+// uptime-string parsing can be unit tested without a device.
+func parseDeviceStatus(replyXML string) (*cache.DeviceStatus, error) {
 	var resp struct {
 		XMLName     xml.Name `xml:"rpc-reply"`
 		RouteEngine []struct {

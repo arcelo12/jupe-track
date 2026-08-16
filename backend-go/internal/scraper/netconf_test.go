@@ -174,3 +174,51 @@ func TestParseBGPInvalidXML(t *testing.T) {
 		t.Error("parseBGP(malformed) = nil error, want parse error")
 	}
 }
+
+const sampleREReply = `<rpc-reply>
+  <route-engine-information>
+    <route-engine>
+      <temperature>35 degrees C / 95 degrees F</temperature>
+      <cpu-idle>92</cpu-idle>
+      <memory-buffer-utilization>41</memory-buffer-utilization>
+      <up-time>10 days, 2 hours, 3 minutes, 4 seconds</up-time>
+    </route-engine>
+  </route-engine-information>
+</rpc-reply>`
+
+func TestParseDeviceStatus(t *testing.T) {
+	st, err := parseDeviceStatus(sampleREReply)
+	if err != nil {
+		t.Fatalf("parseDeviceStatus error: %v", err)
+	}
+	if st.CPUIdle != 92 {
+		t.Errorf("CPUIdle = %v, want 92", st.CPUIdle)
+	}
+	// CPU usage is derived as 100 - idle.
+	if st.CPUUsage != 8 {
+		t.Errorf("CPUUsage = %v, want 8", st.CPUUsage)
+	}
+	if st.MemoryUtilization != 41 {
+		t.Errorf("MemoryUtilization = %v, want 41", st.MemoryUtilization)
+	}
+	// Temperature is scanned from a string with trailing text.
+	if st.RETemperature != 35 {
+		t.Errorf("RETemperature = %v, want 35 (from '35 degrees C ...')", st.RETemperature)
+	}
+	// 10d2h3m4s = 10*86400 + 2*3600 + 3*60 + 4 = 871384.
+	if st.UptimeSeconds != 871384 {
+		t.Errorf("UptimeSeconds = %d, want 871384", st.UptimeSeconds)
+	}
+	if st.HWModel != "MX204" {
+		t.Errorf("HWModel = %q, want MX204", st.HWModel)
+	}
+}
+
+func TestParseDeviceStatusEmpty(t *testing.T) {
+	if _, err := parseDeviceStatus(`<rpc-reply><route-engine-information></route-engine-information></rpc-reply>`); err == nil {
+		t.Error("parseDeviceStatus(no route-engine) = nil error, want error")
+	}
+	if _, err := parseDeviceStatus("<rpc-reply><broken>"); err == nil {
+		t.Error("parseDeviceStatus(malformed) = nil error, want parse error")
+	}
+}
