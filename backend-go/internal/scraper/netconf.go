@@ -215,8 +215,8 @@ func FetchInterfaces() ([]cache.InterfaceStat, error) {
 				Description string `xml:"description"`
 				AdminStatus string `xml:"admin-status"`
 				OperStatus  string `xml:"oper-status"`
-				BpsIn       int64  `xml:"transit-traffic-statistics>input-bps"`
-				BpsOut      int64  `xml:"transit-traffic-statistics>output-bps"`
+				BpsIn       int64  `xml:"traffic-statistics>input-bps"`
+				BpsOut      int64  `xml:"traffic-statistics>output-bps"`
 			} `xml:"logical-interface"`
 		} `xml:"interface-information>physical-interface"`
 	}
