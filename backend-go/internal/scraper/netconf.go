@@ -47,6 +47,19 @@ func FetchBGP(logicalSystem string) ([]cache.BGPPeer, error) {
 		return nil, fmt.Errorf("BGP NETCONF RPC failed: %v", err)
 	}
 
+	peers, err := parseBGP(replyXML)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Worker: Fetched %d BGP peers via NETCONF", len(peers))
+	return peers, nil
+}
+
+// parseBGP converts a get-bgp-summary-information NETCONF reply into cache
+// peers. Split from FetchBGP so the XML mapping (multi-RIB prefix summing,
+// state defaulting, and AFI detection) can be unit tested without a device.
+func parseBGP(replyXML string) ([]cache.BGPPeer, error) {
 	replyXML = removeXMLNamespaces(replyXML)
 
 	var resp struct {
@@ -107,7 +120,6 @@ func FetchBGP(logicalSystem string) ([]cache.BGPPeer, error) {
 		peers = append(peers, peer)
 	}
 
-	log.Printf("Worker: Fetched %d BGP peers via NETCONF", len(peers))
 	return peers, nil
 }
 

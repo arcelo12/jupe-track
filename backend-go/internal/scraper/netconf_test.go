@@ -99,3 +99,78 @@ func TestIsInternalInterface(t *testing.T) {
 		}
 	}
 }
+
+const sampleBGPReply = `<rpc-reply xmlns:junos="http://xml.juniper.net/junos/*">
+  <bgp-information xmlns="http://xml.juniper.net/junos/*/junos-routing">
+    <bgp-peer>
+      <peer-address>192.0.2.1</peer-address>
+      <peer-as>64500</peer-as>
+      <peer-state>Established</peer-state>
+      <elapsed-time>1w2d</elapsed-time>
+      <description>transit-a</description>
+      <peer-id>10.0.0.1</peer-id>
+      <bgp-rib>
+        <name>inet.0</name>
+        <active-prefix-count>10</active-prefix-count>
+        <received-prefix-count>20</received-prefix-count>
+        <accepted-prefix-count>15</accepted-prefix-count>
+        <advertised-prefix-count>5</advertised-prefix-count>
+      </bgp-rib>
+      <bgp-rib>
+        <name>inet.2</name>
+        <active-prefix-count>1</active-prefix-count>
+        <received-prefix-count>2</received-prefix-count>
+        <accepted-prefix-count>1</accepted-prefix-count>
+        <advertised-prefix-count>0</advertised-prefix-count>
+      </bgp-rib>
+    </bgp-peer>
+    <bgp-peer>
+      <peer-address>2001:db8::1</peer-address>
+      <peer-as>64501</peer-as>
+      <peer-state></peer-state>
+      <peer-id>10.0.0.2</peer-id>
+    </bgp-peer>
+  </bgp-information>
+</rpc-reply>`
+
+func TestParseBGP(t *testing.T) {
+	peers, err := parseBGP(sampleBGPReply)
+	if err != nil {
+		t.Fatalf("parseBGP error: %v", err)
+	}
+	if len(peers) != 2 {
+		t.Fatalf("got %d peers, want 2: %+v", len(peers), peers)
+	}
+
+	p0 := peers[0]
+	if p0.PeerAddress != "192.0.2.1" || p0.PeerAS != "64500" || p0.State != "Established" {
+		t.Errorf("peer0 core = %+v", p0)
+	}
+	if p0.RouterId != "10.0.0.1" || p0.Uptime != "1w2d" || p0.Description != "transit-a" {
+		t.Errorf("peer0 meta = %+v", p0)
+	}
+	// Prefix counts are summed across all RIBs (10+1, 20+2, 15+1, 5+0).
+	if p0.ActivePrefixes != 11 || p0.ReceivedPrefixes != 22 || p0.AcceptedPrefixes != 16 || p0.AdvertisedPrefixes != 5 {
+		t.Errorf("peer0 prefix sums = active=%d recv=%d acc=%d adv=%d, want 11/22/16/5",
+			p0.ActivePrefixes, p0.ReceivedPrefixes, p0.AcceptedPrefixes, p0.AdvertisedPrefixes)
+	}
+	if p0.Afi != "ipv4" {
+		t.Errorf("peer0 afi = %q, want ipv4", p0.Afi)
+	}
+
+	p1 := peers[1]
+	// Empty peer-state defaults to Idle.
+	if p1.State != "Idle" {
+		t.Errorf("peer1 state = %q, want Idle (default)", p1.State)
+	}
+	// IPv6 address (contains ':') is classified as ipv6.
+	if p1.Afi != "ipv6" {
+		t.Errorf("peer1 afi = %q, want ipv6", p1.Afi)
+	}
+}
+
+func TestParseBGPInvalidXML(t *testing.T) {
+	if _, err := parseBGP("<rpc-reply><nope>"); err == nil {
+		t.Error("parseBGP(malformed) = nil error, want parse error")
+	}
+}
