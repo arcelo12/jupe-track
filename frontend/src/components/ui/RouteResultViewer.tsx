@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Route, Search, ShieldCheck, Activity, Share2, Server, Clock, Settings, Network, CheckCircle2 } from 'lucide-react';
+import { Route, ShieldCheck, Activity, Share2, Server, Network, CheckCircle2 } from 'lucide-react';
 import { ASPathGraph } from './ASPathGraph';
-import { AggregateASGraph } from './AggregateASGraph';
 
 export const parseRoutes = (text: string) => {
   if (!text) return [];
@@ -54,7 +53,7 @@ export const parseRoutes = (text: string) => {
         currentPrefix = prefixMatch[1];
       }
       
-      let entryPart = line.substring(currentPrefix.length).trim();
+      const entryPart = line.substring(currentPrefix.length).trim();
       if (entryPart.startsWith('*[') || entryPart.startsWith('[')) {
         pushEntry();
         currentEntry = createEntry(currentPrefix, entryPart.startsWith('*'), line);
@@ -137,11 +136,13 @@ export const parseRoutes = (text: string) => {
 export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
   const [viewMode, setViewMode] = useState<'raw' | 'parsed'>('parsed');
 
+  // Hooks must run unconditionally on every render (Rules of Hooks), so compute
+  // this before any early return. parseRoutes("") is a safe no-op.
+  const parsedRoutes = useMemo(() => parseRoutes(rawOutput), [rawOutput]);
+
   if (!rawOutput) {
     return <div className="text-on-surface-variant">No output.</div>;
   }
-
-  const parsedRoutes = useMemo(() => parseRoutes(rawOutput), [rawOutput]);
 
   return (
     <div className="flex flex-col h-full w-full">
