@@ -4,13 +4,13 @@ import "testing"
 
 func TestSanitizeJunosInput(t *testing.T) {
 	valid := []string{
-		"10.0.0.0/8",         // CIDR prefix
-		"192.0.2.1",          // IPv4
-		"2001:db8::1",        // IPv6
-		"64500",              // ASN
-		"ge-0/0/0.100",       // interface unit
-		"EXCH",               // logical system name
-		"my-router_1",        // hyphen + underscore
+		"10.0.0.0/8",   // CIDR prefix
+		"192.0.2.1",    // IPv4
+		"2001:db8::1",  // IPv6
+		"64500",        // ASN
+		"ge-0/0/0.100", // interface unit
+		"EXCH",         // logical system name
+		"my-router_1",  // hyphen + underscore
 	}
 	for _, in := range valid {
 		got, err := SanitizeJunosInput(in)
@@ -35,9 +35,9 @@ func TestSanitizeJunosInput(t *testing.T) {
 		"$(whoami)",
 		"`id`",
 		"a\nb",
-		"a b",              // space
-		"<command>",        // XML angle brackets
-		"peer'name",        // quote
+		"a b",       // space
+		"<command>", // XML angle brackets
+		"peer'name", // quote
 		"peer\"name",
 		"a*b",
 	}
@@ -50,12 +50,12 @@ func TestSanitizeJunosInput(t *testing.T) {
 
 func TestEscapeXML(t *testing.T) {
 	cases := map[string]string{
-		"plain":              "plain",
-		"a<b":                "a&lt;b",
-		"a>b":                "a&gt;b",
-		"a&b":                "a&amp;b",
-		"</command>":         "&lt;/command&gt;",
-		"tab\tnewline\nfoo":  "tab&#x9;newline&#xA;foo",
+		"plain":             "plain",
+		"a<b":               "a&lt;b",
+		"a>b":               "a&gt;b",
+		"a&b":               "a&amp;b",
+		"</command>":        "&lt;/command&gt;",
+		"tab\tnewline\nfoo": "tab&#x9;newline&#xA;foo",
 	}
 	for in, want := range cases {
 		if got := EscapeXML(in); got != want {

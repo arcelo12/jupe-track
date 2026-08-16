@@ -199,6 +199,23 @@ func FetchInterfaces() ([]cache.InterfaceStat, error) {
 		return nil, fmt.Errorf("Interfaces NETCONF RPC failed: %v", err)
 	}
 
+	ifaces, err := parseInterfaces(replyXML)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Worker: Fetched %d interfaces via NETCONF", len(ifaces))
+	return ifaces, nil
+}
+
+// parseInterfaces converts a get-interface-information NETCONF reply into cache
+// stats. It is separated from FetchInterfaces so the XML mapping can be unit
+// tested without a live device.
+//
+// Physical bps come from <traffic-statistics>; logical (unit) bps come from
+// <transit-traffic-statistics>, which is where Junos reports forwarded traffic
+// for a logical unit (plain traffic-statistics is near-zero local traffic).
+func parseInterfaces(replyXML string) ([]cache.InterfaceStat, error) {
 	replyXML = removeXMLNamespaces(replyXML)
 
 	var resp struct {
@@ -270,6 +287,5 @@ func FetchInterfaces() ([]cache.InterfaceStat, error) {
 		}
 	}
 
-	log.Printf("Worker: Fetched %d interfaces via NETCONF", len(ifaces))
 	return ifaces, nil
 }
