@@ -187,8 +187,10 @@ Preserve this pattern when adding cross-package hooks.
   units; other interfaces are dropped in `scraper.FetchInterfaces`.
 - `internal/api/live.go` `RegisterLiveRoutes` is defined but not wired in
   `SetupRoutes`; the live endpoints in use are the inline ones in `handlers.go`.
-- The frontend REST and TSDB proxy routes forward `Authorization`, but not
-  `X-API-Key`. API-key browser access needs proxy support before it can work.
+- The frontend REST proxy (`src/app/api/proxy/[...path]/route.ts`) forwards both
+  `Authorization` and `X-API-Key`, so API-key-scoped routes work from the browser.
+  The TSDB proxy (`src/app/api/tsdb/[...path]/route.ts`) forwards only
+  `Authorization` by design (metrics endpoints are JWT-only).
 - `PushToVictoriaMetrics` currently posts to the Docker service hostname
   `http://victoriametrics:8428`; local non-Docker scraper runs need that hostname
   to resolve or need an explicit code/config change.
