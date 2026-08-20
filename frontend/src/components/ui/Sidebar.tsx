@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, ChevronLeft, ChevronRight, X, Globe, Bookmark } from 'lucide-react';
 import { useWebSocket } from '@/components/WebSocketProvider';
+import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth';
+import { canAccessPath } from '@/lib/rbac';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -16,6 +18,7 @@ interface SidebarProps {
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }: SidebarProps) => {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [lastScrape, setLastScrape] = React.useState<string | null>(null);
 
   const { isConnected } = useWebSocket();
@@ -57,6 +60,15 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
       ]
     }
   ];
+
+  // RBAC: hide items the current user cannot access (e.g. admin-only settings).
+  // Drop groups that become empty so non-admins don't see a bare header.
+  const visibleGroups = menuGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => canAccessPath(user, item.path)),
+    }))
+    .filter(group => group.items.length > 0);
 
   return (
     <>
@@ -106,7 +118,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
         
         {/* Navigation Items */}
         <div className="px-3 py-4 flex-1 overflow-y-auto overflow-x-hidden space-y-4 relative z-10">
-          {menuGroups.map((group, groupIdx) => (
+          {visibleGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="mb-4">
               {!isCollapsed ? (
                 <p className="px-3 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2 whitespace-nowrap">

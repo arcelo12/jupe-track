@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import Sidebar from "@/components/ui/Sidebar";
 import HeaderRefreshButton from "@/components/ui/HeaderRefreshButton";
+import AdminGuard from "@/components/ui/AdminGuard";
+import { isAdminPath } from "@/lib/rbac";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const PUBLIC_PATHS = ["/login"];
@@ -47,8 +49,8 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
       setPassError("New passwords do not match");
       return;
     }
-    if (passwords.new.length < 8) {
-      setPassError("Password must be at least 8 characters");
+    if (passwords.new.length < 12) {
+      setPassError("Password must be at least 12 characters");
       return;
     }
 
@@ -97,19 +99,19 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#060b14",
+        background: "var(--color-background)",
         flexDirection: "column",
         gap: "1rem",
       }}>
         <div style={{
           width: 40, height: 40,
-          border: "2px solid rgba(6,182,212,0.2)",
-          borderTop: "2px solid rgb(6,182,212)",
+          border: "2px solid color-mix(in oklab, var(--color-primary) 25%, transparent)",
+          borderTop: "2px solid var(--color-primary)",
           borderRadius: "50%",
           animation: "spin 0.8s linear infinite",
         }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <p style={{ color: "#475569", fontSize: "0.85rem" }}>Restoring session...</p>
+        <p style={{ color: "var(--color-on-surface-variant)", fontSize: "0.85rem" }}>Restoring session...</p>
       </div>
     );
   }
@@ -179,7 +181,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
           <div className="h-full w-full bg-surface-container-lowest/30 border border-[#2A2E35] rounded overflow-hidden relative">
             <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary/5 blur-[120px] rounded-full pointer-events-none mix-blend-screen transform translate-x-1/3 -translate-y-1/3" />
             <div className="h-full w-full overflow-y-auto p-4 md:p-8 relative z-10">
-              {children}
+              {isAdminPath(pathname) ? <AdminGuard>{children}</AdminGuard> : children}
             </div>
           </div>
         </main>
@@ -221,7 +223,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
                     onChange={e => setPasswords({...passwords, new: e.target.value})}
                     className="w-full bg-surface-container-high border border-[#2A2E35] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary text-on-surface"
                     required
-                    minLength={8}
+                    minLength={12}
                   />
                 </div>
                 <div>
@@ -232,7 +234,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
                     onChange={e => setPasswords({...passwords, confirm: e.target.value})}
                     className="w-full bg-surface-container-high border border-[#2A2E35] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary text-on-surface"
                     required
-                    minLength={8}
+                    minLength={12}
                   />
                 </div>
               </div>

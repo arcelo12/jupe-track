@@ -106,6 +106,18 @@ func (l *loginLimiter) recordFailure(ip string) {
 	l.failures[ip] = pruned
 }
 
+const minPasswordLength = 12
+
+func validatePassword(password string) error {
+	if len(password) < minPasswordLength {
+		return fmt.Errorf("password must be at least %d characters", minPasswordLength)
+	}
+	if len(password) > 72 {
+		return fmt.Errorf("password must not exceed 72 characters")
+	}
+	return nil
+}
+
 type LoginRequest struct {
 	Username string `json:"username" binding:"required"`
 	Password string `json:"password" binding:"required"`
@@ -168,7 +180,11 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 			return
 		}
 
-		// Generate new access token (SA-006: add type=access, SA-005/SA-033: env-configured TTL)
+		// SA-044: deactivated accounts cannot mint new access tokens
+		if !user.IsActive {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Account is disabled"})
+			return
+		}
 		newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"sub":      user.Username,
 			"exp":      time.Now().Add(accessTokenTTL).Unix(),
@@ -209,6 +225,12 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 		if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
 			loginRateLimiter.recordFailure(ip)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+			return
+		}
+
+		// SA-044: reject deactivated accounts (is_active=false)
+		if !user.IsActive {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Account is disabled"})
 			return
 		}
 
@@ -268,6 +290,12 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.CurrentPassword)); err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Incorrect current password"})
+			return
+		}
+
+		// SA-045: enforce server-side password policy (frontend check is bypassable)
+		if err := validatePassword(req.NewPassword); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
