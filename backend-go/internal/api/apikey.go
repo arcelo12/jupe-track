@@ -113,7 +113,10 @@ func apiKeyMetadata(k *models.APIKey) gin.H {
 // applied here to every key-management route.
 func RegisterAPIKeyRoutes(rg *gin.RouterGroup) {
 	keys := rg.Group("/api-keys")
-	keys.Use(AdminMiddleware())
+	// SA-047: AuthMiddleware must run before AdminMiddleware so the JWT
+	// context (is_admin) is populated; AdminMiddleware alone would 403
+	// even for valid admins.
+	keys.Use(AuthMiddleware(), AdminMiddleware())
 
 	keys.POST("", func(c *gin.Context) {
 		var req struct {

@@ -41,6 +41,7 @@ func SetupRoutes(r *gin.Engine) {
 	RegisterLookupRoutes(api)
 	RegisterASMappingRoutes(api)
 	RegisterAPIKeyRoutes(api) // enforces JWT + admin internally
+	RegisterUserRoutes(api)   // enforces JWT + admin internally
 
 	// Live Data Endpoints (Instant response from memory) — SA-001: require auth
 	live := api.Group("/live")

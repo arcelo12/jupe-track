@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, ChevronLeft, ChevronRight, X, Globe, Bookmark } from 'lucide-react';
+import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, ChevronLeft, ChevronRight, X, Globe, Bookmark, Users } from 'lucide-react';
 import { useWebSocket } from '@/components/WebSocketProvider';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth';
@@ -55,6 +55,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }:
       title: "Configuration",
       items: [
         { name: 'Device Settings', path: '/settings', icon: Settings },
+        { name: 'User Management', path: '/settings/users', icon: Users },
         { name: 'Data Retention', path: '/settings/retention', icon: Archive },
         { name: 'AS Mappings', path: '/settings/as-mapping', icon: Bookmark },
       ]
