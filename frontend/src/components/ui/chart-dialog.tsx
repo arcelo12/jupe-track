@@ -67,7 +67,7 @@ export function ChartDialog({
   
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* Backdrop - transparent but clickable with proper focus handling */}
+      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
         onClick={() => onOpenChange(false)}
@@ -76,7 +76,7 @@ export function ChartDialog({
         tabIndex={-1}
       />
       
-      {/* Dialog Container */}
+      {/* Dialog Container - Clean structure, minimal inline styles */}
       <div
         data-chart-dialog-wrapper
         role="dialog"
@@ -86,18 +86,14 @@ export function ChartDialog({
         className={cn(
           "relative w-full max-w-7xl rounded-xl border border-[#2A2E35] bg-surface-container-lowest p-0 shadow-2xl",
           "animate-in fade-in-0 zoom-in-95 duration-200 ease-out",
+          "max-h-[90vh] overflow-hidden",
           className
         )}
-        style={{
-          maxWidth: '7xl',
-          maxHeight: '90vh',
-          overflow: 'hidden',
-        }}
       >
         {/* Header */}
         {(title || description) && (
           <div className="flex items-center justify-between border-b border-[#2A2E35] px-6 py-4">
-            <div>
+            <div className="flex flex-col gap-1">
               {title && (
                 <h2 
                   id="chart-dialog-title"
@@ -109,16 +105,16 @@ export function ChartDialog({
               {description && (
                 <p 
                   id="chart-dialog-description"
-                  className="mt-1 text-xs uppercase tracking-[0.2em] text-on-surface-variant"
+                  className="text-xs uppercase tracking-[0.2em] text-on-surface-variant"
                 >
                   {description}
                 </p>
               )}
             </div>
-            {/* Close button - Touch target min 44×44px + keyboard accessible */}
+            {/* Close button - Touch target min 44×44px per UI/UX Pro Max §2 */}
             <button
               onClick={() => onOpenChange(false)}
-              className="group flex h-11 w-11 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform cursor-pointer"
+              className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform cursor-pointer"
               aria-label="Close dialog"
               type="button"
             >
@@ -139,26 +135,18 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content */}
-        <div 
-          className="flex h-[450px] w-full items-stretch p-6"
-          style={{
-            minWidth: 'min-content',
-            minHeight: '1px',
-          }}
-        >
-          <div 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              minWidth: containerSize?.width ? `${containerSize.width}px` : '100%',
-              minHeight: containerSize?.height ? `${containerSize.height}px` : '450px',
-            }}
-          >
-            {children}
+        {/* Chart Content - Use responsive sizing via container query context */}
+        <div className="flex h-[450px] w-full items-stretch p-6">
+          <div className="flex h-full w-full flex-col box-border">
+            {/* Measured size injected here if available, fallback to full width/height */}
+            <div 
+              style={{
+                minWidth: containerSize?.width ? `${containerSize.width}px` : '100%',
+                minHeight: containerSize?.height ? `${containerSize.height}px` : '100%',
+              }}
+            >
+              {children}
+            </div>
           </div>
         </div>
       </div>
