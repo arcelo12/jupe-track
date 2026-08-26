@@ -23,6 +23,20 @@ export function ChartDialog({
   
   const [containerSize, setContainerSize] = React.useState<{ width: number; height: number } | null>(null);
   
+  // Keyboard shortcut: ESC to close dialog (Accessibility §1)
+  React.useEffect(() => {
+    if (!open) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onOpenChange(false);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onOpenChange]);
+  
   // Measure container after open animation completes
   React.useEffect(() => {
     if (!open) return;
@@ -53,7 +67,7 @@ export function ChartDialog({
   
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* Backdrop - transparent but clickable */}
+      {/* Backdrop - transparent but clickable with proper focus handling */}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
         onClick={() => onOpenChange(false)}
@@ -71,7 +85,7 @@ export function ChartDialog({
         aria-describedby={description ? "chart-dialog-description" : undefined}
         className={cn(
           "relative w-full max-w-7xl rounded-xl border border-[#2A2E35] bg-surface-container-lowest p-0 shadow-2xl",
-          "animate-in fade-in-0 zoom-in-95 duration-200",
+          "animate-in fade-in-0 zoom-in-95 duration-200 ease-out",
           className
         )}
         style={{
@@ -101,14 +115,15 @@ export function ChartDialog({
                 </p>
               )}
             </div>
+            {/* Close button - Touch target min 44×44px + keyboard accessible */}
             <button
               onClick={() => onOpenChange(false)}
-              className="group flex h-9 w-9 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform cursor-pointer"
+              className="group flex h-11 w-11 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform cursor-pointer"
               aria-label="Close dialog"
               type="button"
             >
               <svg 
-                className="h-4 w-4 text-on-surface-variant transition-colors group-hover:text-on-surface" 
+                className="h-5 w-5 text-on-surface-variant transition-colors group-hover:text-on-surface" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
