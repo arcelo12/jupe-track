@@ -46,14 +46,21 @@ export function ChartDialog({
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
+      {/* Backdrop - pointer-events-auto saat open untuk catch clicks */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        className={cn(
+          "absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity",
+          !open && "pointer-events-none"
+        )}
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
+        style={{
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
+        }}
       />
       
-      {/* Dialog Container */}
+      {/* Dialog Container - animate dengan transform untuk smooth exit */}
       <div
         data-chart-dialog-wrapper
         role="dialog"
@@ -67,7 +74,8 @@ export function ChartDialog({
           className
         )}
         style={{
-          width: 'var(--dialog-width, 98vw)',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
           maxWidth: '7xl',
           maxHeight: '90vh',
           overflow: 'hidden',
@@ -98,9 +106,20 @@ export function ChartDialog({
               onClick={() => onOpenChange(false)}
               className="group flex h-9 w-9 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform"
               aria-label="Close dialog"
+              type="button"
             >
-              <svg className="h-4 w-4 text-on-surface-variant transition-colors group-hover:text-on-surface" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6L6 18M6 6l12 12" />
+              <svg 
+                className="h-4 w-4 text-on-surface-variant transition-colors group-hover:text-on-surface" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6L6 18" />
+                <path d="M6 6l12 12" />
               </svg>
             </button>
           </div>
@@ -111,7 +130,7 @@ export function ChartDialog({
           className="flex h-[450px] w-full items-stretch p-6"
           style={{
             minWidth: 'min-content',
-            minHeight: '1px', // Critical for preventing collapse
+            minHeight: '1px',
           }}
         >
           <div 
@@ -121,7 +140,6 @@ export function ChartDialog({
               boxSizing: 'border-box',
               display: 'flex',
               flexDirection: 'column',
-              // Use measured size if available, otherwise default
               minWidth: containerSize?.width ? `${containerSize.width}px` : '100%',
               minHeight: containerSize?.height ? `${containerSize.height}px` : '450px',
             }}
