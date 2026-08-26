@@ -11,7 +11,7 @@ import { authFetch } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ChartDialog } from '@/components/ui/chart-dialog';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -331,15 +331,15 @@ export default function InterfacesDashboard() {
         </div>
       )}
 
-      <Dialog open={!!modalIface} onOpenChange={(open: boolean) => !open && setModalIface(null)}>
-        <DialogContent className="w-full sm:max-w-[90vw] max-w-7xl rounded border-[#2A2E35] bg-surface-container-lowest p-6 shadow-none">
-          <DialogHeader>
-            <DialogTitle className="font-mono text-xl font-bold text-on-surface">{modalIface}</DialogTitle>
-            <p className="text-xs uppercase tracking-widest text-on-surface-variant">Live traffic overview</p>
-          </DialogHeader>
+      <ChartDialog
+        open={!!modalIface}
+        onOpenChange={(open: boolean) => !open && setModalIface(null)}
+        title={modalIface || 'Traffic Detail'}
+        description='Live logical unit traffic overview'
+      >
+{/* Header handled by ChartDialog wrapper */}
           {modalIface && (
-            <div style={{ width: '100%', height: 400, boxSizing: 'border-box' }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trafficHistory[modalIface] || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 4" stroke={CHART_GRID} vertical={false} />
                   <XAxis dataKey="time" stroke={CHART_AXIS} fontSize={11} tickMargin={12} minTickGap={30} tickLine={false} axisLine={false} />
@@ -350,10 +350,9 @@ export default function InterfacesDashboard() {
                   <Area type="monotone" dataKey="out_mbps" name="Egress Mbps" stroke={CHART_OUT} strokeWidth={3} fill={CHART_OUT} fillOpacity={0.12} isAnimationActive />
                 </AreaChart>
               </ResponsiveContainer>
-            </div>
           )}
-        </DialogContent>
-      </Dialog>
+        
+      </ChartDialog>
     </div>
   );
 }
