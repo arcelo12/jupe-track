@@ -332,7 +332,7 @@ export default function InterfacesDashboard() {
       )}
 
       <Dialog open={!!modalIface} onOpenChange={(open: boolean) => !open && setModalIface(null)}>
-        <DialogContent className="w-full max-w-none rounded border-[#2A2E35] bg-surface-container-lowest p-6 shadow-none">
+        <DialogContent className="w-full sm:max-w-[90vw] max-w-7xl rounded border-[#2A2E35] bg-surface-container-lowest p-6 shadow-none">
           <DialogHeader>
             <DialogTitle className="font-mono text-xl font-bold text-on-surface">{modalIface}</DialogTitle>
             <p className="text-xs uppercase tracking-widest text-on-surface-variant">Live traffic overview</p>
