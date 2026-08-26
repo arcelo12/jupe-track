@@ -21,46 +21,48 @@ export function ChartDialog({
   className
 }: ChartDialogProps) {
   
-  // Prevent zero-size during initial mount before DOM measures
   const [containerSize, setContainerSize] = React.useState<{ width: number; height: number } | null>(null);
   
-  // Measure actual container size after dialog opens
+  // Measure container after open animation completes
   React.useEffect(() => {
     if (!open) return;
     
-    const element = document.querySelector('[data-chart-dialog-wrapper]');
-    if (!element) return;
-    
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) {
-          setContainerSize({ width: Math.round(width), height: Math.round(height) });
+    const timer = setTimeout(() => {
+      const element = document.querySelector('[data-chart-dialog-wrapper]');
+      if (!element) return;
+      
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          if (width > 0 && height > 0) {
+            setContainerSize({ width: Math.round(width), height: Math.round(height) });
+            observer.disconnect();
+          }
         }
-      }
-    });
+      });
+      
+      observer.observe(element);
+    }, 100);
     
-    observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      clearTimeout(timer);
+    };
   }, [open]);
   
+  if (!open) return null;
+  
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop - pointer-events-auto saat open untuk catch clicks */}
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      {/* Backdrop - transparent but clickable */}
       <div 
-        className={cn(
-          "absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity",
-          !open && "pointer-events-none"
-        )}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
-        style={{
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? 'auto' : 'none',
-        }}
+        role="button"
+        tabIndex={-1}
       />
       
-      {/* Dialog Container - animate dengan transform untuk smooth exit */}
+      {/* Dialog Container */}
       <div
         data-chart-dialog-wrapper
         role="dialog"
@@ -69,13 +71,10 @@ export function ChartDialog({
         aria-describedby={description ? "chart-dialog-description" : undefined}
         className={cn(
           "relative w-full max-w-7xl rounded-xl border border-[#2A2E35] bg-surface-container-lowest p-0 shadow-2xl",
-          "transition-all duration-200 ease-out",
-          open ? "opacity-100 scale-100 translate-z-0" : "opacity-0 scale-95 -translate-z-0 pointer-events-none",
+          "animate-in fade-in-0 zoom-in-95 duration-200",
           className
         )}
         style={{
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? 'auto' : 'none',
           maxWidth: '7xl',
           maxHeight: '90vh',
           overflow: 'hidden',
@@ -104,7 +103,7 @@ export function ChartDialog({
             </div>
             <button
               onClick={() => onOpenChange(false)}
-              className="group flex h-9 w-9 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform"
+              className="group flex h-9 w-9 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform cursor-pointer"
               aria-label="Close dialog"
               type="button"
             >
@@ -125,7 +124,7 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content with Measured Size */}
+        {/* Chart Content */}
         <div 
           className="flex h-[450px] w-full items-stretch p-6"
           style={{
