@@ -3,15 +3,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-// Responsive breakpoints dari Tailwind CSS v4
-const BREAKPOINTS = {
-  sm: 640,   // 16rem - Mobile landscape + tablets
-  md: 768,   // 24rem - Tablet portrait  
-  lg: 1024,  // 32rem - Laptop small
-  xl: 1280,  // 40rem - Desktop
-  "2xl": 1536 // 48rem - Large desktop
-} as const;
-
 interface ChartDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -29,40 +20,42 @@ export function ChartDialog({
   children,
   className
 }: ChartDialogProps) {
-  // Responsive sizing: 95vw di semua screens untuk charts full-width
-  const [dialogWidth, setDialogWidth] = React.useState("100%");
   
+  // Prevent zero-size during initial mount before DOM measures
+  const [containerSize, setContainerSize] = React.useState<{ width: number; height: number } | null>(null);
+  
+  // Measure actual container size after dialog opens
   React.useEffect(() => {
     if (!open) return;
     
-    const updateWidth = () => {
-      const width = window.innerWidth;
-      // Responsive constraints untuk usability tanpa limitasi excessive
-      if (width < 768) {
-        setDialogWidth(`${Math.min(100, 98)}vw`); // 98vw mobile
-      } else if (width < 1024) {
-        setDialogWidth(`${Math.min(100, 96)}vw`); // 96vw tablet
-      } else {
-        setDialogWidth(`${Math.min(100, 94)}vw`); // 94vw desktop
-      }
-    };
+    const element = document.querySelector('[data-chart-dialog-wrapper]');
+    if (!element) return;
     
-    updateWidth();
-    window.addEventListener('resize', updateWidth);
-    return () => window.removeEventListener('resize', updateWidth);
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setContainerSize({ width: Math.round(width), height: Math.round(height) });
+        }
+      }
+    });
+    
+    observer.observe(element);
+    return () => observer.disconnect();
   }, [open]);
-
+  
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop with blur for depth */}
+      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
       />
       
-      {/* Content container with responsive sizing */}
+      {/* Dialog Container */}
       <div
+        data-chart-dialog-wrapper
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? "chart-dialog-title" : undefined}
@@ -70,17 +63,17 @@ export function ChartDialog({
         className={cn(
           "relative w-full max-w-7xl rounded-xl border border-[#2A2E35] bg-surface-container-lowest p-0 shadow-2xl",
           "transition-all duration-200 ease-out",
-          open ? "opacity-100 scale-100" : "opacity-0 scale-95",
+          open ? "opacity-100 scale-100 translate-z-0" : "opacity-0 scale-95 -translate-z-0 pointer-events-none",
           className
         )}
         style={{
-          width: dialogWidth,
-          maxWidth: '7xl', // Override default 4xl constraint
+          width: 'var(--dialog-width, 98vw)',
+          maxWidth: '7xl',
           maxHeight: '90vh',
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
       >
-        {/* Header section */}
+        {/* Header */}
         {(title || description) && (
           <div className="flex items-center justify-between border-b border-[#2A2E35] px-6 py-4">
             <div>
@@ -101,36 +94,24 @@ export function ChartDialog({
                 </p>
               )}
             </div>
-            {/* Close button with touch-friendly size */}
             <button
               onClick={() => onOpenChange(false)}
               className="group flex h-9 w-9 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform"
               aria-label="Close dialog"
-              tabIndex={0}
-              style={{ minWidth: '36px', minHeight: '36px' }}
             >
-              <svg 
-                className="h-4 w-4 text-on-surface-variant transition-colors group-hover:text-on-surface"
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                strokeLinecap="round" 
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
+              <svg className="h-4 w-4 text-on-surface-variant transition-colors group-hover:text-on-surface" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
           </div>
         )}
         
-        {/* Chart content area - full width within container */}
+        {/* Chart Content with Measured Size */}
         <div 
           className="flex h-[450px] w-full items-stretch p-6"
           style={{
-            minHeight: '1px', // Prevent zero-size collapse
-            minWidth: 'min-content' // Allow expansion
+            minWidth: 'min-content',
+            minHeight: '1px', // Critical for preventing collapse
           }}
         >
           <div 
@@ -139,7 +120,10 @@ export function ChartDialog({
               height: '100%', 
               boxSizing: 'border-box',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              // Use measured size if available, otherwise default
+              minWidth: containerSize?.width ? `${containerSize.width}px` : '100%',
+              minHeight: containerSize?.height ? `${containerSize.height}px` : '450px',
             }}
           >
             {children}
