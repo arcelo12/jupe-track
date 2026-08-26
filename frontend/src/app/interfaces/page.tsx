@@ -332,13 +332,13 @@ export default function InterfacesDashboard() {
       )}
 
       <Dialog open={!!modalIface} onOpenChange={(open: boolean) => !open && setModalIface(null)}>
-        <DialogContent className="w-[95vw] max-w-5xl rounded border-[#2A2E35] bg-surface-container-lowest p-6 shadow-none">
+        <DialogContent className="w-[95vw] max-w-7xl rounded border-[#2A2E35] bg-surface-container-lowest p-6 shadow-none">
           <DialogHeader>
             <DialogTitle className="font-mono text-2xl font-bold text-on-surface">{modalIface}</DialogTitle>
             <p className="text-xs uppercase tracking-widest text-on-surface-variant">Live logical-unit traffic</p>
           </DialogHeader>
           {modalIface && (
-            <div className="h-[350px] w-full">
+            <div className="h-[400px] w-full" style={{ width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trafficHistory[modalIface] || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 4" stroke={CHART_GRID} vertical={false} />
