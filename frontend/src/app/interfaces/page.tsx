@@ -458,9 +458,9 @@ function HistoryPanel({ interfaceNames, selectedIface, setSelectedIface, history
         ) : historyData.length === 0 ? (
           <EmptyState text="No historical data yet. Data appears after the background scraper has run." />
         ) : (
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             {historyData.map(iface => (
-              <Card key={iface.interface_name} className="rounded border-[#2A2E35] bg-surface-container shadow-none">
+              <Card key={iface.interface_name} className="h-full min-w-0 rounded border-[#2A2E35] bg-surface-container shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="font-mono text-sm text-on-surface">{iface.interface_name}</CardTitle>
                   <Badge variant="outline" className="rounded border-[#2A2E35] text-[10px] uppercase text-on-surface-variant">{iface.interface_type}</Badge>

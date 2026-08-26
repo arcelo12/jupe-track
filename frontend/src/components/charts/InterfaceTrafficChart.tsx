@@ -72,11 +72,7 @@ const CustomTooltip = ({ active, payload, label }: {
 export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div style={{
-        height: 200, display: "flex", alignItems: "center", justifyContent: "center",
-        color: "#475569", fontSize: "0.85rem",
-        border: "1px dashed rgba(255,255,255,0.06)", borderRadius: 10,
-      }}>
+      <div className="flex h-[200px] w-full items-center justify-center rounded border border-dashed border-[#2A2E35] bg-transparent p-4 text-sm text-on-surface-variant">
         No historical data yet — data will appear after the first scrape cycle
       </div>
     );
@@ -95,8 +91,8 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
   const safeName = interfaceName.replace(/[/\.]/g, '-');
 
   return (
-    <div>
-      <ResponsiveContainer width="100%" height={250}>
+    <div className="h-[260px] w-full overflow-hidden rounded border-none">
+      <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={formatted} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
           <defs>
             <linearGradient id={`colorInHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
