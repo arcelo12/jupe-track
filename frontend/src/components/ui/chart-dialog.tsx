@@ -126,7 +126,13 @@ export function ChartDialog({
         )}
         
         {/* Chart content area - full width within container */}
-        <div className="flex h-[450px] w-full items-stretch p-6">
+        <div 
+          className="flex h-[450px] w-full items-stretch p-6"
+          style={{
+            minHeight: '1px', // Prevent zero-size collapse
+            minWidth: 'min-content' // Allow expansion
+          }}
+        >
           <div 
             style={{ 
               width: '100%', 

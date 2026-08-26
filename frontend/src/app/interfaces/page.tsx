@@ -337,9 +337,9 @@ export default function InterfacesDashboard() {
         title={modalIface || 'Traffic Detail'}
         description='Live logical unit traffic overview'
       >
-{/* Header handled by ChartDialog wrapper */}
-          {modalIface && (
-            <ResponsiveContainer width="100%" height="100%">
+{/* Chart mounted directly - ChartDialog handles sizing */}
+        {modalIface && (
+          <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trafficHistory[modalIface] || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 4" stroke={CHART_GRID} vertical={false} />
                   <XAxis dataKey="time" stroke={CHART_AXIS} fontSize={11} tickMargin={12} minTickGap={30} tickLine={false} axisLine={false} />
