@@ -338,7 +338,7 @@ export default function InterfacesDashboard() {
             <p className="text-xs uppercase tracking-widest text-on-surface-variant">Live traffic overview</p>
           </DialogHeader>
           {modalIface && (
-            <div className="flex h-[400px] w-full flex-col overflow-hidden rounded-lg border border-[#2A2E35] bg-surface-container">
+            <div style={{ width: '100%', height: 400, boxSizing: 'border-box' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trafficHistory[modalIface] || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 4" stroke={CHART_GRID} vertical={false} />
