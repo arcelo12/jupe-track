@@ -50,7 +50,7 @@ export function ChartDialog({
         aria-hidden="true"
       />
       
-      {/* Dialog Container - Responsive sizing per UI/UX Pro Max §5 Layout & Responsive */}
+      {/* Dialog Container - Responsive per UI/UX Pro Max §5 Layout & Responsive for portrait/landscape */}
       <div
         data-chart-dialog-wrapper
         role="dialog"
@@ -60,13 +60,14 @@ export function ChartDialog({
         className="relative w-full rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 ease-out overflow-hidden"
         style={{ 
           maxWidth: 'min(100vw - 1rem, min(90%, 72rem))',
-          maxHeight: '90vh',
+          maxHeight: 'calc(min(90vh, 80dvh))',
           margin: 'auto',
+          width: 'fit-content',
         }}
       >
-        {/* Header */}
+        {/* Header - Responsive spacing */}
         {(title || description) && (
-          <div className="flex items-center justify-between border-b border-[#2A2E35] p-3 sm:p-4 md:p-6">
+          <div className="flex items-center justify-between border-b border-[#2A2E35] px-3 sm:px-4 md:px-6 py-2 sm:py-3">
             <div className="flex flex-col gap-1">
               {title && (
                 <h2 id="chart-dialog-title" className="font-mono text-base sm:text-lg font-bold leading-tight text-on-surface">
@@ -79,7 +80,7 @@ export function ChartDialog({
                 </p>
               )}
             </div>
-            {/* Close button - Touch target 44×44px per UI/UX Pro Max §2 Touch & Interaction */}
+            {/* Close button - Touch target 44×44px per UI/UX Pro Max §2 */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -106,13 +107,14 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content - Fully responsive container */}
+        {/* Chart Content - Portrait-optimized container */}
         <div 
-          className="w-full" 
+          className="w-full h-full" 
           style={{ 
-            height: '450px', 
+            height: 'auto',
+            maxHeight: 'calc(90vh - 150px)',
             boxSizing: 'border-box', 
-            padding: '0.75rem sm:1.5rem' 
+            padding: '0.5rem 1rem',
           }}
         >
           {children}
