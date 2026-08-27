@@ -50,7 +50,7 @@ export function ChartDialog({
         aria-hidden="true"
       />
       
-      {/* Dialog Container - Responsive per UI/UX Pro Max §5 Layout & Responsive for portrait/landscape */}
+      {/* Dialog Container - Fully responsive per UI/UX Pro Max §5 Layout & Responsive for portrait/landscape */}
       <div
         data-chart-dialog-wrapper
         role="dialog"
@@ -107,7 +107,7 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content - Portrait-optimized container */}
+        {/* Chart Content - Portrait-optimized fully responsive container */}
         <div 
           className="w-full h-full" 
           style={{ 
