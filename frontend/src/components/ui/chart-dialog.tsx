@@ -42,7 +42,7 @@ export function ChartDialog({
   if (!mounted || !open) return null;
   
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
       {/* Backdrop - clickable overlay */}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
@@ -57,7 +57,8 @@ export function ChartDialog({
         aria-modal="true"
         aria-labelledby={title ? "chart-dialog-title" : undefined}
         aria-describedby={description ? "chart-dialog-description" : undefined}
-        className="relative w-full max-w-[1200px] rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 ease-out"
+        className="relative w-full rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 ease-out overflow-hidden"
+        style={{ maxWidth: 'min(95vw, 72rem)', maxHeight: '90vh', margin: 'auto' }}
       >
         {/* Header */}
         {(title || description) && (
@@ -98,8 +99,8 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content - Proper flex sizing for Recharts */}
-        <div className="w-full box-border" style={{ height: '450px' }}>
+        {/* Chart Content - Strict responsive container */}
+        <div className="w-full" style={{ height: '450px', boxSizing: 'border-box', padding: '1.5rem' }}>
           {children}
         </div>
       </div>
