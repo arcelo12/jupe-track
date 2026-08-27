@@ -42,15 +42,15 @@ export function ChartDialog({
   if (!mounted || !open) return null;
   
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* Backdrop - clickable overlay */}
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4">
+      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
       />
       
-      {/* Dialog Container - Fixed responsive sizing per UI/UX Pro Max §5 */}
+      {/* Dialog Container - Responsive sizing per UI/UX Pro Max §5 Layout & Responsive */}
       <div
         data-chart-dialog-wrapper
         role="dialog"
@@ -58,14 +58,18 @@ export function ChartDialog({
         aria-labelledby={title ? "chart-dialog-title" : undefined}
         aria-describedby={description ? "chart-dialog-description" : undefined}
         className="relative w-full rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 ease-out overflow-hidden"
-        style={{ maxWidth: 'min(95vw, 72rem)', maxHeight: '90vh', margin: 'auto' }}
+        style={{ 
+          maxWidth: 'min(100vw - 1rem, min(90%, 72rem))',
+          maxHeight: '90vh',
+          margin: 'auto',
+        }}
       >
         {/* Header */}
         {(title || description) && (
-          <div className="flex items-center justify-between border-b border-[#2A2E35] px-6 py-4">
+          <div className="flex items-center justify-between border-b border-[#2A2E35] p-3 sm:p-4 md:p-6">
             <div className="flex flex-col gap-1">
               {title && (
-                <h2 id="chart-dialog-title" className="font-mono text-lg font-bold leading-tight text-on-surface">
+                <h2 id="chart-dialog-title" className="font-mono text-base sm:text-lg font-bold leading-tight text-on-surface">
                   {title}
                 </h2>
               )}
@@ -75,9 +79,12 @@ export function ChartDialog({
                 </p>
               )}
             </div>
-            {/* Close button - Touch target 44×44px per UI/UX Pro Max §2 */}
+            {/* Close button - Touch target 44×44px per UI/UX Pro Max §2 Touch & Interaction */}
             <button
-              onClick={() => onOpenChange(false)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenChange(false);
+              }}
               className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform cursor-pointer"
               aria-label="Close dialog"
               type="button"
@@ -99,8 +106,15 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content - Strict responsive container */}
-        <div className="w-full" style={{ height: '450px', boxSizing: 'border-box', padding: '1.5rem' }}>
+        {/* Chart Content - Fully responsive container */}
+        <div 
+          className="w-full" 
+          style={{ 
+            height: '450px', 
+            boxSizing: 'border-box', 
+            padding: '0.75rem sm:1.5rem' 
+          }}
+        >
           {children}
         </div>
       </div>
