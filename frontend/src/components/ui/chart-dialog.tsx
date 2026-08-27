@@ -39,45 +39,63 @@ export function ChartDialog({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, mounted, onOpenChange]);
   
+  // Prevent horizontal scroll in dialog
+  React.useEffect(() => {
+    if (!open || !mounted) return;
+    
+    // Prevent body scroll when dialog is open
+    document.body.style.overflow = 'hidden';
+    
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open, mounted]);
+  
   if (!mounted || !open) return null;
   
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* Backdrop - clickable overlay */}
+      {/* Backdrop - clickable overlay with smooth transition */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer transition-opacity duration-200"
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
         role="button"
         tabIndex={-1}
       />
       
-      {/* Dialog Container - Fixed responsive sizing */}
+      {/* Dialog Container - Fixed responsive sizing per UI/UX Pro Max §5 */}
       <div
         data-chart-dialog-wrapper
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? "chart-dialog-title" : undefined}
         aria-describedby={description ? "chart-dialog-description" : undefined}
-        className="relative w-full max-w-[1200px] rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 ease-out overflow-hidden"
-        style={{ maxWidth: 'calc(100vw - 2rem)' }}
+        className="relative w-full rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl overflow-hidden"
+        style={{
+          // Responsive sizing: max-width follows viewport, min-width ensures usability
+          maxWidth: 'min(100vw - 2rem, 72rem)',
+          maxHeight: '90vh',
+          margin: 'auto',
+          transform: 'scale(1)',
+        }}
       >
-        {/* Header */}
+        {/* Header - Compact spacing with clear hierarchy */}
         {(title || description) && (
           <div className="flex items-center justify-between border-b border-[#2A2E35] px-6 py-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 flex-shrink-0">
               {title && (
-                <h2 id="chart-dialog-title" className="font-mono text-xl font-bold leading-tight text-on-surface">
+                <h2 id="chart-dialog-title" className="font-mono text-lg font-bold leading-tight text-on-surface">
                   {title}
                 </h2>
               )}
               {description && (
-                <p id="chart-dialog-description" className="text-xs uppercase tracking-[0.2em] text-on-surface-variant">
+                <p id="chart-dialog-description" className="text-xs uppercase tracking-widest text-on-surface-variant mt-0.5">
                   {description}
                 </p>
               )}
             </div>
-            {/* Close button - Touch target min 44×44px per UI/UX Pro Max §2 */}
+            {/* Close button - Touch target 44×44px per UI/UX Pro Max §2 */}
             <button
               onClick={() => onOpenChange(false)}
               className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform cursor-pointer"
@@ -101,12 +119,10 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content - Fixed height container for stable Recharts */}
-        <div className="flex h-[450px] w-full items-stretch p-6">
-          <div className="flex h-full w-full flex-col">
-            <div className="flex h-full w-full">
-              {children}
-            </div>
+        {/* Chart Content Container - Strict width constraint to prevent overflow */}
+        <div className="w-full box-border overflow-x-hidden">
+          <div className="flex w-full">
+            {children}
           </div>
         </div>
       </div>
