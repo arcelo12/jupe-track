@@ -39,29 +39,15 @@ export function ChartDialog({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, mounted, onOpenChange]);
   
-  // Prevent horizontal scroll in dialog
-  React.useEffect(() => {
-    if (!open || !mounted) return;
-    
-    // Prevent body scroll when dialog is open
-    document.body.style.overflow = 'hidden';
-    
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [open, mounted]);
-  
   if (!mounted || !open) return null;
   
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      {/* Backdrop - clickable overlay with smooth transition */}
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+      {/* Backdrop - clickable overlay */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer transition-opacity duration-200"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
-        role="button"
-        tabIndex={-1}
       />
       
       {/* Dialog Container - Fixed responsive sizing per UI/UX Pro Max §5 */}
@@ -71,19 +57,12 @@ export function ChartDialog({
         aria-modal="true"
         aria-labelledby={title ? "chart-dialog-title" : undefined}
         aria-describedby={description ? "chart-dialog-description" : undefined}
-        className="relative w-full rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl overflow-hidden"
-        style={{
-          // Responsive sizing: max-width follows viewport, min-width ensures usability
-          maxWidth: 'min(100vw - 2rem, 72rem)',
-          maxHeight: '90vh',
-          margin: 'auto',
-          transform: 'scale(1)',
-        }}
+        className="relative w-full max-w-[1200px] rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 ease-out"
       >
-        {/* Header - Compact spacing with clear hierarchy */}
+        {/* Header */}
         {(title || description) && (
           <div className="flex items-center justify-between border-b border-[#2A2E35] px-6 py-4">
-            <div className="flex flex-col gap-1 flex-shrink-0">
+            <div className="flex flex-col gap-1">
               {title && (
                 <h2 id="chart-dialog-title" className="font-mono text-lg font-bold leading-tight text-on-surface">
                   {title}
@@ -119,11 +98,9 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content Container - Strict width constraint to prevent overflow */}
-        <div className="w-full box-border overflow-x-hidden">
-          <div className="flex w-full">
-            {children}
-          </div>
+        {/* Chart Content - Proper flex sizing for Recharts */}
+        <div className="w-full box-border" style={{ height: '450px' }}>
+          {children}
         </div>
       </div>
     </div>
