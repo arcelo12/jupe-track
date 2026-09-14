@@ -1,5 +1,5 @@
-// Warm semantic chart palette: amber ingress / warm orange egress.
-export const CHART_IN = "#ffb59a";      // ingress / received — warm amber
+// High-contrast traffic pair: original blue ingress / orange egress.
+export const CHART_IN = "#3b82f6";      // ingress / received — original blue
 export const CHART_OUT = "#f97316";     // egress — warm orange
 export const CHART_ACTIVE = "#ffc6b2";  // active prefixes — primary amber
 export const CHART_GRID = "#333538";
