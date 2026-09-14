@@ -1,19 +1,35 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { BGPPeerPolicy } from '@/lib/types';
+import { BGPPeerPolicy, BGPPolicy, BGPPolicyItem } from '@/lib/types';
 import { PolicyNode } from '@/components/dashboard/PolicyNode';
 import { useRefresh } from '@/components/RefreshProvider';
 import { authFetch } from '@/lib/auth';
+import {
+  ShieldAlert,
+  Search,
+  FileCode2,
+  Layers,
+  Network,
+  ArrowDownLeft,
+  ArrowUpRight,
+  ArrowLeftRight,
+  Loader2,
+  X,
+} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type PolicyDataResp = {
   neighbors: Record<string, BGPPeerPolicy>;
-  policies: Record<string, any>;
+  policies: Record<string, BGPPolicy>;
 };
 
 export default function PolicyDashboard() {
   const [policyData, setPolicyData] = useState<PolicyDataResp>({ neighbors: {}, policies: {} });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"policies" | "neighbors">("policies");
   const { refreshTrigger, logicalSystem } = useRefresh();
@@ -31,6 +47,7 @@ export default function PolicyDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setError(null);
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000);
@@ -38,7 +55,7 @@ export default function PolicyDashboard() {
         clearTimeout(timeoutId);
         if (!res.ok) throw new Error('Failed to fetch data');
         const data = await res.json();
-        
+
         // Handle backwards compatibility if backend hasn't updated yet
         if (!data.policies && !data.neighbors) {
           setPolicyData({ neighbors: data, policies: {} });
@@ -46,8 +63,9 @@ export default function PolicyDashboard() {
           setPolicyData(data);
           localStorage.setItem(`junos-policy-data-${logicalSystem}`, JSON.stringify(data));
         }
-      } catch (error) {
-        console.warn("Error loading BGP policy data:", error);
+      } catch (err: unknown) {
+        console.warn("Error loading BGP policy data:", err);
+        setError(err instanceof Error ? err.message : "Failed to load policy data");
       } finally {
         setLoading(false);
       }
@@ -59,161 +77,375 @@ export default function PolicyDashboard() {
   const policiesList = Object.values(policyData.policies || {});
   const neighborsList = Object.values(policyData.neighbors || {});
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-display tracking-tight text-primary">Routing Policy</h1>
-          <p className="text-on-surface-variant mt-1">Detailed BGP Import and Export Policies.</p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          {/* View Mode Toggle */}
-          <div className="flex bg-surface-container rounded p-1 border border-[#2A2E35]">
-            <button
-              onClick={() => setViewMode("policies")}
-              className={`px-4 py-1.5 text-sm rounded transition-all ${
-                viewMode === "policies" ? "bg-primary/20 text-primary font-medium" : "text-on-surface-variant hover:text-on-surface"
+  const totalTerms = policiesList.reduce((acc, p) => acc + (p.terms?.length || 0), 0);
+  const totalImports = neighborsList.reduce((acc, n) => acc + (n.import_policies?.length || 0), 0);
+  const totalExports = neighborsList.reduce((acc, n) => acc + (n.export_policies?.length || 0), 0);
+
+  const filteredPolicies = policiesList.filter(
+    p => p.policy_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredNeighbors = neighborsList.filter(
+    peer => peer.peer_address.includes(searchQuery.trim())
+  );
+
+  const renderTerm = (term: BGPPolicyItem, idx: number) => (
+    <PolicyNode key={term.term_name || idx} term={term} index={idx} />
+  );
+
+  const renderPolicyDetail = (peerPolicy: BGPPeerPolicy, pName: string, direction: "import" | "export") => {
+    const pd = policyData.policies?.[pName] || peerPolicy.policy_details?.[pName];
+    const isImport = direction === "import";
+    const termsCount = pd?.terms?.length || 0;
+
+    return (
+      <Card
+        className={`min-w-0 rounded border border-outline-variant bg-surface-container/60 shadow-none border-l-4 ${
+          isImport ? "border-l-primary" : "border-l-secondary"
+        }`}
+      >
+        <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-outline-variant/50 bg-surface-container px-4 py-2.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
+                isImport
+                  ? "border border-primary/30 bg-primary/20 text-primary"
+                  : "border border-secondary/30 bg-secondary/20 text-secondary"
               }`}
             >
+              {isImport ? "IN" : "OUT"}
+            </span>
+            <span className="truncate font-mono text-sm font-semibold text-primary">
+              {pName}
+            </span>
+          </div>
+          <span className="shrink-0 font-mono text-xs text-on-surface-variant">
+            {termsCount} {termsCount === 1 ? "term" : "terms"}
+          </span>
+        </CardHeader>
+        <CardContent className="px-4 py-3">
+          {termsCount > 0 && pd ? (
+            <div className="space-y-1">
+              {pd.terms.map(renderTerm)}
+            </div>
+          ) : (
+            <div className="rounded border border-dashed border-outline-variant/50 bg-surface-container-low/40 p-3 text-xs italic text-on-surface-variant">
+              No terms configured or unable to parse policy details.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const emptyState = (title: string, hint?: string) => (
+    <Card className="min-w-0 rounded border-outline-variant bg-surface-container-low shadow-none">
+      <CardContent className="flex min-h-48 flex-col items-center justify-center gap-2.5 px-4 py-12 text-center text-on-surface-variant">
+        <ShieldAlert aria-hidden="true" size={32} className="text-on-surface-variant/40" />
+        <p className="text-sm font-medium text-on-surface">{title}</p>
+        {hint && <p className="text-xs text-on-surface-variant">{hint}</p>}
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="min-w-0 space-y-5">
+      {/* Header */}
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div className="min-w-0">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+            BGP Routing Control
+          </p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="font-display text-3xl font-bold tracking-tight text-primary">
+              Routing Policy
+            </h1>
+            <Badge className="border border-primary/20 bg-primary/10 font-mono text-xs text-primary">
+              System · {logicalSystem || 'default'}
+            </Badge>
+          </div>
+          <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">
+            Detailed BGP import and export policies, match conditions, and action terms for the current logical system.
+          </p>
+        </div>
+
+        {/* Controls */}
+        <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+          {/* View Mode Toggle */}
+          <div
+            role="tablist"
+            aria-label="Policy view mode"
+            className="flex rounded border border-outline-variant bg-surface-container p-1"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "policies"}
+              onClick={() => setViewMode("policies")}
+              className={`inline-flex items-center gap-1.5 rounded px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                viewMode === "policies"
+                  ? "border border-primary/30 bg-primary/20 text-primary shadow-none"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
+            >
+              <FileCode2 aria-hidden="true" size={14} />
               All Policies
             </button>
             <button
+              type="button"
+              role="tab"
+              aria-selected={viewMode === "neighbors"}
               onClick={() => setViewMode("neighbors")}
-              className={`px-4 py-1.5 text-sm rounded transition-all ${
-                viewMode === "neighbors" ? "bg-primary/20 text-primary font-medium" : "text-on-surface-variant hover:text-on-surface"
+              className={`inline-flex items-center gap-1.5 rounded px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                viewMode === "neighbors"
+                  ? "border border-primary/30 bg-primary/20 text-primary shadow-none"
+                  : "text-on-surface-variant hover:text-on-surface"
               }`}
             >
+              <Network aria-hidden="true" size={14} />
               By Neighbor
             </button>
           </div>
 
-          <div className="relative flex-1 sm:w-64">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-primary text-sm">🔍</span>
-            </div>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-surface-container border border-[#2A2E35] rounded pl-10 pr-4 py-2 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all text-on-surface"
+          {/* Search Input */}
+          <div className="relative flex-1 sm:w-64 sm:flex-none">
+            <Search
+              aria-hidden="true"
+              size={15}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"
             />
+            <Input
+              aria-label="Search policies and neighbors"
+                placeholder={viewMode === "policies" ? "Search policy name…" : "Search peer IP…"}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="h-9 w-full rounded border-outline-variant bg-surface-container pl-9 pr-8 text-xs text-on-surface focus-visible:ring-primary"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-on-surface-variant transition-colors hover:text-on-surface"
+              >
+                <X aria-hidden="true" size={14} />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
+      {/* KPI Overview Strip */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Card className="rounded border-outline-variant bg-surface-container-low shadow-none">
+          <CardContent className="flex items-center gap-3 p-3.5 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-primary/20 bg-primary/10 text-primary">
+              <FileCode2 size={17} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Policies</p>
+              <p className="truncate font-mono text-xl font-bold text-primary">{policiesList.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="rounded border-outline-variant bg-surface-container-low shadow-none">
+          <CardContent className="flex items-center gap-3 p-3.5 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-primary/20 bg-primary/10 text-primary">
+              <Layers size={17} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Terms Defined</p>
+              <p className="truncate font-mono text-xl font-bold text-primary">{totalTerms}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="rounded border-outline-variant bg-surface-container-low shadow-none">
+          <CardContent className="flex items-center gap-3 p-3.5 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-primary/20 bg-primary/10 text-primary">
+              <Network size={17} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Configured Peers</p>
+              <p className="truncate font-mono text-xl font-bold text-primary">{neighborsList.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="rounded border-outline-variant bg-surface-container-low shadow-none">
+          <CardContent className="flex items-center gap-3 p-3.5 sm:p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-primary/20 bg-primary/10 text-primary">
+              <ArrowLeftRight size={17} aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">In / Out Bindings</p>
+              <p className="truncate font-mono text-xl font-bold text-primary">{totalImports} / {totalExports}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Error banner */}
+      {error && (
+        <div role="alert" className="flex items-center gap-2.5 rounded border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">
+          <ShieldAlert aria-hidden="true" size={18} className="shrink-0" />
+          <span className="min-w-0 flex-1 font-mono text-xs">{error}</span>
+        </div>
+      )}
+
+      {/* Main Content Area */}
       <div className="space-y-6">
         {loading && policiesList.length === 0 && neighborsList.length === 0 ? (
-           <div className="glass-panel text-center py-12 text-on-surface-variant animate-pulse bg-surface-container-low border-[#2A2E35]">
-              <div className="flex items-center justify-center gap-3">
-                <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                Loading policy configs...
-              </div>
-           </div>
+          <Card className="min-w-0 rounded border-outline-variant bg-surface-container-low shadow-none">
+            <CardContent
+              role="status"
+              aria-live="polite"
+              className="flex min-h-48 flex-col items-center justify-center gap-3 px-4 py-12 text-center text-sm text-on-surface-variant"
+            >
+              <Loader2 aria-hidden="true" className="h-6 w-6 animate-spin text-primary" />
+              <p>
+                Loading routing policies for <span className="font-mono font-semibold text-primary">{logicalSystem || 'default'}</span>…
+              </p>
+            </CardContent>
+          </Card>
         ) : viewMode === "policies" ? (
           /* ALL POLICIES VIEW */
-          policiesList.length === 0 ? (
-            <div className="glass-panel text-center py-12 text-on-surface-variant bg-surface-container-low border-[#2A2E35]">
-              No routing policies found for this logical system.
-            </div>
+          filteredPolicies.length === 0 ? (
+            emptyState(
+              searchQuery
+                ? `No routing policies matching "${searchQuery}".`
+                : "No routing policies found for this logical system.",
+              searchQuery ? "Clear search query to see all policies." : undefined
+            )
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {policiesList
-                .filter(p => p.policy_name.toLowerCase().includes(searchQuery.toLowerCase()))
-                .map((policy, idx) => (
-                <div key={idx} className="glass-panel space-y-4 border-l-4 border-l-primary bg-surface-container-low border-[#2A2E35]">
-                  <h3 className="text-lg font-bold font-mono text-primary border-b border-[#2A2E35] pb-2">
-                    Policy: {policy.policy_name}
-                  </h3>
-                  {policy.terms && policy.terms.map((term: any, tidx: number) => (
-                    <PolicyNode key={term.term_name || tidx} term={term} index={tidx} />
-                  ))}
-                  {(!policy.terms || policy.terms.length === 0) && (
-                    <div className="text-sm text-on-surface-variant italic">No terms configured or unable to parse.</div>
-                  )}
-                </div>
-              ))}
+            <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-2">
+              {filteredPolicies.map((policy) => {
+                const termCount = policy.terms?.length || 0;
+                return (
+                  <Card
+                    key={policy.policy_name}
+                    className="min-w-0 overflow-hidden rounded border border-outline-variant bg-surface-container-low border-l-4 border-l-primary shadow-none"
+                  >
+                    <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-outline-variant bg-surface-container px-5 py-3.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-primary/80">Policy</span>
+                        <CardTitle className="truncate font-mono text-base font-semibold text-primary">
+                          {policy.policy_name}
+                        </CardTitle>
+                      </div>
+                      <Badge className="shrink-0 rounded border border-outline-variant bg-surface-container-high font-mono text-xs text-on-surface">
+                        {termCount} {termCount === 1 ? 'term' : 'terms'}
+                      </Badge>
+                    </CardHeader>
+                    <CardContent className="p-5">
+                      {termCount > 0 ? (
+                        <div className="space-y-1">
+                          {policy.terms.map(renderTerm)}
+                        </div>
+                      ) : (
+                        <div className="rounded border border-dashed border-outline-variant/60 bg-surface-container/40 p-4 text-xs italic text-on-surface-variant">
+                          No terms configured or unable to parse policy details.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )
         ) : (
           /* BY NEIGHBOR VIEW */
-          neighborsList.length === 0 ? (
-            <div className="glass-panel text-center py-12 text-on-surface-variant bg-surface-container-low border-[#2A2E35]">
-              No BGP neighbors with configured policies found.
-            </div>
+          filteredNeighbors.length === 0 ? (
+            emptyState(
+              searchQuery
+                ? `No BGP neighbors matching "${searchQuery}".`
+                : "No BGP neighbors with configured policies found.",
+              searchQuery ? "Clear search query to see all peers." : undefined
+            )
           ) : (
-            neighborsList
-              .filter(peer => peer.peer_address.includes(searchQuery.trim()))
-              .map((peerPolicy, idx) => (
-              <div key={idx} className="glass-panel space-y-6 bg-surface-container-low border-[#2A2E35]">
-                <div className="flex justify-between items-center border-b border-[#2A2E35] pb-4">
-                   <h2 className="text-xl font-bold font-mono text-primary">
-                     Peer: {peerPolicy.peer_address}
-                   </h2>
-                   <div className="flex gap-4 text-sm">
-                     <div>
-                       <span className="text-on-surface-variant">Imports:</span> 
-                       <span className="ml-2 font-medium bg-surface-container-high px-2 py-1 rounded">{peerPolicy.import_policies.length}</span>
-                     </div>
-                     <div>
-                       <span className="text-on-surface-variant">Exports:</span> 
-                       <span className="ml-2 font-medium bg-surface-container-high px-2 py-1 rounded">{peerPolicy.export_policies.length}</span>
-                     </div>
-                   </div>
-                </div>
+            <div className="space-y-5">
+              {filteredNeighbors.map((peerPolicy) => {
+                const importCount = peerPolicy.import_policies?.length || 0;
+                const exportCount = peerPolicy.export_policies?.length || 0;
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                  {/* Import Policies */}
-                  <div>
-                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-on-surface">
-                       <span className="text-primary">⬇</span> Import Policies
-                     </h3>
-                     {peerPolicy.import_policies.map(pName => {
-                       const pd = policyData.policies?.[pName] || peerPolicy.policy_details?.[pName];
-                       return (
-                       <div key={pName} className="glass-card mb-4 border-l-4 border-l-primary bg-surface-container border-[#2A2E35]">
-                          <div className="font-mono text-sm mb-2 text-primary">{pName}</div>
-                          {pd?.terms?.map((term: any, idx: number) => (
-                             <PolicyNode key={term.term_name || idx} term={term} index={idx} />
-                          ))}
-                          {!pd && (
-                             <div className="text-xs text-on-surface-variant italic mt-1">Unable to parse policy details.</div>
-                          )}
-                       </div>
-                     )})}
-                     {peerPolicy.import_policies.length === 0 && (
-                       <p className="text-sm text-on-surface-variant">No import policy applied.</p>
-                     )}
-                  </div>
-
-                  {/* Export Policies */}
-                  <div>
-                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-on-surface">
-                       <span className="text-[#a28c85]">⬆</span> Export Policies
-                     </h3>
-                     {peerPolicy.export_policies.map(pName => {
-                       const pd = policyData.policies?.[pName] || peerPolicy.policy_details?.[pName];
-                       return (
-                       <div key={pName} className="glass-card mb-4 border-t-2 border-t-[#a28c85] rounded-t-none bg-surface-container border-[#2A2E35]">
-                          <div className="font-mono text-sm mb-4 text-[#a28c85] bg-surface-container-high px-3 py-1.5 rounded inline-block shadow-sm">
-                             Policy: {pName}
+                return (
+                  <Card
+                    key={peerPolicy.peer_address}
+                    className="min-w-0 overflow-hidden rounded border border-outline-variant bg-surface-container-low shadow-none"
+                  >
+                    <CardHeader className="flex flex-col gap-3 border-b border-outline-variant bg-surface-container px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <Network aria-hidden="true" size={18} className="shrink-0 text-primary" />
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">BGP Peer</span>
+                          <CardTitle className="truncate font-mono text-base font-semibold text-primary">
+                            {peerPolicy.peer_address}
+                          </CardTitle>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                        <span className="inline-flex items-center gap-1.5 rounded border border-outline-variant bg-surface-container-high px-2.5 py-1 text-on-surface">
+                          <ArrowDownLeft aria-hidden="true" size={13} className="text-primary" />
+                          <span className="text-on-surface-variant">Imports</span>
+                          <strong className="font-mono text-primary">{importCount}</strong>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 rounded border border-outline-variant bg-surface-container-high px-2.5 py-1 text-on-surface">
+                          <ArrowUpRight aria-hidden="true" size={13} className="text-secondary" />
+                          <span className="text-on-surface-variant">Exports</span>
+                          <strong className="font-mono text-secondary">{exportCount}</strong>
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-5">
+                      <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-2">
+                        {/* Import Policies column */}
+                        <div className="min-w-0 space-y-3">
+                          <div className="flex items-center justify-between border-b border-outline-variant/60 pb-2">
+                            <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary">
+                              <ArrowDownLeft aria-hidden="true" size={14} className="text-primary" />
+                              Import Policies ({importCount})
+                            </h3>
                           </div>
-                           {pd?.terms?.map((term: any, idx: number) => (
-                             <PolicyNode key={term.term_name || idx} term={term} index={idx} />
-                          ))}
-                          {!pd && (
-                             <div className="text-xs text-on-surface-variant italic mt-1">Unable to parse policy details.</div>
+                          {importCount > 0 ? (
+                            <div className="space-y-3">
+                              {peerPolicy.import_policies.map(pName => (
+                                <div key={pName} className="min-w-0">
+                                  {renderPolicyDetail(peerPolicy, pName, "import")}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="rounded border border-dashed border-outline-variant/60 bg-surface-container/30 px-4 py-3 text-xs italic text-on-surface-variant">
+                              No import policy applied to this peer.
+                            </div>
                           )}
-                       </div>
-                     )})}
-                     {peerPolicy.export_policies.length === 0 && (
-                       <p className="text-sm text-on-surface-variant">No export policy applied.</p>
-                     )}
-                  </div>
-                </div>
-              </div>
-            ))
+                        </div>
+
+                        {/* Export Policies column */}
+                        <div className="min-w-0 space-y-3">
+                          <div className="flex items-center justify-between border-b border-outline-variant/60 pb-2">
+                            <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-secondary">
+                              <ArrowUpRight aria-hidden="true" size={14} className="text-secondary" />
+                              Export Policies ({exportCount})
+                            </h3>
+                          </div>
+                          {exportCount > 0 ? (
+                            <div className="space-y-3">
+                              {peerPolicy.export_policies.map(pName => (
+                                <div key={pName} className="min-w-0">
+                                  {renderPolicyDetail(peerPolicy, pName, "export")}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="rounded border border-dashed border-outline-variant/60 bg-surface-container/30 px-4 py-3 text-xs italic text-on-surface-variant">
+                              No export policy applied to this peer.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           )
         )}
       </div>
