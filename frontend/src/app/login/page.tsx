@@ -87,7 +87,7 @@ export default function LoginPage() {
                 onClick={() => setShowPass(v => !v)}
                 aria-label={showPass ? "Hide password" : "Show password"}
                 aria-pressed={showPass}
-                className="absolute right-0.5 top-0.5 flex h-10 w-10 items-center justify-center rounded text-on-surface-variant hover:text-on-surface focus-visible:outline-2 focus-visible:outline-primary"
+                className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded text-on-surface-variant hover:text-on-surface focus-visible:outline-2 focus-visible:outline-primary"
               >
                 {showPass ? (
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
