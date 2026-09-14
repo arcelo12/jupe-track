@@ -1,7 +1,24 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  Archive,
+  CheckCircle2,
+  Clock,
+  Database,
+  HardDrive,
+  Network,
+  RefreshCw,
+  Save,
+  Search,
+  Sliders,
+  XCircle,
+} from "lucide-react";
 import { authFetch } from "@/lib/auth";
+import { isAdmin } from "@/lib/rbac";
+import { useAuth } from "@/components/AuthProvider";
+import { cn } from "@/lib/utils";
 
 interface RetentionSettings {
   retention_days_interface: number;
@@ -23,63 +40,296 @@ interface ScraperStatus {
   total_bgp_records: number;
 }
 
+const DEFAULT_SETTINGS: RetentionSettings = {
+  retention_days_interface: 30,
+  retention_days_bgp: 30,
+  scrape_interval_seconds: 60,
+  scrape_enabled: true,
+  enable_bgp: true,
+  enable_interfaces: true,
+  scrape_interface_targets: "",
+  scrape_bgp_targets: "",
+};
+
 function formatDate(iso: string | null): string {
   if (!iso) return "Never";
-  return new Date(iso).toLocaleString();
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "Never" : d.toLocaleString();
 }
 
-function SliderInput({ label, value, min, max, step = 1, unit, onChange }: {
-  label: string; value: number; min: number; max: number; step?: number; unit: string;
-  onChange: (v: number) => void;
+function parseTargets(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+function Toggle({
+  id,
+  label,
+  description,
+  checked,
+  onChange,
+  describedBy,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  describedBy: string;
 }) {
   return (
-    <div className="retention-field">
-      <div className="retention-field-header">
-        <span>{label}</span>
-        <span className="retention-value">{value} {unit}</span>
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <label
+          htmlFor={id}
+          className="cursor-pointer text-sm font-medium text-on-surface select-none"
+        >
+          {label}
+        </label>
+        <p id={describedBy} className="mt-0.5 text-xs text-on-surface-variant">
+          {description}
+        </p>
+      </div>
+      <button
+        id={id}
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-describedby={describedBy}
+        aria-label={label}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2",
+          checked
+            ? "border-primary bg-primary"
+            : "border-outline-variant bg-surface-container-highest"
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none block size-4 rounded-full transition-transform",
+            checked
+              ? "translate-x-5.5 bg-on-primary"
+              : "translate-x-1 bg-on-surface-variant"
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
+function SliderField({
+  id,
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  unit,
+  hint,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit: string;
+  hint: string;
+  onChange: (v: number) => void;
+}) {
+  const pct = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={id} className="text-sm font-medium text-on-surface">
+          {label}
+        </label>
+        <output
+          htmlFor={id}
+          className="rounded border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-xs font-semibold text-primary"
+          aria-live="polite"
+        >
+          {value} {unit}
+        </output>
       </div>
       <input
+        id={id}
         type="range"
         min={min}
         max={max}
         step={step}
         value={value}
-        onChange={e => onChange(Number(e.target.value))}
-        className="retention-slider"
+        aria-describedby={`${id}-hint`}
+        aria-label={label}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{
+          background: `linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary) ${pct}%, var(--color-surface-container-high) ${pct}%)`,
+        }}
+        className="mt-3 h-1.5 w-full cursor-pointer appearance-none rounded bg-surface-container-high accent-primary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4 [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-on-primary [&::-webkit-slider-thumb]:bg-primary"
       />
-      <div className="retention-range-labels">
-        <span>{min} {unit}</span>
-        <span>{max} {unit}</span>
+      <div
+        aria-hidden="true"
+        className="mt-1 flex justify-between font-mono text-[11px] text-on-surface-variant"
+      >
+        <span>
+          {min} {unit}
+        </span>
+        <span>
+          {max} {unit}
+        </span>
       </div>
+      <p id={`${id}-hint`} className="mt-1 text-xs text-on-surface-variant">
+        {hint}
+      </p>
     </div>
   );
 }
 
+function TargetSelect({
+  id,
+  title,
+  description,
+  options,
+  selected,
+  emptyHint,
+  onToggle,
+  onClear,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  options: string[];
+  selected: Set<string>;
+  emptyHint: string;
+  onToggle: (name: string) => void;
+  onClear: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    if (!query.trim()) return options;
+    const q = query.toLowerCase();
+    return options.filter((opt) => opt.toLowerCase().includes(q));
+  }, [options, query]);
+
+  const selectedCount = selected.size;
+
+  return (
+    <section aria-labelledby={`${id}-heading`} className="mt-6">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h4 id={`${id}-heading`} className="text-sm font-medium text-on-surface">
+            {title}
+          </h4>
+          <p className="mt-0.5 text-xs text-on-surface-variant">{description}</p>
+        </div>
+        <span
+          role="status"
+          className="rounded border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-bold uppercase tracking-widest text-primary"
+        >
+          {selectedCount === 0 ? "All selected" : `${selectedCount} selected`}
+        </span>
+      </div>
+
+      {options.length > 6 && (
+        <div className="relative mt-2.5">
+          <Search
+            size={14}
+            className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-on-surface-variant"
+            aria-hidden="true"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Filter ${title.toLowerCase()}…`}
+            aria-label={`Filter ${title}`}
+            className="h-8 w-full rounded border border-outline-variant bg-surface-container-lowest pr-3 pl-8 font-mono text-xs text-on-surface placeholder:text-on-surface-variant focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-primary"
+          />
+        </div>
+      )}
+
+      <fieldset className="mt-3">
+        <legend className="sr-only">{title}</legend>
+        <div className="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto rounded border border-outline-variant bg-surface-container p-2 min-[480px]:grid-cols-2 lg:grid-cols-3">
+          {options.length === 0 && (
+            <p className="col-span-full p-2 text-xs text-on-surface-variant">{emptyHint}</p>
+          )}
+          {options.length > 0 && filtered.length === 0 && (
+            <p className="col-span-full p-2 text-xs text-on-surface-variant">
+              No matches found for &ldquo;{query}&rdquo;.
+            </p>
+          )}
+          {filtered.map((opt) => {
+            const active = selected.has(opt);
+            return (
+              <label
+                key={opt}
+                htmlFor={`${id}-opt-${opt}`}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded border px-2.5 py-1.5 text-xs transition-colors focus-within:outline-2 focus-within:outline-primary",
+                  active
+                    ? "border-primary/40 bg-primary/10 text-on-surface"
+                    : "border-transparent text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                )}
+              >
+                <input
+                  id={`${id}-opt-${opt}`}
+                  type="checkbox"
+                  checked={active}
+                  onChange={() => onToggle(opt)}
+                  className="size-3.5 shrink-0 cursor-pointer accent-primary"
+                />
+                <span className="truncate font-mono">{opt}</span>
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <div className="mt-2 flex items-center justify-between text-xs text-on-surface-variant">
+        <span>
+          {filtered.length} of {options.length} visible
+        </span>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-xs text-on-surface-variant underline-offset-4 hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          Clear selection (scrape all)
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function RetentionPage() {
-  const [settings, setSettings] = useState<RetentionSettings>({
-    retention_days_interface: 30,
-    retention_days_bgp: 30,
-    scrape_interval_seconds: 60,
-    scrape_enabled: true,
-    enable_bgp: true,
-    enable_interfaces: true,
-    scrape_interface_targets: "",
-    scrape_bgp_targets: "",
-  });
+  const { user: me } = useAuth();
+  const [settings, setSettings] = useState<RetentionSettings>(DEFAULT_SETTINGS);
   const [status, setStatus] = useState<ScraperStatus | null>(null);
-  
-  // Available options
   const [availableInterfaces, setAvailableInterfaces] = useState<string[]>([]);
   const [availablePeers, setAvailablePeers] = useState<string[]>([]);
-
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  const showToast = (type: "success" | "error", msg: string) => {
+  const showToast = useCallback((type: "success" | "error", msg: string) => {
     setToast({ type, msg });
-    setTimeout(() => setToast(null), 3500);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [toast]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -89,17 +339,21 @@ export default function RetentionPage() {
         authFetch("/api/proxy/metrics/interfaces/names"),
         authFetch("/api/proxy/metrics/bgp/peers"),
       ]);
-      if (retRes.ok) setSettings(await retRes.json());
+      if (retRes.ok) {
+        setSettings({ ...DEFAULT_SETTINGS, ...(await retRes.json()) });
+        setLoadError(null);
+      } else {
+        setLoadError(`Failed to load retention settings (HTTP ${retRes.status}).`);
+      }
       if (statusRes.ok) setStatus(await statusRes.json());
       if (ifaceRes.ok) {
         const names: string[] = await ifaceRes.json();
-        // Filter out logical units (which contain '.') to declutter the UI
-        // Since querying the physical interface in PyEZ automatically returns its logical units
-        setAvailableInterfaces(names.filter(n => !n.includes('.')));
+        setAvailableInterfaces(names.filter((n) => !n.includes(".")));
       }
       if (peerRes.ok) setAvailablePeers(await peerRes.json());
     } catch (e) {
       console.error("Failed to fetch retention data", e);
+      setLoadError("Failed to load retention settings. Check connection and retry.");
     } finally {
       setLoading(false);
     }
@@ -107,11 +361,11 @@ export default function RetentionPage() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
+    const interval = window.setInterval(fetchData, 15000);
+    return () => window.clearInterval(interval);
   }, [fetchData]);
 
-  const save = async () => {
+  const save = useCallback(async () => {
     setSaving(true);
     try {
       const res = await authFetch("/api/proxy/metrics/retention", {
@@ -121,363 +375,364 @@ export default function RetentionPage() {
       });
       if (!res.ok) throw new Error(await res.text());
       showToast("success", "Settings saved and scraper rescheduled!");
-      fetchData();
+      await fetchData();
     } catch (e) {
       showToast("error", e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }
-  };
+  }, [fetchData, settings, showToast]);
+
+  const handleTargetToggle = useCallback((type: "interfaces" | "bgp", itemName: string) => {
+    setSettings((s) => {
+      const field = type === "interfaces" ? "scrape_interface_targets" : "scrape_bgp_targets";
+      const current = parseTargets(s[field]);
+      const next = current.includes(itemName)
+        ? current.filter((t) => t !== itemName)
+        : [...current, itemName];
+      return { ...s, [field]: next.join(",") };
+    });
+  }, []);
+
+  const selectedInterfaces = useMemo(
+    () => new Set(parseTargets(settings.scrape_interface_targets)),
+    [settings.scrape_interface_targets]
+  );
+  const selectedPeers = useMemo(
+    () => new Set(parseTargets(settings.scrape_bgp_targets)),
+    [settings.scrape_bgp_targets]
+  );
+
+  if (me && !isAdmin(me)) {
+    return null; // AdminGuard in LayoutShell covers this; safety net
+  }
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
-        <div className="spinner" />
+      <div className="space-y-6" aria-busy="true" aria-label="Loading retention settings">
+        <div>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+            Admin / data lifecycle
+          </p>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-primary">
+            Data Retention
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">
+            Configure metric retention horizons and background poller cadence.
+          </p>
+        </div>
+        <div className="grid animate-pulse grid-cols-2 gap-3 md:grid-cols-3" aria-hidden="true">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-20 rounded border border-outline-variant bg-surface-container-low"
+            />
+          ))}
+        </div>
+        <p role="status" className="text-sm text-on-surface-variant">
+          Loading retention settings…
+        </p>
       </div>
     );
   }
 
-  const handleTargetToggle = (type: "interfaces" | "bgp", itemName: string) => {
-    setSettings(s => {
-      const field = type === "interfaces" ? "scrape_interface_targets" : "scrape_bgp_targets";
-      const current = s[field] ? s[field].split(",").map(t => t.trim()).filter(Boolean) : [];
-      let next;
-      if (current.includes(itemName)) {
-        next = current.filter(t => t !== itemName);
-      } else {
-        next = [...current, itemName];
-      }
-      return { ...s, [field]: next.join(",") };
-    });
-  };
-
-  const renderTargetSelect = (title: string, desc: string, type: "interfaces" | "bgp", options: string[]) => {
-    const field = type === "interfaces" ? "scrape_interface_targets" : "scrape_bgp_targets";
-    const selected = new Set(settings[field] ? settings[field].split(",").map(t => t.trim()).filter(Boolean) : []);
-    
-    return (
-      <div style={{ marginTop: 24 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div>
-            <p style={{ fontWeight: 500, fontSize: "0.9rem" }}>{title}</p>
-            <p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 2 }}>{desc}</p>
-          </div>
-          <span style={{ fontSize: "0.75rem", color: "#06b6d4" }}>
-            {selected.size === 0 ? "All Selected (Default)" : `${selected.size} specific selected`}
-          </span>
-        </div>
-        <div style={{
-          maxHeight: 180, overflowY: "auto", 
-          background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8,
-          padding: 8, display: "grid", gap: 6, gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))"
-        }}>
-          {options.length === 0 && <div className="text-on-surface-variant text-xs p-2">Wait for first scrape to see options...</div>}
-          {options.map(opt => (
-            <label key={opt} style={{
-              display: "flex", alignItems: "center", gap: 8, fontSize: "0.8rem", color: "#cbd5e1",
-              padding: "6px 10px", background: selected.has(opt) ? "rgba(6,182,212,0.1)" : "transparent",
-              border: selected.has(opt) ? "1px solid rgba(6,182,212,0.3)" : "1px solid transparent",
-              borderRadius: 6, cursor: "pointer", transition: "all 0.2s"
-            }}>
-              <input 
-                type="checkbox" 
-                checked={selected.has(opt)} 
-                onChange={() => handleTargetToggle(type, opt)} 
-                style={{ accentColor: "#06b6d4", cursor: "pointer" }}
-              />
-              {opt}
-            </label>
-          ))}
-        </div>
-        <div style={{ marginTop: 8, textAlign: "right" }}>
-          <button 
-            type="button" 
-            onClick={() => setSettings(s => ({ ...s, [field]: "" }))}
-            style={{ background: "none", border: "none", color: "#64748b", fontSize: "0.75rem", cursor: "pointer" }}>
-            Clear Selection (Scrape All)
-          </button>
-        </div>
-      </div>
-    );
-  };
+  const statusCards = status
+    ? [
+        {
+          label: "Interface Records",
+          val: status.total_interface_records.toLocaleString(),
+          icon: Database,
+        },
+        {
+          label: "BGP Records",
+          val: status.total_bgp_records.toLocaleString(),
+          icon: Network,
+        },
+        {
+          label: "Next Scrape",
+          val: formatDate(status.next_run),
+          icon: Clock,
+        },
+        {
+          label: "Last Interface Scrape",
+          val: formatDate(status.last_scrape_interface),
+          icon: Activity,
+        },
+        {
+          label: "Last BGP Scrape",
+          val: formatDate(status.last_scrape_bgp),
+          icon: Activity,
+        },
+        {
+          label: "Collector Daemon",
+          val: status.enabled ? "Running" : "Paused",
+          icon: HardDrive,
+        },
+      ]
+    : [];
 
   return (
-    <div className="space-y-6">
-      {toast && (
-        <div className={`toast toast-${toast.type}`}>
-          {toast.type === "success" ? "✓" : "✕"} {toast.msg}
-        </div>
-      )}
-
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Data Retention</h1>
-        <p className="text-on-surface-variant mt-1">
-          Configure how long metrics are stored and how frequently the device is polled.
-        </p>
-      </div>
-
-      {/* Scraper Status Card */}
-      <div className="glass-panel">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${status?.enabled ? "bg-primary shadow-none" : "bg-[#2A2E35]"}`} />
-          Background Scraper Status
-        </h2>
-        {status && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {[
-              { label: "Interface Records", val: status.total_interface_records.toLocaleString(), color: "#06b6d4" },
-              { label: "BGP Records", val: status.total_bgp_records.toLocaleString(), color: "#8b5cf6" },
-              { label: "Next Scrape", val: formatDate(status.next_run), color: "#10b981" },
-              { label: "Last Interface Scrape", val: formatDate(status.last_scrape_interface), color: "#94a3b8" },
-              { label: "Last BGP Scrape", val: formatDate(status.last_scrape_bgp), color: "#94a3b8" },
-              { label: "Status", val: status.enabled ? "Running" : "Paused", color: status.enabled ? "#10b981" : "#ef4444" },
-            ].map((item, i) => (
-              <div key={i} style={{
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 10,
-                padding: "0.875rem 1rem",
-              }}>
-                <p style={{ fontSize: "0.72rem", color: "#64748b", marginBottom: 4 }}>{item.label}</p>
-                <p style={{ fontSize: "0.9rem", fontWeight: 600, color: item.color, fontFamily: "monospace" }}>
-                  {item.val}
-                </p>
-              </div>
-            ))}
+    <div className="min-w-0 space-y-5">
+      <div aria-live="polite">
+        {toast && (
+          <div
+            role={toast.type === "error" ? "alert" : "status"}
+            className={cn(
+              "flex items-center gap-2 rounded border px-4 py-3 text-sm font-medium",
+              toast.type === "success"
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-error/30 bg-error/10 text-error"
+            )}
+          >
+            {toast.type === "success" ? (
+              <CheckCircle2 aria-hidden="true" size={17} />
+            ) : (
+              <XCircle aria-hidden="true" size={17} />
+            )}
+            <span className="min-w-0 flex-1">{toast.msg}</span>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              aria-label="Dismiss notification"
+              className="rounded p-1 hover:opacity-70 focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              ✕
+            </button>
           </div>
         )}
       </div>
 
-      {/* Settings Card */}
-      <div className="glass-panel">
-        <h2 className="text-lg font-semibold mb-6">Settings</h2>
-
-        <div className="space-y-8">
-          {/* Enable toggle */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <p style={{ fontWeight: 500, fontSize: "0.9rem" }}>Enable Background Scraping</p>
-              <p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 2 }}>
-                Keep collecting data even when no browser tab is open
-              </p>
-            </div>
-            <button
-              onClick={() => setSettings(s => ({ ...s, scrape_enabled: !s.scrape_enabled }))}
-              style={{
-                width: 48, height: 26, borderRadius: 13,
-                background: settings.scrape_enabled
-                  ? "linear-gradient(90deg, #10b981, #06b6d4)"
-                  : "rgba(255,255,255,0.1)",
-                border: "none", cursor: "pointer", position: "relative",
-                transition: "all 0.2s", flexShrink: 0,
-              }}
-            >
-              <span style={{
-                position: "absolute",
-                width: 20, height: 20,
-                background: "#fff",
-                borderRadius: "50%",
-                top: 3,
-                left: settings.scrape_enabled ? 25 : 3,
-                transition: "left 0.2s",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-              }} />
-            </button>
-          </div>
-
-          <div style={{ height: 1, background: "rgba(255,255,255,0.05)" }} />
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <p style={{ fontWeight: 500, fontSize: "0.9rem" }}>Enable Interface Scraping</p>
-              <p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 2 }}>
-                Collect and store interface traffic and status metrics
-              </p>
-            </div>
-            <button
-              onClick={() => setSettings(s => ({ ...s, enable_interfaces: !s.enable_interfaces }))}
-              style={{
-                width: 48, height: 26, borderRadius: 13,
-                background: settings.enable_interfaces
-                  ? "linear-gradient(90deg, #10b981, #06b6d4)"
-                  : "rgba(255,255,255,0.1)",
-                border: "none", cursor: "pointer", position: "relative",
-                transition: "all 0.2s", flexShrink: 0,
-              }}
-            >
-              <span style={{
-                position: "absolute",
-                width: 20, height: 20,
-                background: "#fff",
-                borderRadius: "50%",
-                top: 3,
-                left: settings.enable_interfaces ? 25 : 3,
-                transition: "left 0.2s",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-              }} />
-            </button>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <p style={{ fontWeight: 500, fontSize: "0.9rem" }}>Enable BGP Scraping</p>
-              <p style={{ color: "#64748b", fontSize: "0.78rem", marginTop: 2 }}>
-                Collect and store BGP peer status and prefix metrics
-              </p>
-            </div>
-            <button
-              onClick={() => setSettings(s => ({ ...s, enable_bgp: !s.enable_bgp }))}
-              style={{
-                width: 48, height: 26, borderRadius: 13,
-                background: settings.enable_bgp
-                  ? "linear-gradient(90deg, #10b981, #06b6d4)"
-                  : "rgba(255,255,255,0.1)",
-                border: "none", cursor: "pointer", position: "relative",
-                transition: "all 0.2s", flexShrink: 0,
-              }}
-            >
-              <span style={{
-                position: "absolute",
-                width: 20, height: 20,
-                background: "#fff",
-                borderRadius: "50%",
-                top: 3,
-                left: settings.enable_bgp ? 25 : 3,
-                transition: "left 0.2s",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-              }} />
-            </button>
-          </div>
-
-          <div style={{ height: 1, background: "rgba(255,255,255,0.05)" }} />
-
-          <SliderInput
-            label="Scrape Interval"
-            value={settings.scrape_interval_seconds}
-            min={10}
-            max={600}
-            step={10}
-            unit="seconds"
-            onChange={v => setSettings(s => ({ ...s, scrape_interval_seconds: v }))}
-          />
-
-          <SliderInput
-            label="Interface Data Retention"
-            value={settings.retention_days_interface}
-            min={1}
-            max={365}
-            unit="days"
-            onChange={v => setSettings(s => ({ ...s, retention_days_interface: v }))}
-          />
-
-          <SliderInput
-            label="BGP Data Retention"
-            value={settings.retention_days_bgp}
-            min={1}
-            max={365}
-            unit="days"
-            onChange={v => setSettings(s => ({ ...s, retention_days_bgp: v }))}
-          />
-          
-          <div style={{ height: 1, background: "rgba(255,255,255,0.05)", margin: "24px 0" }} />
-          
-          <h3 className="text-md font-semibold text-on-surface">Targeted Scraping</h3>
-          <p className="text-xs text-on-surface-variant mb-4">
-            Select specific targets to scrape. Leaving it empty will scrape <b>everything</b>, which might increase device CPU usage.
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
+            Admin / data lifecycle
           </p>
-
-          {renderTargetSelect(
-            "Target Interfaces", 
-            "Select which physical/logical interfaces to collect data for", 
-            "interfaces", 
-            availableInterfaces
-          )}
-          
-          {renderTargetSelect(
-            "Target BGP Peers", 
-            "Select which BGP peer IP addresses to collect data for", 
-            "bgp", 
-            availablePeers
-          )}
+          <h1 className="font-display text-3xl font-bold tracking-tight text-primary">
+            Data Retention
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">
+            Configure metric retention horizons, background poller cadence, and targeted collections.
+          </p>
         </div>
-
-        <div style={{ marginTop: "2rem", display: "flex", justifyContent: "flex-end" }}>
-          <button
-            onClick={save}
-            disabled={saving}
-            className="btn-primary"
-          >
-            {saving ? <span className="spinner-sm" /> : null}
-            {saving ? "Saving..." : "Save & Apply"}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={fetchData}
+          className="inline-flex w-fit items-center gap-2 rounded border border-outline-variant bg-surface-container-low px-3 py-2 text-xs font-semibold text-on-surface transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <RefreshCw aria-hidden="true" size={14} /> Refresh status
+        </button>
       </div>
 
-      <style>{`
-        .toast {
-          position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999;
-          padding: 0.75rem 1.25rem;
-          border-radius: 10px;
-          font-size: 0.85rem;
-          font-weight: 500;
-          animation: slide-in 0.3s ease;
-          box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-        }
-        .toast-success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
-        .toast-error   { background: rgba(239,68,68,0.15);  border: 1px solid rgba(239,68,68,0.3);  color: #fca5a5; }
-        @keyframes slide-in { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform:none; } }
+      {loadError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded border border-error/30 bg-error/10 px-4 py-3 text-sm text-error"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <XCircle aria-hidden="true" size={17} />
+            {loadError}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              fetchData();
+            }}
+            className="rounded border border-error/30 px-3 py-1.5 text-xs font-semibold hover:bg-error/10 focus-visible:outline-2 focus-visible:outline-error"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
-        .retention-field { display: flex; flex-direction: column; gap: 0.5rem; }
-        .retention-field-header { display: flex; justify-content: space-between; font-size: 0.85rem; }
-        .retention-value { font-weight: 600; color: #06b6d4; font-family: monospace; }
-        .retention-slider {
-          -webkit-appearance: none; appearance: none;
-          width: 100%; height: 4px; border-radius: 2px;
-          background: linear-gradient(90deg,
-            rgb(6,182,212) 0%,
-            rgb(6,182,212) var(--val, 50%),
-            rgba(255,255,255,0.1) var(--val, 50%)
-          );
-          cursor: pointer;
-        }
-        .retention-slider::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 18px; height: 18px; border-radius: 50%;
-          background: #06b6d4;
-          box-shadow: 0 0 8px rgba(6,182,212,0.5);
-          border: 2px solid rgba(255,255,255,0.2);
-          cursor: pointer;
-        }
-        .retention-range-labels { display: flex; justify-content: space-between; font-size: 0.7rem; color: #475569; }
+      {/* Scraper Telemetry Status Overview */}
+      <section
+        aria-labelledby="scraper-status-heading"
+        className="overflow-hidden rounded border border-outline-variant bg-surface-container-low"
+      >
+        <div className="border-b border-outline-variant bg-surface-container px-5 py-4">
+          <h2
+            id="scraper-status-heading"
+            className="flex items-center gap-2 text-base font-semibold text-on-surface"
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "size-2 rounded-full",
+                status?.enabled ? "bg-primary animate-pulse" : "bg-error"
+              )}
+            />
+            Background Scraper Telemetry
+          </h2>
+        </div>
+        <div className="p-5">
+          {status ? (
+            <dl className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-3">
+              {statusCards.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded border border-outline-variant bg-surface-container px-4 py-3"
+                >
+                  <dt className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">
+                    <item.icon aria-hidden="true" size={13} className="text-primary" />
+                    {item.label}
+                  </dt>
+                  <dd
+                    className="mt-1 truncate font-mono text-sm font-semibold text-on-surface"
+                    title={item.val}
+                  >
+                    {item.val}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : (
+            <p className="text-sm text-on-surface-variant">
+              Scraper status unavailable. It will populate once the collector daemon reports.
+            </p>
+          )}
+        </div>
+      </section>
 
-        .btn-primary {
-          display: flex; align-items: center; gap: 0.5rem;
-          padding: 0.625rem 1.5rem;
-          background: linear-gradient(135deg, #06b6d4, #3b82f6);
-          color: #fff; border: none; border-radius: 8px;
-          font-size: 0.875rem; font-weight: 600; cursor: pointer;
-          box-shadow: 0 4px 15px rgba(6,182,212,0.3);
-          transition: all 0.2s;
-        }
-        .btn-primary:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); }
-        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+      {/* Retention and Scraper Configuration Form */}
+      <section
+        aria-labelledby="retention-settings-heading"
+        className="overflow-hidden rounded border border-outline-variant bg-surface-container-low"
+      >
+        <div className="border-b border-outline-variant bg-surface-container px-5 py-4">
+          <h2
+            id="retention-settings-heading"
+            className="flex items-center gap-2 text-base font-semibold text-on-surface"
+          >
+            <Archive aria-hidden="true" size={17} className="text-primary" /> Retention &amp; Cadence Settings
+          </h2>
+          <p className="mt-1 text-xs text-on-surface-variant">
+            Changes apply immediately on save and reschedule the background collector.
+          </p>
+        </div>
 
-        .spinner {
-          width: 32px; height: 32px;
-          border: 3px solid rgba(6,182,212,0.2);
-          border-top-color: #06b6d4;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-        .spinner-sm {
-          display: inline-block; width: 14px; height: 14px;
-          border: 2px solid rgba(255,255,255,0.3);
-          border-top-color: #fff;
-          border-radius: 50%;
-          animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+        <div className="space-y-6 p-5">
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-primary">
+              Poller Daemon Controls
+            </h3>
+            <Toggle
+              id="toggle-background-scraping"
+              label="Enable background scraping"
+              description="Keep collecting telemetry even when no browser tabs are connected."
+              checked={settings.scrape_enabled}
+              describedBy="scrape-enabled-desc"
+              onChange={(v) => setSettings((s) => ({ ...s, scrape_enabled: v }))}
+            />
+            <hr className="border-outline-variant" />
+            <Toggle
+              id="toggle-interface-scraping"
+              label="Enable interface scraping"
+              description="Collect and store interface traffic and operational status metrics."
+              checked={settings.enable_interfaces}
+              describedBy="iface-enabled-desc"
+              onChange={(v) => setSettings((s) => ({ ...s, enable_interfaces: v }))}
+            />
+            <Toggle
+              id="toggle-bgp-scraping"
+              label="Enable BGP scraping"
+              description="Collect and store BGP peer state, rib-in/out, and prefix telemetry."
+              checked={settings.enable_bgp}
+              describedBy="bgp-enabled-desc"
+              onChange={(v) => setSettings((s) => ({ ...s, enable_bgp: v }))}
+            />
+          </div>
+
+          <hr className="border-outline-variant" />
+
+          <div className="space-y-5">
+            <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary">
+              <Sliders aria-hidden="true" size={13} /> Intervals &amp; Retention Horizons
+            </h3>
+            <SliderField
+              id="scrape-interval"
+              label="Scrape interval"
+              value={settings.scrape_interval_seconds}
+              min={10}
+              max={600}
+              step={10}
+              unit="seconds"
+              hint="How frequently the poller queries the device. Shorter intervals increase device CPU."
+              onChange={(v) => setSettings((s) => ({ ...s, scrape_interval_seconds: v }))}
+            />
+            <SliderField
+              id="retention-iface"
+              label="Interface data retention"
+              value={settings.retention_days_interface}
+              min={1}
+              max={365}
+              unit="days"
+              hint="Interface metric samples older than this horizon are purged by VictoriaMetrics."
+              onChange={(v) => setSettings((s) => ({ ...s, retention_days_interface: v }))}
+            />
+            <SliderField
+              id="retention-bgp"
+              label="BGP data retention"
+              value={settings.retention_days_bgp}
+              min={1}
+              max={365}
+              unit="days"
+              hint="BGP metric samples older than this horizon are purged by VictoriaMetrics."
+              onChange={(v) => setSettings((s) => ({ ...s, retention_days_bgp: v }))}
+            />
+          </div>
+
+          <hr className="border-outline-variant" />
+
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-primary">
+              Targeted Telemetry Collections
+            </h3>
+            <p className="mt-1 text-xs text-on-surface-variant">
+              Select specific items to target. Leaving a category unselected polls all items by default.
+            </p>
+            <TargetSelect
+              id="target-interfaces"
+              title="Target interfaces"
+              description="Physical network interfaces to collect telemetry for."
+              options={availableInterfaces}
+              selected={selectedInterfaces}
+              emptyHint="Waiting for first scrape discovery to list interfaces…"
+              onToggle={(n) => handleTargetToggle("interfaces", n)}
+              onClear={() => setSettings((s) => ({ ...s, scrape_interface_targets: "" }))}
+            />
+            <TargetSelect
+              id="target-bgp"
+              title="Target BGP peers"
+              description="BGP peer IP addresses to collect telemetry for."
+              options={availablePeers}
+              selected={selectedPeers}
+              emptyHint="Waiting for first scrape discovery to list BGP peers…"
+              onToggle={(n) => handleTargetToggle("bgp", n)}
+              onClear={() => setSettings((s) => ({ ...s, scrape_bgp_targets: "" }))}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col-reverse gap-3 border-t border-outline-variant bg-surface-container px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-on-surface-variant">
+            Saving updates scraper intervals and reschedules background collection jobs.
+          </p>
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? (
+              <RefreshCw aria-hidden="true" size={15} className="animate-spin" />
+            ) : (
+              <Save aria-hidden="true" size={15} />
+            )}
+            {saving ? "Saving…" : "Save & Apply Settings"}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
