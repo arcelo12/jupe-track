@@ -105,12 +105,12 @@
   body {
     background-color: var(--background);
     color: var(--on-background);
-    font-family: var(--font-sans);
+    font-family: var(--font-body-face);
     @apply antialiased min-h-screen selection:bg-primary/30;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-display);
+    font-family: var(--font-heading-face);
     letter-spacing: -0.01em;
   }
 }

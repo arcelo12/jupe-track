@@ -60,7 +60,7 @@ export default function LoginPage() {
               disabled={loading}
               aria-invalid={!!error}
               aria-describedby={error ? "login-error" : undefined}
-              className="h-11 w-full rounded border border-input bg-surface-container px-3 text-sm outline-none placeholder:text-on-surface-variant/60 disabled:cursor-not-allowed disabled:opacity-55 focus:border-primary focus:outline-2 focus:outline-primary/40"
+              className="h-11 w-full rounded border border-input bg-surface-container px-3 text-sm placeholder:text-on-surface-variant/60 disabled:cursor-not-allowed disabled:opacity-55 focus:border-primary focus-visible:outline-2 focus-visible:outline-primary/40"
             />
           </div>
 
@@ -80,7 +80,7 @@ export default function LoginPage() {
                 disabled={loading}
                 aria-invalid={!!error}
                 aria-describedby={error ? "login-error" : undefined}
-                className="h-11 w-full rounded border border-input bg-surface-container px-3 pr-12 text-sm outline-none placeholder:text-on-surface-variant/60 disabled:cursor-not-allowed disabled:opacity-55 focus:border-primary focus:outline-2 focus:outline-primary/40"
+                className="h-11 w-full rounded border border-input bg-surface-container px-3 pr-12 text-sm placeholder:text-on-surface-variant/60 disabled:cursor-not-allowed disabled:opacity-55 focus:border-primary focus-visible:outline-2 focus-visible:outline-primary/40"
               />
               <button
                 type="button"
