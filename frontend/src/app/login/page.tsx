@@ -26,9 +26,6 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4 text-on-surface sm:p-6">
-      {/* Subtle static telemetry grid */}
-      <div className="login-grid" aria-hidden="true" />
-
       <main className="relative z-10 w-full max-w-sm rounded border border-outline-variant bg-surface-container-lowest p-6 sm:p-8">
         <div className="mb-6 flex items-center gap-3">
           <div
@@ -151,18 +148,6 @@ export default function LoginPage() {
           Secured with JWT authentication · JupeTrack
         </p>
       </main>
-
-      <style>{`
-        .login-grid {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          background-image:
-            linear-gradient(color-mix(in oklab, var(--outline-variant) 40%, transparent) 1px, transparent 1px),
-            linear-gradient(90deg, color-mix(in oklab, var(--outline-variant) 40%, transparent) 1px, transparent 1px);
-          background-size: 44px 44px;
-        }
-      `}</style>
     </div>
   );
 }
