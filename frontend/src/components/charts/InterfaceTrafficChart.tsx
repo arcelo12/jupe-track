@@ -83,7 +83,7 @@ const CustomTooltip = ({ active, payload, label }: {
   );
 };
 
-export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficChartProps) {
+export function InterfaceTrafficChart({ data }: InterfaceTrafficChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="flex h-[200px] w-full items-center justify-center rounded border border-dashed border-outline-variant bg-transparent p-4 text-sm text-on-surface-variant">
@@ -107,22 +107,10 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
     out_mbps: Number((d.bps_out / 1_000_000).toFixed(2)),
   }));
 
-  const safeName = interfaceName.replace(/[/\.]/g, '-');
-
   return (
     <div className="h-[260px] min-h-[220px] w-full overflow-hidden rounded border-none">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={formatted} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-          <defs>
-            <linearGradient id={`colorInHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
-               <stop offset="5%" stopColor={CHART_IN} stopOpacity={0.35}/>
-               <stop offset="95%" stopColor={CHART_IN} stopOpacity={0}/>
-             </linearGradient>
-             <linearGradient id={`colorOutHistory-${safeName}`} x1="0" y1="0" x2="0" y2="1">
-               <stop offset="5%" stopColor={CHART_OUT} stopOpacity={0.35}/>
-               <stop offset="95%" stopColor={CHART_OUT} stopOpacity={0}/>
-            </linearGradient>
-          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
           <XAxis
             dataKey="time"
@@ -149,8 +137,8 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
             name="Ingress Mbps"
             stroke={CHART_IN}
             strokeWidth={2}
-            fillOpacity={1}
-            fill={`url(#colorInHistory-${safeName})`}
+            fill={CHART_IN}
+            fillOpacity={0.12}
             isAnimationActive={false}
           />
           <Area
@@ -159,8 +147,8 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
             name="Egress Mbps"
             stroke={CHART_OUT}
             strokeWidth={2}
-            fillOpacity={1}
-            fill={`url(#colorOutHistory-${safeName})`}
+            fill={CHART_OUT}
+            fillOpacity={0.08}
             isAnimationActive={false}
           />
         </AreaChart>

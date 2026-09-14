@@ -9,6 +9,7 @@ const HEX = ['#2a2e35', '#0ea5e9', '#38bdf8', '#06b6d4', '#3b82f6', '#6366f1'];
 // ponytail: substring matching; no word-boundary regex — Tailwind class names are unique prefixes so no false hits (rounded-full never contains these).
 const RADIUS = ['rounded-md', 'rounded-lg', 'rounded-xl', 'rounded-2xl', 'rounded-3xl', 'rounded-4xl'];
 const SHADOW = ['shadow-sm', 'shadow-md', 'shadow-lg', 'shadow-xl', 'shadow-2xl'];
+const GRADIENT = ['linear-gradient', 'radial-gradient', 'conic-gradient', '<lineargradient', '<radialgradient'];
 
 const exts = new Set(['.css', '.ts', '.tsx']);
 
@@ -29,6 +30,7 @@ for (const file of walk(SRC)) {
 		const orig = lines[i];
 		for (const pat of RADIUS) if (orig.includes(pat)) violations.push(`${file}:${i + 1}: forbidden radius class ${pat}`);
 		for (const pat of SHADOW) if (orig.includes(pat)) violations.push(`${file}:${i + 1}: forbidden shadow class ${pat}`);
+		for (const pat of GRADIENT) if (line.includes(pat)) violations.push(`${file}:${i + 1}: forbidden gradient ${pat}`);
 	}
 }
 

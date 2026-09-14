@@ -142,7 +142,6 @@ function SliderField({
   hint: string;
   onChange: (v: number) => void;
 }) {
-  const pct = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
@@ -170,9 +169,6 @@ function SliderField({
         aria-valuemax={max}
         aria-valuenow={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{
-          background: `linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary) ${pct}%, var(--color-surface-container-high) ${pct}%)`,
-        }}
         className="mt-3 h-1.5 w-full cursor-pointer appearance-none rounded bg-surface-container-high accent-primary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4 [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-on-primary [&::-webkit-slider-thumb]:bg-primary"
       />
       <div
