@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Network, ZoomIn, ZoomOut, Maximize, X } from 'lucide-react';
 import { authFetch } from '@/lib/auth';
+import { CHART_EDGE, CHART_EDGE_FADED } from '@/lib/chart-colors';
 
 interface AggregateASGraphProps {
   paths: string[];
@@ -17,6 +18,17 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
   const [ripeNames, setRipeNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  useEffect(() => {
     authFetch('/api/proxy/as-mapping')
       .then(res => res.json())
       .then(data => {
@@ -29,7 +41,7 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
       .catch(err => console.error("Failed to load AS mappings", err));
   }, []);
 
-  const { nodes, edges, layers, width, height } = useMemo(() => {
+  const { nodes, edges, width, height } = useMemo(() => {
     if (!paths || paths.length === 0) return { nodes: [], edges: [], layers: [], width: 0, height: 0 };
 
     const edgeSet = new Set<string>();
@@ -154,6 +166,7 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
           setRipeNames(prev => ({ ...prev, [asn]: 'Unknown' }));
         });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, asMappings]);
 
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -165,7 +178,7 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
 
   const renderGraph = () => (
     <div 
-      className="relative w-full h-full min-h-[400px] overflow-auto bg-slate-900/50 rounded-xl border border-white/5"
+      className="relative w-full h-full min-h-[400px] overflow-auto bg-surface-container-lowest rounded border border-outline-variant"
       ref={containerRef}
     >
       <div 
@@ -179,7 +192,7 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
         <svg className="absolute inset-0 pointer-events-none" width="100%" height="100%">
           <defs>
             <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-              <polygon points="0 0, 6 3, 0 6" fill="#475569" />
+              <polygon points="0 0, 6 3, 0 6" fill={CHART_EDGE} />
             </marker>
           </defs>
           {edges.map((edge, idx) => {
@@ -205,10 +218,10 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
                 key={idx}
                 d={`M ${startX} ${startY} C ${ctrlX1} ${ctrlY1}, ${ctrlX2} ${ctrlY2}, ${endX} ${endY}`}
                 fill="none"
-                stroke={isFaded ? "#1e293b" : "#334155"}
+                stroke={isFaded ? CHART_EDGE_FADED : CHART_EDGE}
                 strokeWidth={isFaded ? "1" : "1.5"}
                 markerEnd="url(#arrowhead)"
-                className={`transition-all duration-300 pointer-events-auto cursor-pointer ${isFaded ? 'opacity-20' : 'opacity-100 hover:stroke-[#06b6d4] hover:stroke-[2.5px] drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]'}`}
+                className={`transition-[opacity,stroke] duration-300 pointer-events-auto cursor-pointer ${isFaded ? 'opacity-20' : 'opacity-100 hover:stroke-primary hover:stroke-[2.5px]'}`}
               />
             );
           })}
@@ -227,12 +240,12 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", delay: node.x / 1000 }} // staggered by horizontal position
-              className={`absolute flex flex-col items-center justify-center text-center transition-all duration-300 cursor-pointer group
+              className={`absolute flex flex-col items-center justify-center text-center transition-[opacity,transform,border-color] duration-300 cursor-pointer group
                 ${node.isOrigin 
                   ? 'bg-primary/20 border-primary shadow-none' 
-                  : 'bg-surface-container-high border-[#2A2E35] hover:border-primary hover:shadow-none'}
+                : 'bg-surface-container-high border-outline-variant hover:border-primary hover:shadow-none'}
                 ${isFaded ? 'opacity-20 scale-95' : 'opacity-100 scale-100 hover:scale-105'}
-                border rounded-xl px-2 py-1.5`}
+                border rounded px-2 py-1.5`}
               style={{
                 left: node.x,
                 top: node.y,
@@ -248,11 +261,11 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
               </span>
               
               {/* Hover Tooltip */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-surface-container-highest backdrop-blur-sm text-on-surface text-xs rounded-lg shadow-none border border-[#2A2E35] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none flex flex-col items-center">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-surface-container-highest text-on-surface text-xs rounded shadow-none border border-outline-variant opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none flex flex-col items-center">
                 <div className="font-bold text-primary text-[13px]">{mapping?.name || ripeNames[node.id] || `AS${node.id}`}</div>
                 <div className="text-[10px] text-on-surface-variant mt-0.5">{mapping?.type || 'Auto Detected'}</div>
                 {/* Arrow */}
-                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-[#2A2E35]"></div>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-outline-variant"></div>
               </div>
             </motion.div>
           );
@@ -262,8 +275,8 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
   );
 
   return (
-    <Card className="border-[#2A2E35] bg-surface-container backdrop-blur-md overflow-hidden mt-6">
-      <CardHeader className="bg-surface-container-high border-b border-[#2A2E35] pb-4 px-6 flex flex-row items-center justify-between">
+    <Card className="border-outline-variant bg-surface-container overflow-hidden mt-6">
+      <CardHeader className="bg-surface-container-high border-b border-outline-variant pb-4 px-6 flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-lg font-bold text-on-surface flex items-center gap-2">
             <Network className="text-primary" size={20} />
@@ -274,9 +287,9 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
           </p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setZoom(z => Math.max(0.5, z - 0.1))} className="p-1.5 bg-surface-container-highest rounded hover:bg-[#2A2E35] text-on-surface"><ZoomOut size={16}/></button>
-          <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-1.5 bg-surface-container-highest rounded hover:bg-[#2A2E35] text-on-surface"><ZoomIn size={16}/></button>
-          <button onClick={() => setIsFullscreen(true)} className="p-1.5 bg-surface-container-highest rounded hover:bg-[#2A2E35] text-on-surface ml-2"><Maximize size={16}/></button>
+          <button type="button" aria-label="Zoom out" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))} className="p-1.5 bg-surface-container-highest rounded hover:bg-surface-container text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><ZoomOut size={16} aria-hidden="true" /></button>
+          <button type="button" aria-label="Zoom in" onClick={() => setZoom(z => Math.min(2, z + 0.1))} className="p-1.5 bg-surface-container-highest rounded hover:bg-surface-container text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><ZoomIn size={16} aria-hidden="true" /></button>
+          <button type="button" aria-label="Open topology fullscreen" onClick={() => setIsFullscreen(true)} className="p-1.5 bg-surface-container-highest rounded hover:bg-surface-container text-on-surface ml-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><Maximize size={16} aria-hidden="true" /></button>
         </div>
       </CardHeader>
       
@@ -285,18 +298,18 @@ export function AggregateASGraph({ paths, targetPrefix }: AggregateASGraphProps)
       </CardContent>
 
       {isFullscreen && (
-        <div className="fixed inset-0 z-[100] bg-surface-container/95 backdrop-blur-sm p-8 flex flex-col">
+        <div role="dialog" aria-modal="true" aria-labelledby="as-topology-title" className="fixed inset-0 z-[100] bg-background p-4 sm:p-8 flex flex-col">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-on-surface flex items-center gap-3">
-              <Network className="text-primary" /> AS Path Topology: {targetPrefix}
+            <h2 id="as-topology-title" className="text-2xl font-bold text-on-surface flex items-center gap-3">
+              <Network aria-hidden="true" className="text-primary" /> AS Path Topology: {targetPrefix}
             </h2>
             <div className="flex gap-3">
-              <button onClick={() => setZoom(z => Math.max(0.5, z - 0.2))} className="p-2 bg-surface-container-highest rounded-lg hover:bg-[#2A2E35] text-on-surface"><ZoomOut size={20}/></button>
-              <button onClick={() => setZoom(z => Math.min(3, z + 0.2))} className="p-2 bg-surface-container-highest rounded-lg hover:bg-[#2A2E35] text-on-surface"><ZoomIn size={20}/></button>
-              <button onClick={() => setIsFullscreen(false)} className="p-2 bg-error/20 text-error rounded-lg hover:bg-error/40 ml-4"><X size={20}/></button>
+              <button type="button" aria-label="Zoom out" onClick={() => setZoom(z => Math.max(0.5, z - 0.2))} className="p-2 bg-surface-container-highest rounded hover:bg-surface-container text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><ZoomOut size={20} aria-hidden="true" /></button>
+              <button type="button" aria-label="Zoom in" onClick={() => setZoom(z => Math.min(3, z + 0.2))} className="p-2 bg-surface-container-highest rounded hover:bg-surface-container text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"><ZoomIn size={20} aria-hidden="true" /></button>
+              <button type="button" aria-label="Close fullscreen topology" onClick={() => setIsFullscreen(false)} className="p-2 bg-error/20 text-error rounded hover:bg-error/40 ml-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"><X size={20} aria-hidden="true" /></button>
             </div>
           </div>
-          <div className="flex-1 rounded-xl overflow-hidden shadow-none border border-[#2A2E35]">
+          <div className="flex-1 rounded overflow-hidden shadow-none border border-outline-variant">
             {renderGraph()}
           </div>
         </div>

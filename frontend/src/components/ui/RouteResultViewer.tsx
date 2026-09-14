@@ -2,13 +2,29 @@ import React, { useState, useMemo } from 'react';
 import { Route, ShieldCheck, Activity, Share2, Server, Network, CheckCircle2 } from 'lucide-react';
 import { ASPathGraph } from './ASPathGraph';
 
-export const parseRoutes = (text: string) => {
+export interface ParsedRouteEntry {
+  prefix: string;
+  isActive: boolean;
+  rawLines: string[];
+  asPath: string;
+  communities: string;
+  nextHops: string[];
+  protocol: string;
+  preference: string;
+  localpref: string;
+  metric: string;
+  age: string;
+  peerAs: string;
+  state: string;
+}
+
+export const parseRoutes = (text: string): ParsedRouteEntry[] => {
   if (!text) return [];
   const lines = text.split('\n');
-  const entries: any[] = [];
+  const entries: ParsedRouteEntry[] = [];
   
   let currentPrefix = "";
-  let currentEntry: any = null;
+  let currentEntry: ParsedRouteEntry | null = null;
 
   const pushEntry = () => {
     if (currentEntry) {
@@ -17,7 +33,7 @@ export const parseRoutes = (text: string) => {
     }
   };
 
-  const createEntry = (prefix: string, isActive: boolean, rawLine: string) => {
+  const createEntry = (prefix: string, isActive: boolean, rawLine: string): ParsedRouteEntry => {
     return {
       prefix,
       isActive,
@@ -26,7 +42,7 @@ export const parseRoutes = (text: string) => {
     };
   };
 
-  const parseBriefLine = (trimmed: string, entry: any) => {
+  const parseBriefLine = (trimmed: string, entry: ParsedRouteEntry) => {
     const match = trimmed.match(/\*?\[(.*?)\/(.*?)\]\s+(.*)/);
     if (match) {
       entry.protocol = match[1];
@@ -150,7 +166,8 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
         <button
           type="button"
           onClick={() => setViewMode('parsed')}
-          className={`px-3 py-1 text-xs rounded-full transition-all ${
+          aria-pressed={viewMode === 'parsed'}
+                className={`px-3 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             viewMode === 'parsed' ? 'bg-primary/20 text-primary border border-primary/50' : 'bg-surface-container text-on-surface-variant hover:text-on-surface'
           }`}
         >
@@ -159,7 +176,8 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
         <button
           type="button"
           onClick={() => setViewMode('raw')}
-          className={`px-3 py-1 text-xs rounded-full transition-all ${
+          aria-pressed={viewMode === 'raw'}
+                className={`px-3 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             viewMode === 'raw' ? 'bg-primary/20 text-primary border border-primary/50' : 'bg-surface-container text-on-surface-variant hover:text-on-surface'
           }`}
         >
@@ -184,8 +202,8 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
               </div>
             ) : (
               parsedRoutes.map((r, i) => (
-                <div key={i} className={`bg-surface-container border ${r.isActive ? 'border-primary shadow-none' : 'border-[#2A2E35] opacity-80'} rounded-xl p-4 transition-colors`}>
-                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#2A2E35] pb-3 mb-3 gap-2">
+                <div key={i} className={`bg-surface-container border ${r.isActive ? 'border-primary shadow-none' : 'border-outline-variant opacity-80'} rounded p-4 transition-colors`}>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-outline-variant pb-3 mb-3 gap-2">
                     <div className="flex items-center gap-2">
                       <Route className={r.isActive ? "text-primary" : "text-on-surface-variant"} size={18} />
                       <h3 className="text-lg font-mono font-bold text-on-surface">{r.prefix}</h3>
@@ -205,7 +223,7 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-3">
                       {r.nextHops.length > 0 && (
-                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded-lg">
+                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded">
                           <Share2 className="text-primary mt-0.5 shrink-0" size={14} />
                           <div>
                             <span className="text-[10px] uppercase font-bold tracking-wider text-on-surface-variant block mb-0.5">Next Hop</span>
@@ -219,7 +237,7 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
                       )}
                       
                       {r.state && (
-                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded-lg">
+                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded">
                           <Activity className="text-primary mt-0.5 shrink-0" size={14} />
                           <div>
                             <span className="text-[10px] uppercase font-bold tracking-wider text-on-surface-variant block mb-0.5">State</span>
@@ -231,7 +249,7 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
                     
                     <div className="space-y-3">
                       {r.peerAs && !r.asPath && (
-                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded-lg">
+                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded">
                           <Network className="text-primary mt-0.5 shrink-0" size={14} />
                           <div>
                             <span className="text-[10px] uppercase font-bold tracking-wider text-on-surface-variant block mb-0.5">Peer AS</span>
@@ -243,7 +261,7 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
                       )}
 
                       {r.communities && (
-                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded-lg">
+                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded">
                           <Server className="text-primary mt-0.5 shrink-0" size={14} />
                           <div>
                             <span className="text-[10px] uppercase font-bold tracking-wider text-on-surface-variant block mb-0.5">Communities</span>
@@ -257,8 +275,8 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
 
                     <div className="space-y-3">
                       {(r.localpref || r.metric || r.preference || r.age) && (
-                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded-lg">
-                          <ShieldCheck className="text-error mt-0.5 shrink-0" size={14} />
+                        <div className="flex items-start gap-2 bg-surface-container-high p-2 rounded">
+                          <ShieldCheck className="text-primary mt-0.5 shrink-0" size={14} />
                           <div className="w-full">
                             <span className="text-[10px] uppercase font-bold tracking-wider text-on-surface-variant block mb-0.5">Attributes</span>
                             <div className="grid grid-cols-2 gap-2 mt-1">
@@ -287,11 +305,11 @@ export function RouteResultViewer({ rawOutput }: { rawOutput: string }) {
                     </div>
                   )}
                   
-                  <details className="mt-4 border-t border-[#2A2E35] pt-3 group">
-                    <summary className="text-xs text-on-surface-variant cursor-pointer hover:text-on-surface focus:outline-none select-none">
+                  <details className="mt-4 border-t border-outline-variant pt-3 group">
+                    <summary className="text-xs text-on-surface-variant cursor-pointer hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded select-none">
                       Show full raw entry
                     </summary>
-                    <pre className="mt-2 text-xs font-mono text-primary/70 overflow-x-auto p-2 bg-surface-container rounded border border-[#2A2E35]">
+                    <pre className="mt-2 text-xs font-mono text-primary/70 overflow-x-auto p-2 bg-surface-container rounded border border-outline-variant">
                       {r.rawLines.join('\n')}
                     </pre>
                   </details>

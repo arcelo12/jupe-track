@@ -5,7 +5,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend
 } from "recharts";
-import { CHART_AXIS, CHART_GRID, CHART_IN, CHART_OUT, CHART_TOOLTIP_BG, CHART_TOOLTIP_BORDER } from "@/lib/chart-colors";
+import { CHART_AXIS, CHART_GRID, CHART_IN, CHART_OUT } from "@/lib/chart-colors";
 
 interface DataPoint {
   timestamp: string;
@@ -16,6 +16,16 @@ interface DataPoint {
 interface InterfaceTrafficChartProps {
   data: DataPoint[];
   interfaceName: string;
+}
+
+function normalizeDataPoint(point: DataPoint): DataPoint | null {
+  const bpsIn = Number(point.bps_in);
+  const bpsOut = Number(point.bps_out);
+  const timestamp = String(point.timestamp ?? '');
+  if (!timestamp || !Number.isFinite(Date.parse(timestamp)) || !Number.isFinite(bpsIn) || !Number.isFinite(bpsOut)) {
+    return null;
+  }
+  return { timestamp, bps_in: Math.max(0, bpsIn), bps_out: Math.max(0, bpsOut) };
 }
 
 function formatBps(bps: number): string {
@@ -38,30 +48,34 @@ function formatTime(ts: string): string {
   return `${month}/${day} ${time}`;
 }
 
+interface TooltipPayloadItem {
+  name: string;
+  value: number;
+  color: string;
+  payload: {
+    bps_in: number;
+    bps_out: number;
+    [key: string]: unknown;
+  };
+}
+
 const CustomTooltip = ({ active, payload, label }: {
   active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string; payload: any }>;
+  payload?: TooltipPayloadItem[];
   label?: string;
 }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{
-      background: CHART_TOOLTIP_BG,
-      border: `1px solid ${CHART_TOOLTIP_BORDER}`,
-      borderRadius: "4px",
-      padding: "10px 14px",
-      fontSize: "12px",
-      boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-    }}>
-      <p style={{ color: "#94a3b8", marginBottom: 6, fontSize: "10px", fontWeight: "bold" }}>
+    <div className="rounded border border-outline-variant bg-surface-container-low px-3.5 py-2.5 text-xs">
+      <p className="mb-1.5 text-[10px] font-bold text-on-surface-variant">
         {label ? formatTime(label) : ""}
       </p>
       {payload.map((entry, i) => {
         // Read original bps value for tooltip
         const bpsVal = entry.name === "Ingress Mbps" ? entry.payload.bps_in : entry.payload.bps_out;
         return (
-          <p key={i} style={{ color: entry.color, margin: "2px 0", fontWeight: 500 }}>
-            {entry.name}: <span style={{ fontFamily: "monospace", color: "#e2e8f0" }}>{formatBps(bpsVal)}</span>
+          <p key={i} style={{ color: entry.color }} className="my-0.5 font-medium">
+            {entry.name}: <span className="font-mono text-on-surface">{formatBps(bpsVal)}</span>
           </p>
         );
       })}
@@ -72,14 +86,19 @@ const CustomTooltip = ({ active, payload, label }: {
 export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-[200px] w-full items-center justify-center rounded border border-dashed border-[#2A2E35] bg-transparent p-4 text-sm text-on-surface-variant">
+      <div className="flex h-[200px] w-full items-center justify-center rounded border border-dashed border-outline-variant bg-transparent p-4 text-sm text-on-surface-variant">
         No historical data yet — data will appear after the first scrape cycle
       </div>
     );
   }
 
   // Ensure data is sorted by time ascending
-  const sortedData = [...data].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const sortedData = data.map(normalizeDataPoint).filter((point): point is DataPoint => point !== null)
+    .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+
+  if (sortedData.length === 0) {
+    return <div className="flex h-[200px] w-full items-center justify-center rounded border border-dashed border-outline-variant p-4 text-sm text-on-surface-variant">No valid historical data available</div>;
+  }
 
   const formatted = sortedData.map(d => ({
     ...d,
@@ -91,7 +110,7 @@ export function InterfaceTrafficChart({ data, interfaceName }: InterfaceTrafficC
   const safeName = interfaceName.replace(/[/\.]/g, '-');
 
   return (
-    <div className="h-[260px] w-full overflow-hidden rounded border-none">
+    <div className="h-[260px] min-h-[220px] w-full overflow-hidden rounded border-none">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={formatted} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
           <defs>

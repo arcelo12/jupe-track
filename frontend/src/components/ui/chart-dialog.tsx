@@ -45,7 +45,7 @@ export function ChartDialog({
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
+        className="absolute inset-0 cursor-pointer bg-background/80"
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
       />
@@ -57,8 +57,8 @@ export function ChartDialog({
         aria-modal="true"
         aria-labelledby={title ? "chart-dialog-title" : undefined}
         aria-describedby={description ? "chart-dialog-description" : undefined}
-        className="relative w-full rounded-xl border border-[#2A2E35] bg-surface-container-lowest shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 ease-out overflow-hidden"
-        style={{ 
+        className="relative w-full rounded border border-outline-variant bg-surface-container-lowest animate-in fade-in-0 zoom-in-95 duration-200 ease-out overflow-hidden"
+        style={{
           maxWidth: 'min(95vw, min(90%, 80rem))',
           maxHeight: 'calc(min(90vh, 80dvh))',
           margin: 'auto',
@@ -67,7 +67,7 @@ export function ChartDialog({
       >
         {/* Header - Responsive spacing */}
         {(title || description) && (
-          <div className="flex items-center justify-between border-b border-[#2A2E35] px-3 sm:px-4 md:px-6 py-2 sm:py-3">
+          <div className="flex items-center justify-between border-b border-outline-variant px-3 sm:px-4 md:px-6 py-2 sm:py-3">
             <div className="flex flex-col gap-1">
               {title && (
                 <h2 id="chart-dialog-title" className="font-mono text-base sm:text-lg font-bold leading-tight text-on-surface">
@@ -86,7 +86,7 @@ export function ChartDialog({
                 e.stopPropagation();
                 onOpenChange(false);
               }}
-              className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform cursor-pointer"
+              className="group flex h-11 w-11 shrink-0 items-center justify-center rounded outline-none focus-visible:ring-2 focus-visible:ring-primary/50 hover:bg-surface-container-high active:scale-95 transition-transform cursor-pointer"
               aria-label="Close dialog"
               type="button"
             >

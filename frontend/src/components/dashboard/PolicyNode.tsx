@@ -19,29 +19,30 @@ export const PolicyNode = ({ term, index }: PolicyNodeProps) => {
       <div className="absolute left-3.5 top-8 bottom-0 w-0.5 bg-outline-variant hidden group-last:hidden"></div>
       
       {/* Node bullet */}
-      <div className="absolute left-2 top-2 w-3.5 h-3.5 rounded-full bg-surface-container-highest border border-outline shadow-sm z-10"></div>
+      <div className="absolute left-2 top-2 w-3.5 h-3.5 rounded bg-surface-container-highest border border-outline-variant shadow-none z-10"></div>
 
-      <div className="glass-card shadow-lg border-l-4 border-l-primary hover:border-l-primary-hover group">
+      <div className="glass-card shadow-none border-l-4 border-l-primary hover:border-l-primary-hover group">
         <div className="flex justify-between items-center mb-3">
           <h4 className="font-mono text-on-surface font-semibold flex items-center gap-2">
-            <span className="text-xs bg-primary/20 text-primary px-2 rounded-full">Term {index + 1}</span>
+            <span className="text-xs bg-primary/20 text-primary px-2 rounded">Term {index + 1}</span>
             {term.term_name}
           </h4>
         </div>
 
         <div className="space-y-4">
           {/* From Conditions (Match) */}
-          <div className="bg-surface-container-high rounded-md p-3 border border-surface-container-highest">
-            <div className="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-2 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+          <div className="bg-surface-container-high rounded p-3 border border-surface-container-highest">
+            <div className="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-2">
               Match (From)
             </div>
             {term.from_conditions.length > 0 ? (
               <div className="space-y-1.5">
                 {hasMoreFrom && (
                   <button 
+                    type="button"
+                    aria-expanded={showAllFrom}
                     onClick={() => setShowAllFrom(!showAllFrom)}
-                    className="text-xs text-primary hover:text-primary-hover mb-2 font-medium transition-colors block"
+                    className="text-xs text-primary hover:text-primary-hover mb-2 font-medium transition-colors block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
                   >
                     {showAllFrom ? 'Show Less ↑' : `Show ${term.from_conditions.length - fromLimit} More ↓`}
                   </button>
@@ -50,7 +51,7 @@ export const PolicyNode = ({ term, index }: PolicyNodeProps) => {
                   const [key, ...rest] = cond.split(' ');
                   return (
                     <div key={i} className="flex flex-wrap gap-2 text-sm font-mono items-center">
-                      <span className="bg-surface-container-highest text-primary px-2 py-0.5 rounded shadow-sm border border-outline-variant">{key}</span>
+                      <span className="bg-surface-container-highest text-primary px-2 py-0.5 rounded shadow-none border border-outline-variant">{key}</span>
                       <span className="text-on-surface">{rest.join(' ')}</span>
                     </div>
                   );
@@ -64,9 +65,8 @@ export const PolicyNode = ({ term, index }: PolicyNodeProps) => {
           {/* Then Actions (Action) */}
           <div className="relative">
              <div className="absolute -top-3 left-4 w-0.5 h-3 bg-outline-variant"></div>
-             <div className="bg-surface-container-high rounded-md p-3 border border-surface-container-highest">
-              <div className="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-2 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+             <div className="bg-surface-container-high rounded p-3 border border-surface-container-highest">
+              <div className="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-2">
                 Action (Then)
               </div>
               <div className="flex flex-wrap gap-2">
@@ -79,7 +79,7 @@ export const PolicyNode = ({ term, index }: PolicyNodeProps) => {
                   if (isReject) colorClass = "bg-error/20 text-error border-error/30";
 
                   return (
-                    <span key={i} className={`${colorClass} px-2.5 py-1 rounded-md text-sm font-mono border shadow-sm`}>
+                    <span key={i} className={`${colorClass} px-2.5 py-1 rounded text-sm font-mono border shadow-none`}>
                       {act}
                     </span>
                   );
