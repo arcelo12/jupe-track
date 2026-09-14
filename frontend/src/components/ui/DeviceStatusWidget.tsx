@@ -52,7 +52,7 @@ export function DeviceStatusWidget() {
   if (!status) return null;
 
   return (
-    <div className="flex flex-wrap gap-4 bg-surface-container-high border border-[#2A2E35] rounded-xl p-4 mb-6">
+    <div className="flex flex-wrap gap-4 bg-surface-container-high border border-outline-variant rounded p-4 mb-6">
       <div className="flex-1 min-w-[150px]">
         <p className="text-xs text-on-surface-variant uppercase tracking-wider">System Model</p>
         <p className="text-lg font-semibold text-on-surface mt-1">{status.hw_model}</p>
