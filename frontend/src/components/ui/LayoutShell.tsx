@@ -130,8 +130,8 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 overflow-hidden h-screen ${
         'md:pl-[calc(var(--sidebar-width)+var(--shell-main-padding))]'
       } pl-0`}>
-        <header className="h-16 flex items-center justify-between px-4 md:px-8 border-b border-outline-variant bg-background z-20">
-          <div className="flex items-center gap-2">
+        <header className="flex min-h-16 flex-wrap items-center justify-between gap-y-2 border-b border-outline-variant bg-background px-4 py-2 md:px-8 xl:h-16 xl:flex-nowrap xl:py-0 z-20">
+          <div className="order-1 flex items-center gap-2">
             <button 
               ref={menuButtonRef}
               onClick={() => setIsMobileOpen(true)}
@@ -155,8 +155,8 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 md:gap-3">
-            <HeaderRefreshButton />
+          <HeaderRefreshButton />
+          <div className="order-2 ml-auto flex items-center gap-2 md:gap-3 xl:order-3 xl:ml-0">
             <ThemeToggle />
             <button
               ref={passwordButtonRef}
