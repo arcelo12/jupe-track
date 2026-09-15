@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 var (
@@ -315,10 +317,19 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 	})
 
 	protected.GET("/me", func(c *gin.Context) {
-		username, _ := c.Get("username")
+		username := c.GetString("username")
+		if username == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		var user models.User
 		if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user"})
 			return
 		}
 
@@ -333,19 +344,28 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 		}
 
 		if !models.IsValidThemePreset(req.ThemePreset) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme_preset. Allowed: graphite-mono, signal-blue, network-teal, midnight-indigo"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme_preset"})
 			return
 		}
 
 		if !models.IsValidColorMode(req.ColorMode) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid color_mode. Allowed: dark, light"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid color_mode"})
 			return
 		}
 
-		username, _ := c.Get("username")
+		username := c.GetString("username")
+		if username == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
 		var user models.User
 		if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user"})
 			return
 		}
 

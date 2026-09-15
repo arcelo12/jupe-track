@@ -44,11 +44,29 @@ func TestValidatePassword(t *testing.T) {
 func setupAuthTestEnv(t *testing.T) (*gorm.DB, *gin.Engine) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
+
+	origDB := database.DB
+	origSecret := JWTSecret
+	origTTL := accessTokenTTL
+
 	dbName := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
 	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("Failed to open test db: %v", err)
 	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("Failed to get sql.DB: %v", err)
+	}
+
+	t.Cleanup(func() {
+		database.DB = origDB
+		JWTSecret = origSecret
+		accessTokenTTL = origTTL
+		_ = sqlDB.Close()
+	})
+
 	if err := db.AutoMigrate(&models.User{}); err != nil {
 		t.Fatalf("Failed to migrate test db: %v", err)
 	}
@@ -80,14 +98,18 @@ func createTestUser(t *testing.T, db *gorm.DB, username string, preset, mode str
 	return u
 }
 
-func makeTestToken(username string, isAdmin bool) string {
+func makeTestToken(t *testing.T, username string, isAdmin bool) string {
+	t.Helper()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":      username,
 		"exp":      time.Now().Add(accessTokenTTL).Unix(),
 		"is_admin": isAdmin,
 		"type":     "access",
 	})
-	tokenStr, _ := token.SignedString(JWTSecret)
+	tokenStr, err := token.SignedString(JWTSecret)
+	if err != nil {
+		t.Fatalf("Failed to sign test token: %v", err)
+	}
 	return tokenStr
 }
 
@@ -126,7 +148,7 @@ func TestAuthMe_Authorization(t *testing.T) {
 func TestAuthMe_Get(t *testing.T) {
 	db, router := setupAuthTestEnv(t)
 	user := createTestUser(t, db, "testuser", models.ThemePresetSignalBlue, models.ColorModeLight, false)
-	token := makeTestToken(user.Username, false)
+	token := makeTestToken(t, user.Username, false)
 
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -161,12 +183,14 @@ func TestAuthMe_Get(t *testing.T) {
 		t.Fatalf("Failed to create blank user: %v", err)
 	}
 	// Force blank values in DB
-	db.Model(&rawUser).Updates(map[string]interface{}{
+	if err := db.Model(&rawUser).Updates(map[string]interface{}{
 		"theme_preset": "",
 		"color_mode":   "",
-	})
+	}).Error; err != nil {
+		t.Fatalf("Failed to reset blank user preferences: %v", err)
+	}
 
-	blankToken := makeTestToken("blankuser", false)
+	blankToken := makeTestToken(t, "blankuser", false)
 	req, _ = http.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
 	req.Header.Set("Authorization", "Bearer "+blankToken)
 	w = httptest.NewRecorder()
@@ -176,7 +200,9 @@ func TestAuthMe_Get(t *testing.T) {
 		t.Fatalf("GET /auth/me for blank user status = %d; want 200", w.Code)
 	}
 	var blankRes map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &blankRes)
+	if err := json.Unmarshal(w.Body.Bytes(), &blankRes); err != nil {
+		t.Fatalf("Failed to parse blank user response: %v", err)
+	}
 	if blankRes["theme_preset"] != models.DefaultThemePreset {
 		t.Errorf("theme_preset fallback = %v; want %s", blankRes["theme_preset"], models.DefaultThemePreset)
 	}
@@ -185,7 +211,7 @@ func TestAuthMe_Get(t *testing.T) {
 	}
 
 	// User not in DB -> 404
-	missingToken := makeTestToken("nonexistent", false)
+	missingToken := makeTestToken(t, "nonexistent", false)
 	req, _ = http.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
 	req.Header.Set("Authorization", "Bearer "+missingToken)
 	w = httptest.NewRecorder()
@@ -195,13 +221,32 @@ func TestAuthMe_Get(t *testing.T) {
 	}
 }
 
+func TestAuthMe_Get_DBReadError(t *testing.T) {
+	db, router := setupAuthTestEnv(t)
+	user := createTestUser(t, db, "erin", models.ThemePresetGraphiteMono, models.ColorModeDark, false)
+	token := makeTestToken(t, user.Username, false)
+
+	if err := db.Exec("DROP TABLE users").Error; err != nil {
+		t.Fatalf("Failed to drop users table: %v", err)
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("GET /auth/me with DB read error code = %d; want 500, body: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestAuthMe_Patch_SuccessAndIsolation(t *testing.T) {
 	db, router := setupAuthTestEnv(t)
 	userA := createTestUser(t, db, "alice", models.ThemePresetGraphiteMono, models.ColorModeDark, false)
 	userB := createTestUser(t, db, "bob", models.ThemePresetGraphiteMono, models.ColorModeDark, false)
 
-	tokenA := makeTestToken(userA.Username, false)
-	tokenB := makeTestToken(userB.Username, false)
+	tokenA := makeTestToken(t, userA.Username, false)
+	tokenB := makeTestToken(t, userB.Username, false)
 
 	// Valid PATCH by User A
 	patchBody := []byte(`{"theme_preset":"network-teal","color_mode":"light"}`)
@@ -231,14 +276,18 @@ func TestAuthMe_Patch_SuccessAndIsolation(t *testing.T) {
 
 	// Verify DB persistence for User A
 	var dbUserA models.User
-	db.Where("username = ?", "alice").First(&dbUserA)
+	if err := db.Where("username = ?", "alice").First(&dbUserA).Error; err != nil {
+		t.Fatalf("Failed to query user A: %v", err)
+	}
 	if dbUserA.ThemePreset != "network-teal" || dbUserA.ColorMode != "light" {
 		t.Fatalf("DB userA not updated: preset=%s mode=%s", dbUserA.ThemePreset, dbUserA.ColorMode)
 	}
 
 	// Verify account isolation: User B must remain unchanged in DB and in GET /me
 	var dbUserB models.User
-	db.Where("username = ?", "bob").First(&dbUserB)
+	if err := db.Where("username = ?", "bob").First(&dbUserB).Error; err != nil {
+		t.Fatalf("Failed to query user B: %v", err)
+	}
 	if dbUserB.ThemePreset != models.ThemePresetGraphiteMono || dbUserB.ColorMode != models.ColorModeDark {
 		t.Fatalf("DB userB mutated: preset=%s mode=%s", dbUserB.ThemePreset, dbUserB.ColorMode)
 	}
@@ -252,7 +301,9 @@ func TestAuthMe_Patch_SuccessAndIsolation(t *testing.T) {
 		t.Fatalf("GET /auth/me User B status = %d; want 200", w.Code)
 	}
 	var resB map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &resB)
+	if err := json.Unmarshal(w.Body.Bytes(), &resB); err != nil {
+		t.Fatalf("Failed to parse user B response: %v", err)
+	}
 	if resB["theme_preset"] != "graphite-mono" || resB["color_mode"] != "dark" {
 		t.Fatalf("User B GET /me preferences altered: %v", resB)
 	}
@@ -261,7 +312,7 @@ func TestAuthMe_Patch_SuccessAndIsolation(t *testing.T) {
 func TestAuthMe_Patch_Validation(t *testing.T) {
 	db, router := setupAuthTestEnv(t)
 	user := createTestUser(t, db, "charlie", models.ThemePresetGraphiteMono, models.ColorModeDark, false)
-	token := makeTestToken(user.Username, false)
+	token := makeTestToken(t, user.Username, false)
 
 	cases := []struct {
 		name    string
@@ -294,7 +345,7 @@ func TestAuthMe_Patch_Validation(t *testing.T) {
 
 func TestAuthMe_Patch_NotFound(t *testing.T) {
 	_, router := setupAuthTestEnv(t)
-	token := makeTestToken("ghost", false)
+	token := makeTestToken(t, "ghost", false)
 
 	req, _ := http.NewRequest(http.MethodPatch, "/api/v1/auth/me", bytes.NewBufferString(`{"theme_preset":"signal-blue","color_mode":"dark"}`))
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -307,14 +358,13 @@ func TestAuthMe_Patch_NotFound(t *testing.T) {
 	}
 }
 
-func TestAuthMe_Patch_DBError(t *testing.T) {
+func TestAuthMe_Patch_DBReadError(t *testing.T) {
 	db, router := setupAuthTestEnv(t)
-	user := createTestUser(t, db, "dave", models.ThemePresetGraphiteMono, models.ColorModeDark, false)
-	token := makeTestToken(user.Username, false)
+	user := createTestUser(t, db, "frank", models.ThemePresetGraphiteMono, models.ColorModeDark, false)
+	token := makeTestToken(t, user.Username, false)
 
-	// Create a SQLite trigger that aborts any UPDATE on users
-	if err := db.Exec(`CREATE TRIGGER fail_user_update BEFORE UPDATE ON users BEGIN SELECT RAISE(ABORT, 'forced update error'); END;`).Error; err != nil {
-		t.Fatalf("Failed to create test trigger: %v", err)
+	if err := db.Exec("DROP TABLE users").Error; err != nil {
+		t.Fatalf("Failed to drop users table: %v", err)
 	}
 
 	req, _ := http.NewRequest(http.MethodPatch, "/api/v1/auth/me", bytes.NewBufferString(`{"theme_preset":"signal-blue","color_mode":"dark"}`))
@@ -324,6 +374,30 @@ func TestAuthMe_Patch_DBError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("PATCH with DB error code = %d; want 500, body: %s", w.Code, w.Body.String())
+		t.Fatalf("PATCH /auth/me with DB read error code = %d; want 500, body: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAuthMe_Patch_DBWriteError(t *testing.T) {
+	db, router := setupAuthTestEnv(t)
+	user := createTestUser(t, db, "dave", models.ThemePresetGraphiteMono, models.ColorModeDark, false)
+	token := makeTestToken(t, user.Username, false)
+
+	// Create a SQLite trigger that aborts any UPDATE on users
+	if err := db.Exec(`CREATE TRIGGER fail_user_update BEFORE UPDATE ON users BEGIN SELECT RAISE(ABORT, 'forced update error'); END;`).Error; err != nil {
+		t.Fatalf("Failed to create test trigger: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Exec(`DROP TRIGGER IF EXISTS fail_user_update`).Error
+	})
+
+	req, _ := http.NewRequest(http.MethodPatch, "/api/v1/auth/me", bytes.NewBufferString(`{"theme_preset":"signal-blue","color_mode":"dark"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("PATCH with DB write error code = %d; want 500, body: %s", w.Code, w.Body.String())
 	}
 }
