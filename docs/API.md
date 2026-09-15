@@ -207,12 +207,53 @@ Respons `200`:
   "id": 1,
   "username": "admin",
   "email": "admin@example.com",
-  "is_active": true,
   "is_admin": true,
+  "is_active": true,
+  "theme_preset": "graphite-mono",
+  "color_mode": "dark",
   "created_at": "2026-01-10T08:00:00Z",
   "last_login": "2026-07-21T03:12:44Z"
 }
 ```
+
+#### `PATCH /auth/me`
+
+Update preferensi tema untuk user yang sedang login (self-service). **JWT**.
+
+Kedua field wajib disertakan:
+- `theme_preset`: salah satu dari `graphite-mono`, `signal-blue`, `network-teal`, `midnight-indigo`
+- `color_mode`: salah satu dari `dark`, `light`
+
+Request:
+
+```json
+{
+  "theme_preset": "network-teal",
+  "color_mode": "light"
+}
+```
+
+Respons `200`: sama seperti `GET /auth/me` dengan preferensi yang sudah diperbarui.
+
+```json
+{
+  "id": 1,
+  "username": "admin",
+  "email": "admin@example.com",
+  "is_admin": true,
+  "is_active": true,
+  "theme_preset": "network-teal",
+  "color_mode": "light",
+  "created_at": "2026-01-10T08:00:00Z",
+  "last_login": "2026-07-21T03:12:44Z"
+}
+```
+
+Error:
+- `400` payload tidak valid, field kurang, atau nilai tema/mode tidak didukung.
+- `401` unauthorized (header Authorization hilang atau token tidak valid).
+- `404` user tidak ditemukan.
+- `500` gagal memperbarui preferensi ke database.
 
 #### `POST /auth/change-password`
 

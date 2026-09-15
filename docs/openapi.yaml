@@ -96,17 +96,42 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id: { type: integer }
-                  username: { type: string }
-                  email: { type: string, nullable: true }
-                  is_active: { type: boolean }
-                  is_admin: { type: boolean }
-                  created_at: { type: string, format: date-time }
-                  last_login: { type: string, format: date-time, nullable: true }
+                $ref: "#/components/schemas/UserProfile"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [auth]
+      summary: Update theme preferences
+      description: Self-service endpoint to update user theme preset and color mode. JWT only.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [theme_preset, color_mode]
+              properties:
+                theme_preset:
+                  type: string
+                  enum: [graphite-mono, signal-blue, network-teal, midnight-indigo]
+                  example: network-teal
+                color_mode:
+                  type: string
+                  enum: [dark, light]
+                  example: light
+      responses:
+        "200":
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/ServerError" }
   /auth/change-password:
     post:
       tags: [auth]
@@ -512,6 +537,24 @@ components:
       properties:
         error: { type: string }
       required: [error]
+    UserProfile:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: string, nullable: true }
+        is_active: { type: boolean }
+        is_admin: { type: boolean }
+        theme_preset:
+          type: string
+          enum: [graphite-mono, signal-blue, network-teal, midnight-indigo]
+          example: graphite-mono
+        color_mode:
+          type: string
+          enum: [dark, light]
+          example: dark
+        created_at: { type: string, format: date-time }
+        last_login: { type: string, format: date-time, nullable: true }
     TokenResponse:
       type: object
       properties:

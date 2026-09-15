@@ -133,6 +133,11 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
+type UpdateThemeRequest struct {
+	ThemePreset string `json:"theme_preset" binding:"required"`
+	ColorMode   string `json:"color_mode" binding:"required"`
+}
+
 func RegisterAuthRoutes(r *gin.RouterGroup) {
 	auth := r.Group("/auth")
 
@@ -317,14 +322,44 @@ func RegisterAuthRoutes(r *gin.RouterGroup) {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"id":         user.ID,
-			"username":   user.Username,
-			"email":      user.Email,
-			"is_active":  user.IsActive,
-			"is_admin":   user.IsAdmin,
-			"created_at": user.CreatedAt,
-			"last_login": user.LastLogin,
-		})
+		c.JSON(http.StatusOK, userPublic(&user))
+	})
+
+	protected.PATCH("/me", func(c *gin.Context) {
+		var req UpdateThemeRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload: theme_preset and color_mode are required"})
+			return
+		}
+
+		if !models.IsValidThemePreset(req.ThemePreset) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme_preset. Allowed: graphite-mono, signal-blue, network-teal, midnight-indigo"})
+			return
+		}
+
+		if !models.IsValidColorMode(req.ColorMode) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid color_mode. Allowed: dark, light"})
+			return
+		}
+
+		username, _ := c.Get("username")
+		var user models.User
+		if err := database.DB.Where("username = ?", username).First(&user).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+
+		if err := database.DB.Model(&user).Updates(map[string]interface{}{
+			"theme_preset": req.ThemePreset,
+			"color_mode":   req.ColorMode,
+		}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update theme preferences"})
+			return
+		}
+
+		user.ThemePreset = req.ThemePreset
+		user.ColorMode = req.ColorMode
+
+		c.JSON(http.StatusOK, userPublic(&user))
 	})
 }
