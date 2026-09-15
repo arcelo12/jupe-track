@@ -24,7 +24,7 @@ try {
   if (!preset || validPresets.indexOf(preset) === -1) {
     preset = 'graphite-mono';
   }
-  var mode = localStorage.getItem('jupetrack-color-mode');
+  var mode = localStorage.getItem('jupetrack-color-mode') || localStorage.getItem('theme');
   if (mode !== 'light' && mode !== 'dark') {
     mode = 'dark';
   }

@@ -87,6 +87,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Synchronize from authenticated server profile
   const lastSyncedUser = useRef<string | null>(null);
   useEffect(() => {
+    if (isSavingRef.current) return;
     if (!user) {
       lastSyncedUser.current = null;
       return;
@@ -103,6 +104,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyThemeToDOM(serverPreset, serverMode);
     setLocalCache(serverPreset, serverMode);
   }, [user]);
+
+  // Multi-tab synchronization
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (isSavingRef.current) return;
+      if (e.key === PRESET_KEY || e.key === MODE_KEY || e.key === "theme") {
+        const cachedPreset = localStorage.getItem(PRESET_KEY);
+        const nextPreset = isValidPreset(cachedPreset) ? cachedPreset : "graphite-mono";
+        const cachedMode = localStorage.getItem(MODE_KEY) || localStorage.getItem("theme");
+        const nextMode = isValidMode(cachedMode) ? cachedMode : "dark";
+
+        setThemePreset(nextPreset);
+        setColorMode(nextMode);
+        applyThemeToDOM(nextPreset, nextMode);
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   const setThemePreference = useCallback(async (newPreset: ThemePreset, newMode: ColorMode): Promise<boolean> => {
     if (isSavingRef.current) return false;
@@ -180,6 +203,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         toggleTheme,
       }}
     >
+      {saveError && (
+        <div role="status" aria-live="polite" className="sr-only">
+          {saveError}
+        </div>
+      )}
       {children}
     </ThemeContext.Provider>
   );
