@@ -2,6 +2,7 @@ package database
 
 import (
 	"crypto/rand"
+	"fmt"
 	"log"
 	"math/big"
 	"os"
@@ -65,31 +66,31 @@ func fixLegacyUsersTable(db *gorm.DB) {
 	log.Println("Legacy users table rebuilt to current schema")
 }
 
-// BackfillUserThemes populates default theme preferences for users with empty legacy values.
+// BackfillUserThemes populates default theme preferences for users with empty legacy values atomically.
 func BackfillUserThemes(db *gorm.DB) error {
-	var emptyPresetCount int64
-	if err := db.Model(&models.User{}).Where("theme_preset IS NULL OR theme_preset = ''").Count(&emptyPresetCount).Error; err != nil {
-		return err
-	}
-	if emptyPresetCount > 0 {
-		if err := db.Model(&models.User{}).Where("theme_preset IS NULL OR theme_preset = ''").Update("theme_preset", models.DefaultThemePreset).Error; err != nil {
-			return err
+	return db.Transaction(func(tx *gorm.DB) error {
+		resPreset := tx.Model(&models.User{}).
+			Where("theme_preset IS NULL OR theme_preset = ''").
+			Update("theme_preset", models.DefaultThemePreset)
+		if resPreset.Error != nil {
+			return fmt.Errorf("failed to backfill theme_preset: %w", resPreset.Error)
 		}
-		log.Printf("Backfilled theme_preset for %d user(s)", emptyPresetCount)
-	}
-
-	var emptyModeCount int64
-	if err := db.Model(&models.User{}).Where("color_mode IS NULL OR color_mode = ''").Count(&emptyModeCount).Error; err != nil {
-		return err
-	}
-	if emptyModeCount > 0 {
-		if err := db.Model(&models.User{}).Where("color_mode IS NULL OR color_mode = ''").Update("color_mode", models.DefaultColorMode).Error; err != nil {
-			return err
+		if resPreset.RowsAffected > 0 {
+			log.Printf("Backfilled theme_preset for %d user(s)", resPreset.RowsAffected)
 		}
-		log.Printf("Backfilled color_mode for %d user(s)", emptyModeCount)
-	}
 
-	return nil
+		resMode := tx.Model(&models.User{}).
+			Where("color_mode IS NULL OR color_mode = ''").
+			Update("color_mode", models.DefaultColorMode)
+		if resMode.Error != nil {
+			return fmt.Errorf("failed to backfill color_mode: %w", resMode.Error)
+		}
+		if resMode.RowsAffected > 0 {
+			log.Printf("Backfilled color_mode for %d user(s)", resMode.RowsAffected)
+		}
+
+		return nil
+	})
 }
 
 func Connect() {
