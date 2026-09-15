@@ -407,16 +407,16 @@ export default function ASMappingSettings() {
         <div
           role="status"
           aria-live="polite"
-          className="flex items-start justify-between gap-3 rounded border border-primary/30 bg-primary/10 px-4 py-3 text-xs text-primary sm:text-sm"
+          className="flex items-start justify-between gap-3 rounded border border-success/30 bg-success/10 px-4 py-3 text-xs text-success sm:text-sm"
         >
           <div className="flex items-center gap-2.5">
-            <CheckCircle2 aria-hidden="true" size={16} className="shrink-0 text-primary" />
+            <CheckCircle2 aria-hidden="true" size={16} className="shrink-0 text-success" />
             <span>{notice}</span>
           </div>
           <button
             type="button"
             onClick={() => setNotice(null)}
-            className="text-primary/70 transition-colors hover:text-primary"
+            className="text-success/70 transition-colors hover:text-success"
             aria-label="Dismiss notification"
           >
             <X size={14} aria-hidden="true" />

@@ -476,7 +476,7 @@ export default function RetentionPage() {
             className={cn(
               "flex items-center gap-2 rounded border px-4 py-3 text-sm font-medium",
               toast.type === "success"
-                ? "border-primary/30 bg-primary/10 text-primary"
+                ? "border-success/30 bg-success/10 text-success"
                 : "border-error/30 bg-error/10 text-error"
             )}
           >
@@ -555,7 +555,7 @@ export default function RetentionPage() {
               aria-hidden="true"
               className={cn(
                 "size-2 rounded-full",
-                status?.enabled ? "bg-primary animate-pulse" : "bg-error"
+                status?.enabled ? "bg-success animate-pulse" : "bg-error"
               )}
             />
             Background Scraper Telemetry

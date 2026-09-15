@@ -249,7 +249,7 @@ export default function InterfacesDashboard() {
                         <TableRow key={group.physical.name} onClick={() => setSelectedPhysical(group.physical.name)} className={`cursor-pointer border-outline-variant hover:bg-surface-container-high ${active ? 'bg-primary/10' : ''}`}>
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              <span aria-hidden="true" className={`h-2 w-2 rounded-full ${isUp(group.physical) ? 'bg-primary' : 'bg-error'}`} />
+                              <span aria-hidden="true" className={`h-2 w-2 rounded-full ${isUp(group.physical) ? 'bg-success' : 'bg-error'}`} />
                               <div className="min-w-0">
                                 <p className="font-mono text-sm font-semibold text-on-surface">{group.physical.name}</p>
                                 <p className="max-w-[220px] truncate text-[10px] text-on-surface-variant">{group.physical.description || `${group.logicals.length} logical units`}</p>
@@ -271,7 +271,7 @@ export default function InterfacesDashboard() {
             <CardHeader className="border-b border-outline-variant bg-surface-container px-5 py-4">
               <CardTitle className="flex items-center justify-between text-base text-on-surface">
                 <span className="flex items-center gap-2"><Activity size={17} aria-hidden="true" className="text-primary" />{selectedGroup?.physical.name || 'Interface Detail'}</span>
-                {selectedGroup && <Badge className={isUp(selectedGroup.physical) ? 'bg-primary/10 text-primary' : 'bg-error/10 text-error'}>{selectedGroup.physical.oper_status}</Badge>}
+                {selectedGroup && <Badge className={isUp(selectedGroup.physical) ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}>{selectedGroup.physical.oper_status}</Badge>}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5 p-5">
@@ -369,7 +369,7 @@ function ClassicView({ groups, logicalSystem, loading, trafficHistory, expandedG
     return <Card key={physical.name} className="flex flex-col overflow-hidden rounded border-outline-variant bg-surface-container-low shadow-none">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3"><span aria-hidden="true" className={`h-3 w-3 shrink-0 rounded-full ${up ? 'bg-primary' : 'bg-error'}`} /><div className="min-w-0"><CardTitle className="font-mono text-xl font-bold text-on-surface">{physical.name}</CardTitle>{physical.description && <p className="mt-0.5 truncate text-xs text-on-surface-variant">{physical.description}</p>}</div></div>
+          <div className="flex min-w-0 items-center gap-3"><span aria-hidden="true" className={`h-3 w-3 shrink-0 rounded-full ${up ? 'bg-success' : 'bg-error'}`} /><div className="min-w-0"><CardTitle className="font-mono text-xl font-bold text-on-surface">{physical.name}</CardTitle>{physical.description && <p className="mt-0.5 truncate text-xs text-on-surface-variant">{physical.description}</p>}</div></div>
           <div className="flex items-center gap-4 font-mono text-sm"><div className="text-right"><div className="mb-0.5 text-[10px] uppercase tracking-widest text-on-surface-variant">In (Rx)</div><div className="font-bold text-primary">{formatBps(physical.bps_in)}</div></div><div className="text-right"><div className="mb-0.5 text-[10px] uppercase tracking-widest text-on-surface-variant">Out (Tx)</div><div className="font-bold text-on-surface">{formatBps(physical.bps_out)}</div></div></div>
         </div>
       </CardHeader>

@@ -612,7 +612,7 @@ export default function LookingGlass() {
                           key={i}
                           className={cn(
                             "rounded px-2 py-1 text-xs leading-relaxed",
-                            isSuccess && "bg-primary/10 text-primary",
+                            isSuccess && "bg-success/10 text-success",
                             isError && "bg-error/10 text-error",
                             !isSuccess && !isError && "text-on-surface-variant"
                           )}

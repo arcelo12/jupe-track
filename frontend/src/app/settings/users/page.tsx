@@ -444,7 +444,7 @@ export default function UsersPage() {
         >
           <div className="flex w-full items-center justify-between text-xs text-on-surface-variant">
             <span className="font-semibold uppercase tracking-wider">Active</span>
-            <CheckCircle2 size={14} className="text-primary" aria-hidden="true" />
+            <CheckCircle2 size={14} className="text-success" aria-hidden="true" />
           </div>
           <span className="mt-1 font-mono text-2xl font-bold text-on-surface">
             {summary.active}
@@ -923,15 +923,15 @@ export default function UsersPage() {
                             className={cn(
                               "gap-1.5 rounded font-medium",
                               u.is_active
-                                ? "border-primary/30 bg-primary/10 text-primary"
-                                : "border-error/30 bg-error/10 text-error"
+                                ? "bg-success/10 text-success border-success/20"
+                                : "bg-error/10 text-error border-error/20"
                             )}
                           >
                             <span
                               aria-hidden="true"
                               className={cn(
                                 "h-1.5 w-1.5 rounded-full",
-                                u.is_active ? "bg-primary" : "bg-error"
+                                u.is_active ? "bg-success" : "bg-error"
                               )}
                             />
                             {u.is_active ? "Active" : "Disabled"}

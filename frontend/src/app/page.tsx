@@ -99,8 +99,8 @@ export default function Dashboard() {
           <h1 className="font-display text-2xl font-bold tracking-tight text-primary sm:text-3xl">MX204 Overview</h1>
           <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">Router health, BGP state, and traffic context for the current operating window.</p>
         </div>
-        <div role="status" aria-live="polite" className={`flex w-fit items-center gap-2 rounded border px-3 py-2 text-xs font-semibold ${isConnected ? 'border-primary/30 bg-primary/10 text-primary' : 'border-error/30 bg-error/10 text-error'}`}>
-          <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${isConnected ? 'bg-primary animate-pulse' : 'bg-error'}`} />
+        <div role="status" aria-live="polite" className={`flex w-fit items-center gap-2 rounded border px-3 py-2 text-xs font-semibold ${isConnected ? 'border-success/30 bg-success/10 text-success' : 'border-error/30 bg-error/10 text-error'}`}>
+          <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${isConnected ? 'bg-success animate-pulse' : 'bg-error'}`} />
           {isConnected ? 'Live telemetry' : 'Telemetry offline'}
         </div>
       </div>
@@ -140,7 +140,7 @@ export default function Dashboard() {
                       <TableRow key={iface.name} className="border-outline-variant hover:bg-surface-container-high">
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${iface.oper_status.toLowerCase() === 'up' ? 'bg-primary' : 'bg-error'}`} />
+                            <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${iface.oper_status.toLowerCase() === 'up' ? 'bg-success' : 'bg-error'}`} />
                             <div className="min-w-0 flex-1">
                               <p className="font-mono text-sm font-semibold text-on-surface">{iface.name}</p>
                               <p className="max-w-[260px] truncate text-[10px] text-on-surface-variant">{iface.description || 'No description'}</p>
@@ -172,7 +172,7 @@ export default function Dashboard() {
           <CardHeader className="border-b border-outline-variant bg-surface-container px-5 py-4">
             <CardTitle className="flex items-center justify-between text-base text-on-surface">
               <span className="flex items-center gap-2"><Network aria-hidden="true" size={17} className="text-primary" />BGP Neighbors</span>
-              <Badge aria-label={downPeers ? `${downPeers} BGP neighbors need attention` : 'All BGP neighbors healthy'} className={downPeers ? 'bg-error/10 text-error' : 'bg-primary/10 text-primary'}>{downPeers ? `${downPeers} attention` : 'All healthy'}</Badge>
+              <Badge aria-label={downPeers ? `${downPeers} BGP neighbors need attention` : 'All BGP neighbors healthy'} className={downPeers ? 'bg-error/10 text-error' : 'bg-success/10 text-success'}>{downPeers ? `${downPeers} attention` : 'All healthy'}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3">
@@ -186,14 +186,14 @@ export default function Dashboard() {
                     return (
                       <div key={`${peer.peer_address}-${peer.afi}`} className="flex min-w-0 items-center justify-between gap-3 rounded border border-outline-variant bg-surface-container px-3 py-2.5 hover:border-primary/30">
                         <div className="flex min-w-0 items-center gap-3">
-                          <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${established ? 'bg-primary' : 'bg-error'}`} />
+                          <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${established ? 'bg-success' : 'bg-error'}`} />
                           <div className="min-w-0 flex-1">
                             <p className="truncate font-mono text-sm font-semibold text-on-surface">{peer.peer_address}</p>
                             <p className="truncate text-[10px] uppercase tracking-wider text-on-surface-variant">AS {peer.peer_as} · {peer.afi || 'unknown'}</p>
                           </div>
                         </div>
                         <div className="shrink-0 text-right">
-                          <Badge className={established ? 'bg-primary/10 text-primary' : 'bg-error/10 text-error'}>{peer.state}</Badge>
+                          <Badge className={established ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}>{peer.state}</Badge>
                           <p className="mt-1 font-mono text-[10px] text-on-surface-variant">{peer.received_prefixes || 0} prefixes</p>
                         </div>
                       </div>

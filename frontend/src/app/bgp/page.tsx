@@ -219,8 +219,8 @@ export default function BGPDashboard() {
                       </button>
                     </TableCell>
                     <TableCell className="py-3 px-4 sm:py-4 sm:px-6">
-                      <Badge variant={isUp ? 'default' : 'destructive'} className={`gap-1.5 rounded ${isUp ? 'bg-primary/10 text-primary border-none' : 'bg-error/10 text-error border-none'}`}>
-                        <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${isUp ? 'bg-primary animate-pulse' : 'bg-error'}`}></span>
+                      <Badge variant={isUp ? 'default' : 'destructive'} className={`gap-1.5 rounded ${isUp ? 'bg-success/10 text-success border-none' : 'bg-error/10 text-error border-none'}`}>
+                        <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${isUp ? 'bg-success animate-pulse' : 'bg-error'}`}></span>
                         {peer.state}
                       </Badge>
                     </TableCell>
@@ -266,8 +266,8 @@ export default function BGPDashboard() {
                 <DialogTitle className="font-display text-xl sm:text-2xl font-bold text-on-surface flex flex-wrap items-center gap-2 sm:gap-3 break-all">
                   <Server aria-hidden="true" className="text-primary shrink-0" size={24} />
                   <span>{selectedPeer.peer_address}</span>
-                  <Badge variant={selectedPeer.state === "Established" || selectedPeer.state === "Active" ? 'default' : 'destructive'} className={`text-xs font-normal gap-1 rounded ${selectedPeer.state === "Established" || selectedPeer.state === "Active" ? 'bg-primary/10 text-primary border-none' : 'bg-error/10 text-error border-none'}`}>
-                    <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${selectedPeer.state === "Established" || selectedPeer.state === "Active" ? 'bg-primary animate-pulse' : 'bg-error'}`}></span>
+                  <Badge className={`text-xs font-normal gap-1 rounded ${selectedPeer.state === "Established" ? 'bg-success/10 text-success border-none' : 'bg-error/10 text-error border-none'}`}>
+                    <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full ${selectedPeer.state === "Established" ? 'bg-success animate-pulse' : 'bg-error'}`}></span>
                     {selectedPeer.state}
                   </Badge>
                 </DialogTitle>
