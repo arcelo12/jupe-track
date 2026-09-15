@@ -65,6 +65,33 @@ func fixLegacyUsersTable(db *gorm.DB) {
 	log.Println("Legacy users table rebuilt to current schema")
 }
 
+// BackfillUserThemes populates default theme preferences for users with empty legacy values.
+func BackfillUserThemes(db *gorm.DB) error {
+	var emptyPresetCount int64
+	if err := db.Model(&models.User{}).Where("theme_preset IS NULL OR theme_preset = ''").Count(&emptyPresetCount).Error; err != nil {
+		return err
+	}
+	if emptyPresetCount > 0 {
+		if err := db.Model(&models.User{}).Where("theme_preset IS NULL OR theme_preset = ''").Update("theme_preset", models.DefaultThemePreset).Error; err != nil {
+			return err
+		}
+		log.Printf("Backfilled theme_preset for %d user(s)", emptyPresetCount)
+	}
+
+	var emptyModeCount int64
+	if err := db.Model(&models.User{}).Where("color_mode IS NULL OR color_mode = ''").Count(&emptyModeCount).Error; err != nil {
+		return err
+	}
+	if emptyModeCount > 0 {
+		if err := db.Model(&models.User{}).Where("color_mode IS NULL OR color_mode = ''").Update("color_mode", models.DefaultColorMode).Error; err != nil {
+			return err
+		}
+		log.Printf("Backfilled color_mode for %d user(s)", emptyModeCount)
+	}
+
+	return nil
+}
+
 func Connect() {
 	// Fallback path logic: inside docker it's /app/data/jupetrack.db
 	// outside docker (local execution) it's likely ../backend/data/jupetrack.db
@@ -101,6 +128,10 @@ func Connect() {
 		log.Printf("Migration failed (api_keys): %v", err)
 	}
 
+	if err := BackfillUserThemes(database); err != nil {
+		log.Printf("Theme backfill warning: %v", err)
+	}
+
 	// Create default settings row if table is empty
 	var count int64
 	database.Model(&models.ScraperSettings{}).Count(&count)
@@ -131,6 +162,8 @@ func Connect() {
 			HashedPassword: string(hashed),
 			IsAdmin:        true,
 			IsActive:       true,
+			ThemePreset:    models.DefaultThemePreset,
+			ColorMode:      models.DefaultColorMode,
 		})
 		log.Println("================================================================")
 		log.Println("DEFAULT ADMIN ACCOUNT CREATED")

@@ -13,13 +13,15 @@ import (
 
 func userPublic(u *models.User) gin.H {
 	return gin.H{
-		"id":         u.ID,
-		"username":   u.Username,
-		"email":      u.Email,
-		"is_admin":   u.IsAdmin,
-		"is_active":  u.IsActive,
-		"created_at": u.CreatedAt,
-		"last_login": u.LastLogin,
+		"id":           u.ID,
+		"username":     u.Username,
+		"email":        u.Email,
+		"is_admin":     u.IsAdmin,
+		"is_active":    u.IsActive,
+		"theme_preset": models.NormalizeThemePreset(u.ThemePreset),
+		"color_mode":   models.NormalizeColorMode(u.ColorMode),
+		"created_at":   u.CreatedAt,
+		"last_login":   u.LastLogin,
 	}
 }
 
@@ -45,10 +47,12 @@ func RegisterUserRoutes(rg *gin.RouterGroup) {
 
 	users.POST("", func(c *gin.Context) {
 		var req struct {
-			Username string `json:"username" binding:"required"`
-			Email    string `json:"email"`
-			Password string `json:"password" binding:"required"`
-			IsAdmin  bool   `json:"is_admin"`
+			Username    string `json:"username" binding:"required"`
+			Email       string `json:"email"`
+			Password    string `json:"password" binding:"required"`
+			IsAdmin     bool   `json:"is_admin"`
+			ThemePreset string `json:"theme_preset"`
+			ColorMode   string `json:"color_mode"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
@@ -62,6 +66,24 @@ func RegisterUserRoutes(rg *gin.RouterGroup) {
 		if err := validatePassword(req.Password); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
+		}
+
+		themePreset := models.DefaultThemePreset
+		if req.ThemePreset != "" {
+			if !models.IsValidThemePreset(req.ThemePreset) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme preset"})
+				return
+			}
+			themePreset = req.ThemePreset
+		}
+
+		colorMode := models.DefaultColorMode
+		if req.ColorMode != "" {
+			if !models.IsValidColorMode(req.ColorMode) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid color mode"})
+				return
+			}
+			colorMode = req.ColorMode
 		}
 
 		var count int64
@@ -83,6 +105,8 @@ func RegisterUserRoutes(rg *gin.RouterGroup) {
 			HashedPassword: string(hashed),
 			IsAdmin:        req.IsAdmin,
 			IsActive:       true,
+			ThemePreset:    themePreset,
+			ColorMode:      colorMode,
 		}
 		if err := database.DB.Create(&user).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
@@ -105,9 +129,11 @@ func RegisterUserRoutes(rg *gin.RouterGroup) {
 		}
 
 		var req struct {
-			IsAdmin  *bool  `json:"is_admin"`
-			IsActive *bool  `json:"is_active"`
-			Password string `json:"password"`
+			IsAdmin     *bool   `json:"is_admin"`
+			IsActive    *bool   `json:"is_active"`
+			Password    string  `json:"password"`
+			ThemePreset *string `json:"theme_preset"`
+			ColorMode   *string `json:"color_mode"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
@@ -129,6 +155,20 @@ func RegisterUserRoutes(rg *gin.RouterGroup) {
 		}
 		if req.IsActive != nil {
 			updates["is_active"] = *req.IsActive
+		}
+		if req.ThemePreset != nil {
+			if !models.IsValidThemePreset(*req.ThemePreset) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid theme preset"})
+				return
+			}
+			updates["theme_preset"] = *req.ThemePreset
+		}
+		if req.ColorMode != nil {
+			if !models.IsValidColorMode(*req.ColorMode) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid color mode"})
+				return
+			}
+			updates["color_mode"] = *req.ColorMode
 		}
 		if req.Password != "" {
 			if err := validatePassword(req.Password); err != nil {
