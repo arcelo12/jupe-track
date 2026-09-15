@@ -5,6 +5,7 @@ import Link from "next/link";
 import { authFetch } from "@/lib/auth";
 import { isAdmin } from "@/lib/rbac";
 import { useAuth } from "@/components/AuthProvider";
+import { useTheme, PRESET_OPTIONS } from "@/components/ThemeProvider";
 import { cn } from "@/lib/utils";
 import {
   Server,
@@ -23,6 +24,9 @@ import {
   Archive,
   Bookmark,
   ArrowUpRight,
+  Palette,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +41,13 @@ import {
 
 export default function SettingsPage() {
   const { user: me } = useAuth();
+  const {
+    themePreset,
+    colorMode,
+    isSaving: isThemeSaving,
+    saveError: themeSaveError,
+    setThemePreference,
+  } = useTheme();
 
   const [formData, setFormData] = useState({
     host: "",
@@ -107,8 +118,12 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
+    if (me && isAdmin(me)) {
+      fetchSettings();
+    } else {
+      setIsLoading(false);
+    }
+  }, [me, fetchSettings]);
 
   // Auto-clear success message after 5 seconds
   useEffect(() => {
@@ -181,13 +196,136 @@ export default function SettingsPage() {
     }
   };
 
-  if (me && !isAdmin(me)) {
-    return null; // AdminGuard in LayoutShell covers this; safety net
-  }
-
   return (
     <main className="max-w-5xl space-y-6 pb-8">
-      {/* Page Header */}
+      {/* Appearance Settings Card (Self-Service) */}
+      <Card className="border-outline-variant bg-surface-container-low">
+        <CardHeader>
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+            <span className="h-px w-5 bg-primary" aria-hidden="true" />
+            Personal Preferences
+          </div>
+          <CardTitle className="flex items-center gap-2 text-xl font-bold text-on-surface">
+            <Palette className="size-5 text-primary" aria-hidden="true" />
+            Appearance
+          </CardTitle>
+          <CardDescription className="text-on-surface-variant">
+            Choose your preferred color theme preset and mode. Saved to your account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Preset Selector */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
+              Theme Preset
+            </label>
+            <div
+              role="radiogroup"
+              aria-label="Theme Preset Selection"
+              className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            >
+              {PRESET_OPTIONS.map((opt) => {
+                const isSelected = themePreset === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    disabled={isThemeSaving}
+                    onClick={() => setThemePreference(opt.id, colorMode)}
+                    className={cn(
+                      "flex min-h-[44px] flex-col justify-between rounded border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+                      isSelected
+                        ? "border-primary bg-surface-container-high ring-1 ring-primary"
+                        : "border-outline-variant bg-surface-container hover:bg-surface-container-high"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-sm text-on-surface">{opt.name}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="size-3.5 rounded-full border border-outline-variant"
+                          style={{ backgroundColor: opt.accent }}
+                          title="Accent preview"
+                        />
+                        <span
+                          className="size-3.5 rounded-full border border-outline-variant"
+                          style={{ backgroundColor: opt.darkBg }}
+                          title="Dark background preview"
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-on-surface-variant">{opt.description}</p>
+                    <span className="mt-3 text-[11px] font-mono font-medium text-primary">
+                      {isSelected ? "Selected" : "Select"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mode Selector */}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
+              Color Mode
+            </label>
+            <div
+              role="radiogroup"
+              aria-label="Color Mode Selection"
+              className="mt-3 flex max-w-xs rounded border border-outline-variant bg-surface-container p-1"
+            >
+              <button
+                type="button"
+                role="radio"
+                aria-checked={colorMode === "dark"}
+                disabled={isThemeSaving}
+                onClick={() => setThemePreference(themePreset, "dark")}
+                className={cn(
+                  "flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+                  colorMode === "dark"
+                    ? "bg-primary text-on-primary font-semibold"
+                    : "text-on-surface-variant hover:text-on-surface"
+                )}
+              >
+                <Moon className="size-4" aria-hidden="true" />
+                Dark
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={colorMode === "light"}
+                disabled={isThemeSaving}
+                onClick={() => setThemePreference(themePreset, "light")}
+                className={cn(
+                  "flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+                  colorMode === "light"
+                    ? "bg-primary text-on-primary font-semibold"
+                    : "text-on-surface-variant hover:text-on-surface"
+                )}
+              >
+                <Sun className="size-4" aria-hidden="true" />
+                Light
+              </button>
+            </div>
+          </div>
+
+          {/* Feedback & Live Status */}
+          <div aria-live="polite" className="text-xs">
+            {isThemeSaving && (
+              <span className="text-on-surface-variant animate-pulse">Saving appearance preferences…</span>
+            )}
+            {themeSaveError && (
+              <span className="text-error font-medium">{themeSaveError}</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {me && isAdmin(me) ? (
+        <>
+          {/* Page Header */}
       <header className="rounded border border-outline-variant bg-surface-container-low px-5 py-6 sm:px-8 sm:py-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-3">
@@ -239,7 +377,7 @@ export default function SettingsPage() {
           className={cn(
             "flex items-start justify-between gap-3 rounded border px-4 py-3 text-sm",
             message.type === "success"
-              ? "border-primary/30 bg-primary/10 text-primary"
+              ? "border-success/30 bg-success/10 text-success"
               : "border-error/30 bg-error/10 text-error"
           )}
           role={message.type === "error" ? "alert" : "status"}
@@ -247,7 +385,7 @@ export default function SettingsPage() {
         >
           <div className="flex items-start gap-2.5">
             {message.type === "success" ? (
-              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
             ) : (
               <AlertCircle className="mt-0.5 size-4 shrink-0 text-error" aria-hidden="true" />
             )}
@@ -595,6 +733,8 @@ export default function SettingsPage() {
           </Card>
         </aside>
       </section>
+        </>
+      ) : null}
     </main>
   );
 }

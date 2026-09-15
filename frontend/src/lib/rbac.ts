@@ -10,7 +10,9 @@ import type { User } from "@/lib/auth";
 
 /** Route prefixes that require an admin (is_admin) user. */
 export const ADMIN_PATHS = [
-  "/settings",
+  "/settings/users",
+  "/settings/retention",
+  "/settings/as-mapping",
 ] as const;
 
 export function isAdmin(user: User | null): boolean {

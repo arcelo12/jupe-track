@@ -87,7 +87,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen, m
     {
       title: "Configuration",
       items: [
-        { name: 'Device Settings', path: '/settings', icon: Settings },
+        { name: 'Settings', path: '/settings', icon: Settings },
         { name: 'User Management', path: '/settings/users', icon: Users },
         { name: 'Data Retention', path: '/settings/retention', icon: Archive },
         { name: 'AS Mappings', path: '/settings/as-mapping', icon: Bookmark },
