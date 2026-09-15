@@ -13,6 +13,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   login: async () => {},
   logout: () => {},
+  updateUser: () => {},
 });
 
 export function useAuth() {
@@ -127,8 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login");
   }, [router]);
 
+  const updateUser = useCallback((updated: User) => {
+    setUserState(updated);
+    setUser(updated);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,12 +6,14 @@
 const REFRESH_TOKEN_KEY = "jupe_refresh_token";
 const USER_KEY = "jupe_user";
 
-interface User {
+export interface User {
   id: number;
   username: string;
   email: string | null;
   is_admin: boolean;
   is_active: boolean;
+  theme_preset?: string;
+  color_mode?: string;
   created_at: string;
   last_login: string | null;
 }
@@ -143,5 +145,3 @@ export async function tryRefreshToken(): Promise<boolean> {
     _refreshPromise = null;
   }
 }
-
-export type { User };

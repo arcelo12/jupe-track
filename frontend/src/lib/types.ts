@@ -41,3 +41,11 @@ export interface InterfaceInfo {
   bps_in: number;
   bps_out: number;
 }
+
+export type ThemePreset = "graphite-mono" | "signal-blue" | "network-teal" | "midnight-indigo";
+export type ColorMode = "dark" | "light";
+
+export interface UserThemePreference {
+  theme_preset: ThemePreset;
+  color_mode: ColorMode;
+}

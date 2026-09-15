@@ -19,11 +19,20 @@ export const metadata: Metadata = {
 
 const themeInitScript = `
 try {
-  var theme = localStorage.getItem('theme');
-  var isDark = theme !== 'light';
-  document.documentElement.classList.toggle('dark', isDark);
-  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+  var validPresets = ['graphite-mono', 'signal-blue', 'network-teal', 'midnight-indigo'];
+  var preset = localStorage.getItem('jupetrack-theme-preset');
+  if (!preset || validPresets.indexOf(preset) === -1) {
+    preset = 'graphite-mono';
+  }
+  var mode = localStorage.getItem('jupetrack-color-mode');
+  if (mode !== 'light' && mode !== 'dark') {
+    mode = 'dark';
+  }
+  document.documentElement.dataset.themePreset = preset;
+  document.documentElement.classList.toggle('dark', mode === 'dark');
+  document.documentElement.style.colorScheme = mode;
 } catch (e) {
+  document.documentElement.dataset.themePreset = 'graphite-mono';
   document.documentElement.classList.add('dark');
   document.documentElement.style.colorScheme = 'dark';
 }
@@ -34,20 +43,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Let ThemeProvider manage the .dark class
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${display.variable} ${inter.variable} ${jetbrainsMono.variable} bg-background text-on-surface antialiased min-h-screen min-w-screen overflow-hidden flex`}>
         <Script id="theme-init" strategy="beforeInteractive">{themeInitScript}</Script>
-        <ThemeProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <ThemeProvider>
             <RefreshProvider>
               <WebSocketProvider>
                 <LayoutShell>{children}</LayoutShell>
               </WebSocketProvider>
             </RefreshProvider>
-          </AuthProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );
