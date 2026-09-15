@@ -401,3 +401,106 @@ func TestAuthMe_Patch_DBWriteError(t *testing.T) {
 		t.Fatalf("PATCH with DB write error code = %d; want 500, body: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestAuthMe_LiveHTTPServer_EndToEnd(t *testing.T) {
+	db, router := setupAuthTestEnv(t)
+	userA := createTestUser(t, db, "userA", models.ThemePresetGraphiteMono, models.ColorModeDark, false)
+	userB := createTestUser(t, db, "userB", models.ThemePresetGraphiteMono, models.ColorModeDark, false)
+
+	tokenA := makeTestToken(t, userA.Username, false)
+	tokenB := makeTestToken(t, userB.Username, false)
+
+	// Launch real loopback HTTP server over TCP socket
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
+
+	client := server.Client()
+
+	// 1. GET /api/v1/auth/me over HTTP loopback
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/api/v1/auth/me", nil)
+	if err != nil {
+		t.Fatalf("NewRequest failed: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+tokenA)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET /auth/me HTTP request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /auth/me HTTP status = %d; want 200", resp.StatusCode)
+	}
+	var getBody map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&getBody); err != nil {
+		t.Fatalf("Failed to decode GET response: %v", err)
+	}
+	if getBody["theme_preset"] != "graphite-mono" || getBody["color_mode"] != "dark" {
+		t.Fatalf("Unexpected initial theme: %v", getBody)
+	}
+
+	// 2. Unauthenticated PATCH -> 401
+	patchReq, _ := http.NewRequest(http.MethodPatch, server.URL+"/api/v1/auth/me", bytes.NewBufferString(`{"theme_preset":"signal-blue","color_mode":"light"}`))
+	patchReq.Header.Set("Content-Type", "application/json")
+	unauthResp, err := client.Do(patchReq)
+	if err != nil {
+		t.Fatalf("Unauth PATCH failed: %v", err)
+	}
+	unauthResp.Body.Close()
+	if unauthResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("Unauth PATCH status = %d; want 401", unauthResp.StatusCode)
+	}
+
+	// 3. Invalid preset -> 400
+	invalidPresetReq, _ := http.NewRequest(http.MethodPatch, server.URL+"/api/v1/auth/me", bytes.NewBufferString(`{"theme_preset":"neon","color_mode":"dark"}`))
+	invalidPresetReq.Header.Set("Authorization", "Bearer "+tokenA)
+	invalidPresetReq.Header.Set("Content-Type", "application/json")
+	invPresetResp, err := client.Do(invalidPresetReq)
+	if err != nil {
+		t.Fatalf("Invalid preset PATCH failed: %v", err)
+	}
+	invPresetResp.Body.Close()
+	if invPresetResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("Invalid preset status = %d; want 400", invPresetResp.StatusCode)
+	}
+
+	// 4. Valid PATCH for User A -> 200
+	validReq, _ := http.NewRequest(http.MethodPatch, server.URL+"/api/v1/auth/me", bytes.NewBufferString(`{"theme_preset":"network-teal","color_mode":"light"}`))
+	validReq.Header.Set("Authorization", "Bearer "+tokenA)
+	validReq.Header.Set("Content-Type", "application/json")
+	validResp, err := client.Do(validReq)
+	if err != nil {
+		t.Fatalf("Valid PATCH failed: %v", err)
+	}
+	defer validResp.Body.Close()
+	if validResp.StatusCode != http.StatusOK {
+		t.Fatalf("Valid PATCH status = %d; want 200", validResp.StatusCode)
+	}
+	var patchBody map[string]interface{}
+	if err := json.NewDecoder(validResp.Body).Decode(&patchBody); err != nil {
+		t.Fatalf("Failed to decode PATCH response: %v", err)
+	}
+	if patchBody["theme_preset"] != "network-teal" || patchBody["color_mode"] != "light" {
+		t.Fatalf("PATCH did not return updated values: %v", patchBody)
+	}
+
+	// 5. Account isolation check: User B over HTTP loopback
+	reqB, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/auth/me", nil)
+	reqB.Header.Set("Authorization", "Bearer "+tokenB)
+	respB, err := client.Do(reqB)
+	if err != nil {
+		t.Fatalf("GET User B failed: %v", err)
+	}
+	defer respB.Body.Close()
+	if respB.StatusCode != http.StatusOK {
+		t.Fatalf("GET User B status = %d; want 200", respB.StatusCode)
+	}
+	var bodyB map[string]interface{}
+	if err := json.NewDecoder(respB.Body).Decode(&bodyB); err != nil {
+		t.Fatalf("Failed to decode User B response: %v", err)
+	}
+	if bodyB["theme_preset"] != "graphite-mono" || bodyB["color_mode"] != "dark" {
+		t.Fatalf("User B was modified by User A PATCH! Values: %v", bodyB)
+	}
+}
