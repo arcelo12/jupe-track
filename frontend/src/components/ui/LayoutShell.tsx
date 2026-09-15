@@ -156,7 +156,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
             )}
           </div>
           <HeaderRefreshButton />
-          <div className="order-2 ml-auto flex items-center gap-2 md:gap-3 xl:order-3 xl:ml-0">
+          <div className="order-2 ml-auto flex items-center gap-2 md:gap-3 xl:order-3 xl:ml-3">
             <ThemeToggle />
             <button
               ref={passwordButtonRef}

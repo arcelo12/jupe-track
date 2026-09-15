@@ -43,16 +43,22 @@ export default function HeaderRefreshButton() {
     </select>
   );
 
-  const refreshButton = () => (
+  const refreshButton = (isPortrait = false) => (
     <button
       type="button"
       onClick={handleRefresh}
       disabled={isRefreshing}
       aria-label={isRefreshing ? "Refreshing telemetry" : "Refresh telemetry now"}
-      className="flex h-9 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-highest disabled:cursor-not-allowed disabled:opacity-50"
+      className={
+        isPortrait
+          ? "flex h-11 min-h-[44px] min-w-11 shrink-0 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-highest disabled:cursor-not-allowed disabled:opacity-50"
+          : "flex h-9 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-highest disabled:cursor-not-allowed disabled:opacity-50"
+      }
     >
       <RefreshCw aria-hidden="true" className={`size-4 text-primary ${isRefreshing ? "animate-spin" : ""}`} />
-      <span>{isRefreshing ? "Refreshing..." : "Refresh Now"}</span>
+      <span className={isPortrait ? "hidden sm:inline" : undefined}>
+        {isRefreshing ? "Refreshing..." : "Refresh Now"}
+      </span>
     </button>
   );
 
@@ -74,16 +80,7 @@ export default function HeaderRefreshButton() {
           </label>
           {intervalSelect("portrait-refresh-interval", "h-11")}
         </div>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          aria-label={isRefreshing ? "Refreshing telemetry" : "Refresh telemetry now"}
-          className="flex h-11 min-h-[44px] min-w-11 shrink-0 items-center justify-center gap-2 rounded border border-outline-variant bg-surface-container-high px-3 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-highest disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RefreshCw aria-hidden="true" className={`size-4 text-primary ${isRefreshing ? "animate-spin" : ""}`} />
-          <span className="hidden sm:inline">{isRefreshing ? "Refreshing..." : "Refresh Now"}</span>
-        </button>
+        {refreshButton(true)}
       </div>
 
       <div className="hidden items-center gap-4 xl:flex order-2 ml-auto">
