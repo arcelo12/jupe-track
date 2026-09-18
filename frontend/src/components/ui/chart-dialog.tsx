@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 interface ChartDialogProps {
   open: boolean;
@@ -45,7 +46,7 @@ export function ChartDialog({
   
   if (!mounted || !open) return null;
   
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto p-2 sm:p-4">
       {/* Backdrop */}
       <div 
@@ -130,7 +131,8 @@ export function ChartDialog({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

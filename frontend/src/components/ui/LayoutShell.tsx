@@ -186,9 +186,9 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
             </button>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-[var(--shell-main-padding)] md:pt-2 overflow-hidden relative">
+        <main className="min-h-0 flex-1 p-4 md:p-[var(--shell-main-padding)] md:pt-2 overflow-hidden relative">
           <div className="h-full w-full bg-surface-container-lowest border border-outline-variant rounded overflow-hidden relative">
-            <div className="h-full w-full overflow-y-auto p-4 md:p-8 relative z-10">
+            <div className="h-full w-full min-h-0 overflow-y-auto overscroll-contain touch-pan-y p-4 md:p-8 relative z-10">
               {isAdminPath(pathname) ? <AdminGuard>{children}</AdminGuard> : children}
             </div>
           </div>
