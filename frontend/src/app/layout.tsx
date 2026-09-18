@@ -45,7 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${display.variable} ${inter.variable} ${jetbrainsMono.variable} bg-background text-on-surface antialiased min-h-screen min-w-screen overflow-hidden flex`}>
+      <body className={`${display.variable} ${inter.variable} ${jetbrainsMono.variable} bg-background text-on-surface antialiased min-h-screen min-w-0 overflow-hidden flex`}>
         <Script id="theme-init" strategy="beforeInteractive">{themeInitScript}</Script>
         <AuthProvider>
           <ThemeProvider>

@@ -7,14 +7,18 @@ interface ChartDialogProps {
   onOpenChange: (open: boolean) => void;
   title?: string;
   description?: string;
+  /** Fixed height for the chart area (px). Defaults to 320 — recharts
+   * ResponsiveContainer needs a determinate container height to render. */
+  chartHeight?: number;
   children: React.ReactNode;
 }
 
-export function ChartDialog({ 
-  open, 
-  onOpenChange, 
+export function ChartDialog({
+  open,
+  onOpenChange,
   title,
   description,
+  chartHeight = 320,
   children
 }: ChartDialogProps) {
   
@@ -42,7 +46,7 @@ export function ChartDialog({
   if (!mounted || !open) return null;
   
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto p-2 sm:p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 cursor-pointer bg-background/80"
@@ -57,20 +61,22 @@ export function ChartDialog({
         aria-modal="true"
         aria-labelledby={title ? "chart-dialog-title" : undefined}
         aria-describedby={description ? "chart-dialog-description" : undefined}
-        className="relative w-full rounded border border-outline-variant bg-surface-container-lowest animate-in fade-in-0 zoom-in-95 duration-200 ease-out overflow-hidden"
+        className="relative w-full min-w-0 rounded border border-outline-variant bg-surface-container-lowest animate-in fade-in-0 zoom-in-95 duration-200 ease-out overflow-hidden"
         style={{
-          maxWidth: 'min(95vw, min(90%, 80rem))',
+          maxWidth: 'min(calc(100dvw - 1rem), 80rem)',
           maxHeight: 'calc(min(90vh, 80dvh))',
           margin: 'auto',
-          width: 'fit-content',
+          // 'fit-content' collapses to 0 with a 100%-width recharts child,
+          // leaving the chart invisible — use the full allowed width instead.
+          width: '100%',
         }}
       >
         {/* Header - Responsive spacing */}
         {(title || description) && (
-          <div className="flex items-center justify-between border-b border-outline-variant px-3 sm:px-4 md:px-6 py-2 sm:py-3">
-            <div className="flex flex-col gap-1">
+          <div className="flex min-w-0 items-center justify-between gap-2 border-b border-outline-variant px-3 py-2 sm:px-4 sm:py-3 md:px-6">
+            <div className="min-w-0 flex-1 flex flex-col gap-1">
               {title && (
-                <h2 id="chart-dialog-title" className="font-mono text-base sm:text-lg font-bold leading-tight text-on-surface">
+                <h2 id="chart-dialog-title" className="truncate font-mono text-base sm:text-lg font-bold leading-tight text-on-surface">
                   {title}
                 </h2>
               )}
@@ -107,14 +113,18 @@ export function ChartDialog({
           </div>
         )}
         
-        {/* Chart Content - Fully responsive container that adapts to page/resolution */}
-        <div 
-          className="w-full" 
-          style={{ 
-            height: 'auto',
+        {/* Chart Content — needs a DETERMINATE height: children use recharts
+            ResponsiveContainer (width/height 100%), which measures its parent.
+            With height:'auto' here the chart collapses to 0px and renders
+            nothing, even though the card/header are visible. */}
+        <div
+          className="w-full"
+          style={{
+            height: `${chartHeight}px`,
+            minHeight: '220px',
             maxHeight: 'calc(min(90vh, 80dvh) - 120px)',
-            boxSizing: 'border-box', 
-            padding: '0.5rem 1rem',
+            boxSizing: 'border-box',
+            padding: '0.5rem 0.5rem 1rem',
           }}
         >
           {children}

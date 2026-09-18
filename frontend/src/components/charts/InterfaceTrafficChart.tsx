@@ -130,7 +130,7 @@ export function InterfaceTrafficChart({ data }: InterfaceTrafficChartProps) {
             tickLine={false}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+          <Legend iconType="circle" wrapperStyle={{ width: '100%', fontSize: '11px', paddingTop: '10px', whiteSpace: 'normal' }} />
           <Area
             type="monotone"
             dataKey="in_mbps"
