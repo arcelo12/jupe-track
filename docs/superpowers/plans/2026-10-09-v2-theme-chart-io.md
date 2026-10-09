@@ -281,30 +281,11 @@ git commit -m "feat(v2): sparkline per-unit preview and semantic IN/OUT colors"
 Run the reproduction from earlier: server `color_mode=light`, local cache `dark`, load `/interfaces`, read `document.documentElement.classList.contains('dark')`.
 Expected now: `false` on `/interfaces`, but local storage still says `dark` before the sync runs. Record the observed value.
 
-- [ ] **Step 2: Make the server overwrite local cache on load**
+- [ ] **Step 2: Confirm the server-sync effect (no edit expected)**
 
-In `ThemeProvider.tsx`, the server-sync effect already calls `setLocalCache(serverPreset, serverMode)` (line 104). Keep it. Also make the initial client state not trust a stale cache over the server once `user` is known: in the effect, reset `lastSyncedUser` when `user` becomes null so the next authenticated user always syncs.
+Verified state: the server-sync effect (around lines 88-106) already resets `lastSyncedUser` when `user` is null, already defines `userKey` once, and already calls `setLocalCache(serverPreset, serverMode)`. Do NOT add these again. This step needs no change to the effect. The only remaining gap is that the effect skips when `isSavingRef.current` is true, which is intended and stays.
 
-Replace the top of that effect's guard:
-
-```tsx
-if (lastSyncedUser.current === userKey) return;
-lastSyncedUser.current = userKey;
-```
-
-with:
-
-```tsx
-if (!user) {
-  lastSyncedUser.current = null;
-  return;
-}
-const userKey = `${user.id}:${user.theme_preset ?? ""}:${user.color_mode ?? ""}`;
-if (lastSyncedUser.current === userKey) return;
-lastSyncedUser.current = userKey;
-```
-
-Note: `userKey` must be defined before this guard. Check the existing declaration above the guard and move it if needed so it is not declared twice.
+No edit in this step. Confirm by reading lines 88-106 that the code matches the description above, then move to Step 3.
 
 - [ ] **Step 3: Reset `isSaving` in `finally` and revert on failure**
 
@@ -393,4 +374,4 @@ Run the 44-combination route check (11 routes × v1/v2 × 1280/390). Expected: s
 
 **Type consistency:** `Sparkline` takes `SparkPoint[]` with `in_mbps`/`out_mbps`, matching `TrafficData` in `page.tsx`. `lastPoints`/`toPath` signatures match between Task 1 and Task 2. Token names `--ui-in`/`--ui-out` match between Task 2 (used in SVG `stroke`) and Task 3 (defined).
 
-**Known risk:** Task 5 depends on the exact existing structure of `ThemeProvider.tsx` (the `userKey` declaration location). The step tells the implementer to check and move it, rather than assuming.
+**Verified:** Task 5 was checked against the repo. The server-sync effect already handles load-time overwrite and the `userKey` guard, so Step 2 is a confirmation, not an edit. The remaining code change is the `finally` unlock and failed-save revert in Step 3.
