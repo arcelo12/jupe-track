@@ -584,11 +584,11 @@
 
 /* v2 semantic traffic colors. In = green, Out = orange (decision B1). */
 :root[data-ui-version="v2"] {
-  --ui-in: #15803d;
+  --ui-in: #1d4ed8;
   --ui-out: #c2410c;
 }
 .dark[data-ui-version="v2"] {
-  --ui-in: #22c55e;
+  --ui-in: #3b82f6;
   --ui-out: #f97316;
 }
 [data-ui-version="v2"] .v2-io-in { color: var(--ui-in); }
