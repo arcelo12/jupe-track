@@ -375,3 +375,58 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- UI v2 (minimal, shadcn-style). Scoped; v1 untouched. ---------- */
+:root[data-ui-version="v2"],
+.dark[data-ui-version="v2"] {
+  --ui-radius: 6px;
+  --ui-hairline: 1px solid var(--outline-variant);
+}
+
+[data-ui-version="v2"] [data-slot="card"],
+[data-ui-version="v2"] .glass-panel,
+[data-ui-version="v2"] .glass-card {
+  border-radius: var(--ui-radius);
+  border: var(--ui-hairline);
+  box-shadow: none;
+  background-color: var(--surface-container-low);
+}
+
+[data-ui-version="v2"] [data-slot="card-footer"] {
+  border-radius: 0 0 var(--ui-radius) var(--ui-radius);
+}
+
+[data-ui-version="v2"] [data-slot="button"] {
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  font-weight: 500;
+}
+
+[data-ui-version="v2"] [data-slot="badge"] {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+[data-ui-version="v2"] [data-slot="input"] {
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+}
+
+[data-ui-version="v2"] [data-slot="table-container"] {
+  border-radius: var(--ui-radius);
+  border: var(--ui-hairline);
+}
+
+[data-ui-version="v2"] [data-slot="table-head"] {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+[data-ui-version="v2"] [data-slot="tabs-list"] {
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+}
+
+[data-ui-version="v2"] [data-slot="tabs-trigger"] {
+  border-radius: 4px;
+}

@@ -1,3 +1,4 @@
+import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
@@ -39,7 +40,7 @@ function Badge({
       {
         className: cn(badgeVariants({ variant }), className),
       },
-      props
+      { "data-slot": "badge", ...props } as React.ComponentProps<"span">
     ),
     render,
     state: {

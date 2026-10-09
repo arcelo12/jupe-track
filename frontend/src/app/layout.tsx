@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { RefreshProvider } from "@/components/RefreshProvider";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { UiVersionProvider } from "@/components/UiVersionProvider";
 import LayoutShell from "@/components/ui/LayoutShell";
 import "./globals.css";
 
@@ -31,10 +32,13 @@ try {
   document.documentElement.dataset.themePreset = preset;
   document.documentElement.classList.toggle('dark', mode === 'dark');
   document.documentElement.style.colorScheme = mode;
+  var uiVersion = localStorage.getItem('jupetrack-ui-version');
+  document.documentElement.dataset.uiVersion = uiVersion === 'v2' ? 'v2' : 'v1';
 } catch (e) {
   document.documentElement.dataset.themePreset = 'graphite-mono';
   document.documentElement.classList.add('dark');
   document.documentElement.style.colorScheme = 'dark';
+  document.documentElement.dataset.uiVersion = 'v1';
 }
 `;
 
@@ -49,11 +53,13 @@ export default function RootLayout({
         <Script id="theme-init" strategy="beforeInteractive">{themeInitScript}</Script>
         <AuthProvider>
           <ThemeProvider>
-            <RefreshProvider>
-              <WebSocketProvider>
-                <LayoutShell>{children}</LayoutShell>
-              </WebSocketProvider>
-            </RefreshProvider>
+            <UiVersionProvider>
+              <RefreshProvider>
+                <WebSocketProvider>
+                  <LayoutShell>{children}</LayoutShell>
+                </WebSocketProvider>
+              </RefreshProvider>
+            </UiVersionProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

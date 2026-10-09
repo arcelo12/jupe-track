@@ -8,6 +8,7 @@ import HeaderRefreshButton from "@/components/ui/HeaderRefreshButton";
 import AdminGuard from "@/components/ui/AdminGuard";
 import { isAdminPath } from "@/lib/rbac";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UiVersionSwitcher } from "@/components/UiVersionProvider";
 import {
   Dialog,
   DialogContent,
@@ -157,6 +158,7 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
           </div>
           <HeaderRefreshButton />
           <div className="order-2 ml-auto flex items-center gap-2 md:gap-3 xl:order-3 xl:ml-3">
+            <UiVersionSwitcher />
             <ThemeToggle />
             <button
               ref={passwordButtonRef}
