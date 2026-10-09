@@ -581,3 +581,15 @@
   border-color: var(--outline-variant);
   color: var(--on-surface);
 }
+
+/* v2 semantic traffic colors. In = green, Out = orange (decision B1). */
+:root[data-ui-version="v2"] {
+  --ui-in: #15803d;
+  --ui-out: #c2410c;
+}
+.dark[data-ui-version="v2"] {
+  --ui-in: #22c55e;
+  --ui-out: #f97316;
+}
+[data-ui-version="v2"] .v2-io-in { color: var(--ui-in); }
+[data-ui-version="v2"] .v2-io-out { color: var(--ui-out); }
