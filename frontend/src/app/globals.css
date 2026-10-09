@@ -376,57 +376,174 @@
   }
 }
 
-/* ---------- UI v2 (minimal, shadcn-style). Scoped; v1 untouched. ---------- */
-:root[data-ui-version="v2"],
+/* ---------- UI v2: shadcn-admin look (https://github.com/satnaing/shadcn-admin). Scoped; v1 untouched. ---------- */
+:root[data-ui-version="v2"] {
+  --ui-radius: 0.625rem;
+  --ui-background: oklch(1 0 0);
+  --ui-card: oklch(1 0 0);
+  --ui-foreground: oklch(0.129 0.042 264.695);
+  --ui-muted: oklch(0.554 0.046 257.417);
+  --ui-muted-bg: oklch(0.968 0.007 247.896);
+  --ui-border: oklch(0.929 0.013 255.508);
+}
 .dark[data-ui-version="v2"] {
-  --ui-radius: 6px;
-  --ui-hairline: 1px solid var(--outline-variant);
+  --ui-background: oklch(0.129 0.042 264.695);
+  --ui-card: oklch(0.14 0.04 259.21);
+  --ui-foreground: oklch(0.984 0.003 247.858);
+  --ui-muted: oklch(0.704 0.04 256.788);
+  --ui-muted-bg: oklch(0.279 0.041 260.031);
+  --ui-border: oklch(1 0 0 / 10%);
 }
 
-[data-ui-version="v2"] [data-slot="card"],
-[data-ui-version="v2"] .glass-panel,
-[data-ui-version="v2"] .glass-card {
+/* Shell: flat background, hairline separators, no tinted panels */
+[data-ui-version="v2"] body { background-color: var(--ui-background); }
+[data-ui-version="v2"] aside#primary-navigation-drawer {
+  background-color: var(--ui-background);
+  border-color: var(--ui-border);
   border-radius: var(--ui-radius);
-  border: var(--ui-hairline);
   box-shadow: none;
-  background-color: var(--surface-container-low);
+}
+[data-ui-version="v2"] header {
+  background-color: var(--ui-background);
+  border-bottom: 1px solid var(--ui-border);
+}
+[data-ui-version="v2"] main > div {
+  background-color: transparent;
+  border-color: transparent;
+  border-radius: 0;
 }
 
+/* Typography: sentence case, medium weight, muted eyebrows */
+[data-ui-version="v2"] h1 {
+  font-family: var(--font-body-face), sans-serif;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ui-foreground);
+}
+[data-ui-version="v2"] p[class*="uppercase"] {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ui-muted);
+}
+
+/* Surfaces */
+[data-ui-version="v2"] [data-slot="card"] {
+  background-color: var(--ui-card);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  color: var(--ui-foreground);
+}
+[data-ui-version="v2"] [data-slot="card-header"],
 [data-ui-version="v2"] [data-slot="card-footer"] {
-  border-radius: 0 0 var(--ui-radius) var(--ui-radius);
+  background-color: transparent;
+  border-color: var(--ui-border);
 }
-
-[data-ui-version="v2"] [data-slot="button"] {
-  border-radius: var(--ui-radius);
-  box-shadow: none;
-  font-weight: 500;
-}
-
-[data-ui-version="v2"] [data-slot="badge"] {
-  border-radius: 4px;
-  font-weight: 500;
-}
-
-[data-ui-version="v2"] [data-slot="input"] {
-  border-radius: var(--ui-radius);
-  box-shadow: none;
-}
-
 [data-ui-version="v2"] [data-slot="table-container"] {
+  border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
-  border: var(--ui-hairline);
+  background-color: var(--ui-card);
 }
-
+[data-ui-version="v2"] [data-slot="table-header"],
 [data-ui-version="v2"] [data-slot="table-head"] {
+  background-color: transparent;
+  color: var(--ui-muted);
   font-weight: 500;
-  letter-spacing: 0.02em;
+  font-size: 0.8125rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+[data-ui-version="v2"] [data-slot="table-row"] {
+  border-color: var(--ui-border);
+}
+[data-ui-version="v2"] [data-slot="table-row"]:hover {
+  background-color: var(--ui-muted-bg);
 }
 
+/* Controls */
+[data-ui-version="v2"] [data-slot="button"] {
+  border-radius: calc(var(--ui-radius) - 2px);
+  box-shadow: none;
+  font-weight: 500;
+}
+[data-ui-version="v2"] [data-slot="input"],
+[data-ui-version="v2"] select {
+  border-radius: calc(var(--ui-radius) - 2px);
+  box-shadow: none;
+  background-color: var(--ui-background);
+  border-color: var(--ui-border);
+}
 [data-ui-version="v2"] [data-slot="tabs-list"] {
+  background-color: var(--ui-muted-bg);
+  border: 0;
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+  padding: 3px;
+}
+[data-ui-version="v2"] [data-slot="tabs-trigger"] {
+  border-radius: calc(var(--ui-radius) - 4px);
+  box-shadow: none;
+}
+[data-ui-version="v2"] [data-slot="tabs-trigger"][data-state="active"] {
+  background-color: var(--ui-card);
+  color: var(--ui-foreground);
+}
+[data-ui-version="v2"] [data-slot="badge"] {
+  border-radius: calc(var(--ui-radius) - 4px);
+  font-weight: 500;
+}
+
+/* ---------- UI v2 layout pass: stat cards, tables, charts ---------- */
+[data-ui-version="v2"] .v2-shell [data-slot="card"],
+[data-ui-version="v2"] .v2-shell .bg-surface-container-lowest,
+[data-ui-version="v2"] .v2-shell .bg-surface-container {
+  background-color: var(--ui-card);
+  border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius);
   box-shadow: none;
 }
-
-[data-ui-version="v2"] [data-slot="tabs-trigger"] {
-  border-radius: 4px;
+/* Stat cards: label muted, value foreground, no tinted icon tiles */
+[data-ui-version="v2"] .v2-shell .text-on-surface-variant { color: var(--ui-muted); }
+[data-ui-version="v2"] .v2-shell .text-on-surface { color: var(--ui-foreground); }
+[data-ui-version="v2"] .v2-shell .bg-primary\/10,
+[data-ui-version="v2"] .v2-shell .bg-surface-container-high {
+  background-color: var(--ui-muted-bg);
+}
+[data-ui-version="v2"] .v2-shell .border-outline-variant { border-color: var(--ui-border); }
+/* Tables: hairline rows, muted headers */
+[data-ui-version="v2"] .v2-shell table thead th {
+  color: var(--ui-muted);
+  font-weight: 500;
+  font-size: 0.8125rem;
+  text-transform: none;
+  letter-spacing: 0;
+  background-color: transparent;
+  border-bottom: 1px solid var(--ui-border);
+}
+[data-ui-version="v2"] .v2-shell table tbody tr { border-bottom: 1px solid var(--ui-border); }
+[data-ui-version="v2"] .v2-shell table tbody tr:hover { background-color: var(--ui-muted-bg); }
+/* Charts: recharts axis/tooltip on token colors */
+[data-ui-version="v2"] .v2-shell .recharts-cartesian-axis-tick text { fill: var(--ui-muted); }
+[data-ui-version="v2"] .v2-shell .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: var(--ui-card) !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: var(--ui-radius);
+  box-shadow: none;
+}
+/* v2: avoid double borders from nested wrappers. Only the outer surface carries the frame. */
+[data-ui-version="v2"] .v2-shell .bg-surface-container-lowest [data-slot="card"],
+[data-ui-version="v2"] .v2-shell [data-slot="card"] [data-slot="card"] {
+  border: 0;
+  background-color: transparent;
+  border-radius: 0;
+}
+[data-ui-version="v2"] .v2-shell [data-slot="card-header"] {
+  border: 0;
+  border-bottom: 1px solid var(--ui-border);
+  border-radius: 0;
+  padding-block: 0.875rem;
 }

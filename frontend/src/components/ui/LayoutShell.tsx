@@ -8,7 +8,8 @@ import HeaderRefreshButton from "@/components/ui/HeaderRefreshButton";
 import AdminGuard from "@/components/ui/AdminGuard";
 import { isAdminPath } from "@/lib/rbac";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { UiVersionSwitcher } from "@/components/UiVersionProvider";
+import { UiVersionSwitcher, useUiVersion } from "@/components/UiVersionProvider";
+import LayoutShellV2 from "@/components/ui/LayoutShellV2";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ const PUBLIC_PATHS = ["/login"];
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
+  const { uiVersion } = useUiVersion();
 
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
@@ -110,6 +112,11 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
         <p className="text-sm text-on-surface-variant">Restoring session...</p>
       </div>
     );
+  }
+
+  // v2: full layout replacement (top nav). v1 path below is unchanged.
+  if (uiVersion === "v2") {
+    return <LayoutShellV2>{children}</LayoutShellV2>;
   }
 
   // Authenticated app shell
