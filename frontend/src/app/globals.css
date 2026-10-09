@@ -376,96 +376,100 @@
   }
 }
 
-/* ---------- UI v2: shadcn-admin look (https://github.com/satnaing/shadcn-admin). Scoped; v1 untouched. ---------- */
+/* ---------- UI v2: full neutral palette rework. Scoped by [data-ui-version="v2"]; v1 untouched. ---------- */
+/* Override the entire token set so every component (shell, cards, tables, charts, controls)
+   inherits one consistent neutral palette with no cool-tone accents. Placed last so it wins
+   source-order ties against theme presets of equal specificity. */
 :root[data-ui-version="v2"] {
+  color-scheme: light;
+  --background: #fafafa;
+  --foreground: #0a0a0a;
+  --on-background: #0a0a0a;
+  --surface: #ffffff;
+  --surface-dim: #f5f5f5;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #fafafa;
+  --surface-container: #f5f5f5;
+  --surface-container-high: #ececec;
+  --surface-container-highest: #e5e5e5;
+  --on-surface: #0a0a0a;
+  --on-surface-variant: #737373;
+  --outline: #a3a3a3;
+  --outline-variant: #e5e5e5;
+  --primary: #171717;
+  --on-primary: #fafafa;
+  --primary-hover: #0a0a0a;
+
   --ui-radius: 0.625rem;
-  --ui-background: oklch(1 0 0);
-  --ui-card: oklch(1 0 0);
-  --ui-foreground: oklch(0.129 0.042 264.695);
-  --ui-muted: oklch(0.554 0.046 257.417);
-  --ui-muted-bg: oklch(0.968 0.007 247.896);
-  --ui-border: oklch(0.929 0.013 255.508);
+  --ui-background: var(--background);
+  --ui-card: var(--surface-container-lowest);
+  --ui-foreground: var(--on-surface);
+  --ui-muted: var(--on-surface-variant);
+  --ui-muted-bg: var(--surface-container);
+  --ui-border: var(--outline-variant);
 }
+
 .dark[data-ui-version="v2"] {
-  --ui-background: oklch(0.129 0.042 264.695);
-  --ui-card: oklch(0.14 0.04 259.21);
-  --ui-foreground: oklch(0.984 0.003 247.858);
-  --ui-muted: oklch(0.704 0.04 256.788);
-  --ui-muted-bg: oklch(0.279 0.041 260.031);
-  --ui-border: oklch(1 0 0 / 10%);
+  color-scheme: dark;
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --on-background: #fafafa;
+  --surface: #0a0a0a;
+  --surface-dim: #050505;
+  --surface-bright: #262626;
+  --surface-container-lowest: #0a0a0a;
+  --surface-container-low: #141414;
+  --surface-container: #171717;
+  --surface-container-high: #262626;
+  --surface-container-highest: #333333;
+  --on-surface: #fafafa;
+  --on-surface-variant: #a3a3a3;
+  --outline: #737373;
+  --outline-variant: #262626;
+  --primary: #fafafa;
+  --on-primary: #0a0a0a;
+  --primary-hover: #e5e5e5;
+
+  --ui-background: var(--background);
+  --ui-card: var(--surface-container-lowest);
+  --ui-foreground: var(--on-surface);
+  --ui-muted: var(--on-surface-variant);
+  --ui-muted-bg: var(--surface-container);
+  --ui-border: var(--outline-variant);
 }
 
-/* Shell: flat background, hairline separators, no tinted panels */
-[data-ui-version="v2"] body { background-color: var(--ui-background); }
-[data-ui-version="v2"] aside#primary-navigation-drawer {
-  background-color: var(--ui-background);
-  border-color: var(--ui-border);
-  border-radius: var(--ui-radius);
-  box-shadow: none;
+/* Shell surfaces: flat, hairline separators, no tinted panels, no shadows. */
+[data-ui-version="v2"] body { background-color: var(--background); }
+[data-ui-version="v2"] .v2-shell aside {
+  background-color: var(--background);
+  border-color: var(--outline-variant);
 }
-[data-ui-version="v2"] header {
-  background-color: var(--ui-background);
-  border-bottom: 1px solid var(--ui-border);
+[data-ui-version="v2"] .v2-shell header {
+  background-color: var(--background);
+  border-bottom: 1px solid var(--outline-variant);
 }
-[data-ui-version="v2"] main > div {
-  background-color: transparent;
-  border-color: transparent;
-  border-radius: 0;
-}
+[data-ui-version="v2"] .v2-shell main { background-color: var(--background); }
 
-/* Typography: sentence case, medium weight, muted eyebrows */
-[data-ui-version="v2"] h1 {
+/* Typography: sentence case, medium eyebrows, tighter headings. */
+[data-ui-version="v2"] .v2-shell h1 {
   font-family: var(--font-body-face), sans-serif;
   font-size: 1.5rem;
   line-height: 2rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: var(--ui-foreground);
 }
-[data-ui-version="v2"] p[class*="uppercase"] {
+[data-ui-version="v2"] .v2-shell p[class*="uppercase"] {
   text-transform: none;
   letter-spacing: 0;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--ui-muted);
+  color: var(--on-surface-variant);
 }
 
-/* Surfaces */
-[data-ui-version="v2"] [data-slot="card"] {
-  background-color: var(--ui-card);
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius);
-  box-shadow: none;
-  color: var(--ui-foreground);
-}
-[data-ui-version="v2"] [data-slot="card-header"],
-[data-ui-version="v2"] [data-slot="card-footer"] {
-  background-color: transparent;
-  border-color: var(--ui-border);
-}
-[data-ui-version="v2"] [data-slot="table-container"] {
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius);
-  background-color: var(--ui-card);
-}
-[data-ui-version="v2"] [data-slot="table-header"],
-[data-ui-version="v2"] [data-slot="table-head"] {
-  background-color: transparent;
-  color: var(--ui-muted);
-  font-weight: 500;
-  font-size: 0.8125rem;
-  text-transform: none;
-  letter-spacing: 0;
-}
-[data-ui-version="v2"] [data-slot="table-row"] {
-  border-color: var(--ui-border);
-}
-[data-ui-version="v2"] [data-slot="table-row"]:hover {
-  background-color: var(--ui-muted-bg);
-}
-
-/* Controls */
-[data-ui-version="v2"] [data-slot="button"] {
+/* Controls: one radius + one height rhythm. Selects and buttons share the same frame. */
+[data-ui-version="v2"] [data-slot="button"],
+[data-ui-version="v2"] .v2-shell button:not([class*="size-"]):not([aria-label]) {
   border-radius: calc(var(--ui-radius) - 2px);
   box-shadow: none;
   font-weight: 500;
@@ -474,76 +478,106 @@
 [data-ui-version="v2"] select {
   border-radius: calc(var(--ui-radius) - 2px);
   box-shadow: none;
-  background-color: var(--ui-background);
-  border-color: var(--ui-border);
+  min-height: 2.25rem;
+  background-color: var(--surface-container-low);
+  border: 1px solid var(--outline-variant);
+  color: var(--on-surface);
+  font-family: var(--font-body-face), sans-serif;
 }
 [data-ui-version="v2"] [data-slot="tabs-list"] {
-  background-color: var(--ui-muted-bg);
-  border: 0;
+  background-color: var(--surface-container);
+  border: 1px solid var(--outline-variant);
   border-radius: var(--ui-radius);
   box-shadow: none;
   padding: 3px;
+  gap: 2px;
 }
 [data-ui-version="v2"] [data-slot="tabs-trigger"] {
   border-radius: calc(var(--ui-radius) - 4px);
   box-shadow: none;
+  min-height: 2rem;
+  font-weight: 500;
 }
 [data-ui-version="v2"] [data-slot="tabs-trigger"][data-state="active"] {
-  background-color: var(--ui-card);
-  color: var(--ui-foreground);
+  background-color: var(--surface-container-lowest);
+  color: var(--on-surface);
 }
 [data-ui-version="v2"] [data-slot="badge"] {
   border-radius: calc(var(--ui-radius) - 4px);
   font-weight: 500;
 }
 
-/* ---------- UI v2 layout pass: stat cards, tables, charts ---------- */
-[data-ui-version="v2"] .v2-shell [data-slot="card"],
-[data-ui-version="v2"] .v2-shell .bg-surface-container-lowest,
-[data-ui-version="v2"] .v2-shell .bg-surface-container {
-  background-color: var(--ui-card);
-  border: 1px solid var(--ui-border);
+/* Surfaces: single frame, no nested double borders. */
+[data-ui-version="v2"] [data-slot="card"] {
+  background-color: var(--surface-container-lowest);
+  border: 1px solid var(--outline-variant);
   border-radius: var(--ui-radius);
   box-shadow: none;
 }
-/* Stat cards: label muted, value foreground, no tinted icon tiles */
-[data-ui-version="v2"] .v2-shell .text-on-surface-variant { color: var(--ui-muted); }
-[data-ui-version="v2"] .v2-shell .text-on-surface { color: var(--ui-foreground); }
-[data-ui-version="v2"] .v2-shell .bg-primary\/10,
-[data-ui-version="v2"] .v2-shell .bg-surface-container-high {
-  background-color: var(--ui-muted-bg);
+[data-ui-version="v2"] [data-slot="card"] [data-slot="card"],
+[data-ui-version="v2"] .v2-shell .bg-surface-container-lowest [data-slot="card"] {
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
 }
-[data-ui-version="v2"] .v2-shell .border-outline-variant { border-color: var(--ui-border); }
-/* Tables: hairline rows, muted headers */
-[data-ui-version="v2"] .v2-shell table thead th {
-  color: var(--ui-muted);
+[data-ui-version="v2"] [data-slot="card-header"] {
+  border-bottom: 1px solid var(--outline-variant);
+  padding-block: 0.875rem;
+}
+
+/* Tables: hairline rows, muted headers. */
+[data-ui-version="v2"] [data-slot="table-container"] {
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--ui-radius);
+  background-color: var(--surface-container-lowest);
+}
+[data-ui-version="v2"] table thead th {
+  color: var(--on-surface-variant);
   font-weight: 500;
   font-size: 0.8125rem;
   text-transform: none;
   letter-spacing: 0;
   background-color: transparent;
-  border-bottom: 1px solid var(--ui-border);
+  border-bottom: 1px solid var(--outline-variant);
 }
-[data-ui-version="v2"] .v2-shell table tbody tr { border-bottom: 1px solid var(--ui-border); }
-[data-ui-version="v2"] .v2-shell table tbody tr:hover { background-color: var(--ui-muted-bg); }
-/* Charts: recharts axis/tooltip on token colors */
-[data-ui-version="v2"] .v2-shell .recharts-cartesian-axis-tick text { fill: var(--ui-muted); }
-[data-ui-version="v2"] .v2-shell .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background-color: var(--ui-card) !important;
-  border: 1px solid var(--ui-border) !important;
+[data-ui-version="v2"] table tbody tr { border-bottom: 1px solid var(--outline-variant); }
+[data-ui-version="v2"] table tbody tr:hover { background-color: var(--surface-container); }
+
+/* Charts: axis ticks and tooltip on neutral tokens. */
+[data-ui-version="v2"] .recharts-cartesian-axis-tick text { fill: var(--on-surface-variant); }
+[data-ui-version="v2"] .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: var(--surface-container-lowest) !important;
+  border: 1px solid var(--outline-variant) !important;
   border-radius: var(--ui-radius);
   box-shadow: none;
 }
-/* v2: avoid double borders from nested wrappers. Only the outer surface carries the frame. */
-[data-ui-version="v2"] .v2-shell .bg-surface-container-lowest [data-slot="card"],
-[data-ui-version="v2"] .v2-shell [data-slot="card"] [data-slot="card"] {
-  border: 0;
-  background-color: transparent;
-  border-radius: 0;
+[data-ui-version="v2"] .recharts-legend-item-text { color: var(--on-surface-variant) !important; }
+
+/* v2 segmented controls: one height, one radius, one frame for Compact/Classic and Live/Historical. */
+[data-ui-version="v2"] .v2-shell button[aria-pressed] {
+  min-height: 2rem;
+  padding-block: 0.25rem;
+  padding-inline: 0.75rem;
+  border-radius: calc(var(--ui-radius) - 4px) !important;
+  box-shadow: none;
+  border: 1px solid transparent;
 }
-[data-ui-version="v2"] .v2-shell [data-slot="card-header"] {
-  border: 0;
-  border-bottom: 1px solid var(--ui-border);
-  border-radius: 0;
-  padding-block: 0.875rem;
+[data-ui-version="v2"] .v2-shell button[aria-pressed="true"] {
+  background-color: var(--surface-container-lowest);
+  border-color: var(--outline-variant);
+  color: var(--on-surface);
+}
+[data-ui-version="v2"] .v2-shell [data-slot="tabs-list"] {
+  border-radius: var(--ui-radius);
+  padding: 3px;
+}
+[data-ui-version="v2"] .v2-shell [data-slot="tabs-trigger"] {
+  min-height: 2rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--ui-radius) - 4px);
+}
+[data-ui-version="v2"] .v2-shell [data-slot="tabs-trigger"][data-state="active"] {
+  background-color: var(--surface-container-lowest);
+  border-color: var(--outline-variant);
+  color: var(--on-surface);
 }
