@@ -5,7 +5,6 @@ import { BGPPeer, BGPPeerPolicy } from '@/lib/types';
 import { useRefresh } from '@/components/RefreshProvider';
 import { authFetch } from '@/lib/auth';
 import { useWebSocket } from '@/components/WebSocketProvider';
-import { BGPPrefixChart } from '@/components/charts/BGPPrefixChart';
 import { LookupModal } from '@/components/ui/LookupModal';
 import { Search, Activity, Clock, ShieldAlert, Network, Server, Globe } from 'lucide-react';
 
@@ -25,9 +24,6 @@ export default function BGPDashboard() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [policyLoading, setPolicyLoading] = useState(false);
   
-  const [timeRange, setTimeRange] = useState<"1h" | "24h" | "7d" | "30d" | "all">("1h");
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [chartLoading, setChartLoading] = useState(false);
   const [lookupQuery, setLookupQuery] = useState<{ query: string, type: 'asn' | 'ip' | 'community' } | null>(null);
   const { logicalSystem } = useRefresh();
 
@@ -54,27 +50,6 @@ export default function BGPDashboard() {
       localStorage.setItem('junos-bgp-sys', logicalSystem);
     }
   }, [rawBgpData, logicalSystem]);
-
-  useEffect(() => {
-    if (!selectedPeer) return;
-
-    const fetchHistory = async () => {
-      setChartLoading(true);
-      setChartData([]);
-      const hours = { "1h": 1, "24h": 24, "7d": 168, "30d": 720, all: 8760 }[timeRange];
-      try {
-        const response = await authFetch(`/api/proxy/metrics/bgp/history?peer=${encodeURIComponent(selectedPeer.peer_address)}&hours=${hours}`);
-        if (!response.ok) throw new Error("Failed to fetch BGP history");
-        setChartData(await response.json());
-      } catch (error) {
-        console.warn("Failed to fetch historical data", error);
-      } finally {
-        setChartLoading(false);
-      }
-    };
-
-    fetchHistory();
-  }, [selectedPeer, timeRange]);
 
   useEffect(() => {
     if (selectedPeer) {
@@ -280,49 +255,6 @@ export default function BGPDashboard() {
 
               <ScrollArea className="flex-1 min-h-0 p-4 sm:p-6 bg-surface-container-low">
                 <div className="space-y-6 pb-6">
-                  {/* TSDB Zoom Controls & Chart */}
-                  <Card className="border-[#2A2E35] bg-surface-container rounded shadow-none">
-                    <CardContent className="p-5">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
-                        <h3 className="text-sm font-semibold text-on-surface uppercase tracking-widest flex items-center gap-2">
-                          <Activity size={14} className="text-primary" />
-                          Historical Trend (TSDB)
-                        </h3>
-                        
-                        <div className="flex bg-surface-container-low p-1 rounded border border-[#2A2E35]">
-                          {[
-                            { id: "1h", label: "1H" },
-                            { id: "24h", label: "24H" },
-                            { id: "7d", label: "7D" },
-                            { id: "30d", label: "30D" },
-                            { id: "all", label: "All" }
-                          ].map(range => (
-                            <button
-                              key={range.id}
-                              onClick={() => setTimeRange(range.id as any)}
-                              className={`px-3 py-1 text-xs font-medium rounded transition-all ${
-                                timeRange === range.id 
-                                  ? 'bg-primary text-on-primary' 
-                                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-                              }`}
-                            >
-                              {range.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="relative h-[200px] w-full">
-                        {chartLoading && (
-                          <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-container-low/50 backdrop-blur-sm rounded">
-                            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                          </div>
-                        )}
-                        <BGPPrefixChart data={chartData} peerAddress={selectedPeer.peer_address} />
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   {/* Stats Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     <Card className="bg-surface-container border-outline-variant border-l-4 border-l-primary rounded shadow-none min-w-0">

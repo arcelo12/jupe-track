@@ -593,3 +593,14 @@
 }
 [data-ui-version="v2"] .v2-io-in { color: var(--ui-in); }
 [data-ui-version="v2"] .v2-io-out { color: var(--ui-out); }
+
+/* v2: peer and detail dialogs use the intended wide width. dialog.tsx's sm:max-w-sm
+   otherwise wins over caller classes and clamps dialogs to 24rem. v1 unchanged. */
+[data-ui-version="v2"] [data-slot="dialog-content"].max-w-4xl {
+  max-width: 56rem;
+}
+@media (min-width: 640px) {
+  [data-ui-version="v2"] [data-slot="dialog-content"].max-w-4xl {
+    max-width: 56rem;
+  }
+}
