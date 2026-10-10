@@ -89,7 +89,7 @@ export default function BGPDashboard() {
   }, [selectedPeer, logicalSystem]);
 
   const filteredData = bgpData.filter(peer =>
-    peer.peer_address.includes(searchQuery) || peer.peer_as.includes(searchQuery) || (peer.description && peer.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    peer.peer_address?.includes(searchQuery) || peer.peer_as?.includes(searchQuery) || (peer.description && peer.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
