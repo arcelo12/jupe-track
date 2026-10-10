@@ -85,7 +85,7 @@ export default function PolicyDashboard() {
     p => p.policy_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const filteredNeighbors = neighborsList.filter(
-    peer => peer.peer_address.includes(searchQuery.trim())
+    peer => peer.peer_address?.includes(searchQuery.trim())
   );
 
   const renderTerm = (term: BGPPolicyItem, idx: number) => (
