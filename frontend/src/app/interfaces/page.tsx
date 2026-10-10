@@ -56,7 +56,7 @@ function formatBps(bps: number): string {
 }
 
 function isUp(iface: InterfaceInfo): boolean {
-  return iface.oper_status.toLowerCase() === 'up';
+  return iface.oper_status?.toLowerCase() === 'up';
 }
 
 export default function InterfacesDashboard() {
