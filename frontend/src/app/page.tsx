@@ -110,7 +110,7 @@ export default function Dashboard() {
         <KpiCard label="RE CPU" value={deviceStatus ? `${deviceStatus.cpu_usage}%` : '—'} detail={deviceStatus?.hw_model || 'Loading device'} icon={Cpu} danger={(deviceStatus?.cpu_usage ?? 0) > 80} />
         <KpiCard label="Memory" value={deviceStatus ? `${deviceStatus.memory_utilization}%` : '—'} detail="Routing Engine" icon={MemoryStick} danger={(deviceStatus?.memory_utilization ?? 0) > 80} />
         <KpiCard label="Last Scrape" value={lastScrape.label} detail={lastScrape.stale ? 'Collector stale' : 'Collector healthy'} icon={Clock} danger={lastScrape.stale} />
-        <KpiCard label="Stored Records" value={scraperStatus ? (scraperStatus.total_bgp_records + scraperStatus.total_interface_records).toLocaleString() : '—'} detail="BGP + interface" icon={HardDrive} className="min-[420px]:col-span-2 xl:col-span-1" />
+        <KpiCard label="Stored Records" value={scraperStatus ? ((scraperStatus.total_bgp_records ?? 0) + (scraperStatus.total_interface_records ?? 0)).toLocaleString() : '—'} detail="BGP + interface" icon={HardDrive} className="min-[420px]:col-span-2 xl:col-span-1" />
       </section>
 
       <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
