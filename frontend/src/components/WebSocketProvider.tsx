@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { getAccessToken, tryRefreshToken } from '@/lib/auth';
 import { BGPPeer, InterfaceInfo } from '@/lib/types';
 import { useRefresh } from './RefreshProvider';

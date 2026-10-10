@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const BACKEND_URL = process.env.INTERNAL_API_URL || 'http://backend:3041';
 const GO_BACKEND_URL = process.env.INTERNAL_GO_API_URL || 'http://jupetrack_go:8080';
 
 function buildHeaders(request: NextRequest): HeadersInit {
