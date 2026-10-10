@@ -346,10 +346,16 @@ export default function InterfacesDashboard() {
         chartHeight={340}
       >
         {modalIface && isV2 && inSum && outSum && (
-          <div className="mb-3 grid grid-cols-1 gap-3 font-mono text-xs min-[480px]:grid-cols-2">
-            <div><span className="uppercase tracking-widest v2-io-in">Ingress</span> min {inSum.min.toFixed(1)} / avg {inSum.avg.toFixed(1)} / max {inSum.max.toFixed(1)} Mbps</div>
-            <div><span className="uppercase tracking-widest v2-io-out">Egress</span> min {outSum.min.toFixed(1)} / avg {outSum.avg.toFixed(1)} / max {outSum.max.toFixed(1)} Mbps</div>
-          </div>
+          <>
+            <div className="mb-2 flex items-center justify-between font-mono text-xs text-on-surface-variant">
+              <span>Now: <span className="v2-io-in">in {modalHistory[modalHistory.length - 1].in_mbps.toFixed(1)}</span> / <span className="v2-io-out">out {modalHistory[modalHistory.length - 1].out_mbps.toFixed(1)}</span> Mbps</span>
+              <span>Updated {modalHistory[modalHistory.length - 1].time} · {modalHistory.length} pts</span>
+            </div>
+            <div className="mb-3 grid grid-cols-1 gap-3 font-mono text-xs min-[480px]:grid-cols-2">
+              <div><span className="uppercase tracking-widest v2-io-in">Ingress</span> min {inSum.min.toFixed(1)} / avg {inSum.avg.toFixed(1)} / max {inSum.max.toFixed(1)} Mbps</div>
+              <div><span className="uppercase tracking-widest v2-io-out">Egress</span> min {outSum.min.toFixed(1)} / avg {outSum.avg.toFixed(1)} / max {outSum.max.toFixed(1)} Mbps</div>
+            </div>
+          </>
         )}
         {modalIface && (trafficHistory[modalIface]?.length ?? 0) === 0 ? (
           <div role="status" className="flex h-full w-full items-center justify-center rounded border border-dashed border-outline-variant text-xs text-on-surface-variant">
