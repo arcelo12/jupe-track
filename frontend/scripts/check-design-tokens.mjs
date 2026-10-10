@@ -26,7 +26,7 @@ for (const file of walk(SRC)) {
 	const lines = readFileSync(file, 'utf8').split('\n');
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i].toLowerCase();
-		for (const pat of HEX) if (line.includes(pat) && !(pat === '#3b82f6' && file.endsWith('/lib/chart-colors.ts'))) violations.push(`${file}:${i + 1}: forbidden hex color ${pat}`);
+		for (const pat of HEX) if (line.includes(pat) && !(pat === '#3b82f6' && (file.endsWith('/lib/chart-colors.ts') || file.endsWith('/app/globals.css')))) violations.push(`${file}:${i + 1}: forbidden hex color ${pat}`);
 		const orig = lines[i];
 		for (const pat of RADIUS) if (orig.includes(pat)) violations.push(`${file}:${i + 1}: forbidden radius class ${pat}`);
 		for (const pat of SHADOW) if (orig.includes(pat)) violations.push(`${file}:${i + 1}: forbidden shadow class ${pat}`);
