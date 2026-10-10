@@ -67,6 +67,8 @@ export default function InterfacesDashboard() {
   const isV2 = useUiVersion().uiVersion === 'v2';
   const [trafficHistory, setTrafficHistory] = useState<Record<string, TrafficData[]>>({});
   const modalHistory = modalIface ? trafficHistory[modalIface] || [] : [];
+  const modalUnit = modalIface ? rawInterfaces.find(i => i.name === modalIface) : undefined;
+  const lastPoint = modalHistory[modalHistory.length - 1];
   const inSum = summarize(modalHistory.map(p => p.in_mbps));
   const outSum = summarize(modalHistory.map(p => p.out_mbps));
   const [historyData, setHistoryData] = useState<HistoryInterface[]>([]);
@@ -345,17 +347,30 @@ export default function InterfacesDashboard() {
         description="Live logical unit traffic overview"
         chartHeight={340}
       >
-        {modalIface && isV2 && inSum && outSum && (
-          <>
-            <div className="mb-2 flex items-center justify-between font-mono text-xs text-on-surface-variant">
-              <span>Now: <span className="v2-io-in">in {modalHistory[modalHistory.length - 1].in_mbps.toFixed(1)}</span> / <span className="v2-io-out">out {modalHistory[modalHistory.length - 1].out_mbps.toFixed(1)}</span> Mbps</span>
-              <span>Updated {modalHistory[modalHistory.length - 1].time} · {modalHistory.length} pts</span>
+        {modalIface && isV2 && (
+          <div className="mb-3 space-y-3">
+            <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+              {modalUnit ? (
+                <>
+                  <Badge className={isUp(modalUnit) ? 'border-none bg-success/10 text-success' : 'border-none bg-error/10 text-error'}>{modalUnit.oper_status}</Badge>
+                  <Badge variant="outline" className="rounded border-outline-variant text-[10px] uppercase text-on-surface-variant">admin {modalUnit.admin_status}</Badge>
+                  {modalUnit.description && <span className="min-w-0 truncate text-on-surface-variant">{modalUnit.description}</span>}
+                </>
+              ) : (
+                <span className="text-on-surface-variant">Unit not in current telemetry</span>
+              )}
             </div>
-            <div className="mb-3 grid grid-cols-1 gap-3 font-mono text-xs min-[480px]:grid-cols-2">
-              <div><span className="uppercase tracking-widest v2-io-in">Ingress</span> min {inSum.min.toFixed(1)} / avg {inSum.avg.toFixed(1)} / max {inSum.max.toFixed(1)} Mbps</div>
-              <div><span className="uppercase tracking-widest v2-io-out">Egress</span> min {outSum.min.toFixed(1)} / avg {outSum.avg.toFixed(1)} / max {outSum.max.toFixed(1)} Mbps</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded border border-outline-variant bg-surface-container p-3">
+                <div className="text-[10px] uppercase tracking-widest v2-io-in">Ingress</div>
+                <div className="font-mono text-lg font-bold v2-io-in">{lastPoint ? `${lastPoint.in_mbps.toFixed(1)} Mbps` : '—'}</div>
+              </div>
+              <div className="rounded border border-outline-variant bg-surface-container p-3">
+                <div className="text-[10px] uppercase tracking-widest v2-io-out">Egress</div>
+                <div className="font-mono text-lg font-bold v2-io-out">{lastPoint ? `${lastPoint.out_mbps.toFixed(1)} Mbps` : '—'}</div>
+              </div>
             </div>
-          </>
+          </div>
         )}
         {modalIface && (trafficHistory[modalIface]?.length ?? 0) === 0 ? (
           <div role="status" className="flex h-full w-full items-center justify-center rounded border border-dashed border-outline-variant text-xs text-on-surface-variant">
@@ -374,6 +389,15 @@ export default function InterfacesDashboard() {
             </AreaChart>
           </ResponsiveContainer>
         ) : null}
+        {modalIface && isV2 && inSum && outSum && lastPoint && (
+          <div className="mt-3 space-y-2 font-mono text-xs">
+            <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
+              <div><span className="uppercase tracking-widest v2-io-in">Ingress</span> min {inSum.min.toFixed(1)} / avg {inSum.avg.toFixed(1)} / max {inSum.max.toFixed(1)} Mbps</div>
+              <div><span className="uppercase tracking-widest v2-io-out">Egress</span> min {outSum.min.toFixed(1)} / avg {outSum.avg.toFixed(1)} / max {outSum.max.toFixed(1)} Mbps</div>
+            </div>
+            <div className="text-on-surface-variant">Updated {lastPoint.time} · {modalHistory.length} pts</div>
+          </div>
+        )}
       </ChartDialog>
     </div>
   );

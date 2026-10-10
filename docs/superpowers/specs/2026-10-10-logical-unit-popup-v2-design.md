@@ -15,7 +15,7 @@ Layout, top to bottom:
 
 1. **Header:** unit name (title, existing), plus a line "Live logical unit traffic overview" (existing description).
 2. **Status row:** oper status badge (`up` / `down`, same colors as the physical card badge) and admin status badge. Description text from the interface, truncated to one line.
-3. **Metric boxes:** two boxes side by side. Ingress (blue, `v2-io-in`) and Egress (orange, `v2-io-out`). Each shows the current value using `formatBps`, e.g. `343.8 Mbps`.
+3. **Metric boxes:** two boxes side by side. Ingress (blue, `v2-io-in`) and Egress (orange, `v2-io-out`). Each shows the current value as `lastPoint.in_mbps.toFixed(1) + ' Mbps'` (the history is already in Mbps, so `formatBps`, which takes bps, must not be used here), e.g. `343.8 Mbps`.
 4. **Chart:** existing area chart (Ingress and Egress series), unchanged data source `trafficHistory[unit]`.
 5. **Summary:** existing min/avg/max line per direction, unchanged.
 6. **Footer line:** "Updated HH:MM:SS · N pts", existing readout, moved below the summary.
