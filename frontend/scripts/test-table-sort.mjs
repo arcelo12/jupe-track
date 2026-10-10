@@ -29,6 +29,10 @@ assert.deepEqual(names(sortUnits(units, { column: "status", dir: "asc" })).slice
 // input not mutated
 assert.equal(units[0].name, "ge-0/0/0.0");
 
+// missing oper_status must not throw (sorts after "up", empty string tiebreak)
+assert.doesNotThrow(() => sortUnits([{ name: "a", bps_in: 0, bps_out: 0 }, { name: "b", bps_in: 0, bps_out: 0 }], { column: "status", dir: "asc" }));
+assert.deepEqual(names(sortUnits([{ name: "a", bps_in: 0, bps_out: 0 }, { name: "up1", bps_in: 0, bps_out: 0, oper_status: "up" }], { column: "status", dir: "asc" })), ["up1", "a"]);
+
 // summarize
 assert.equal(summarize([]), null);
 assert.deepEqual(summarize([5]), { min: 5, avg: 5, max: 5 });

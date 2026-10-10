@@ -18,8 +18,8 @@ export function sortUnits<T extends Unit>(units: readonly T[], sort: SortState):
   const sign = sort.dir === "asc" ? 1 : -1;
   copy.sort((a, b) => {
     if (sort.column === "status") {
-      const rank = (s: string) => (s === "up" ? 0 : 1);
-      return (rank(a.oper_status) - rank(b.oper_status) || a.oper_status.localeCompare(b.oper_status)) * sign;
+      const rank = (s?: string) => (s === "up" ? 0 : 1);
+      return (rank(a.oper_status) - rank(b.oper_status) || (a.oper_status ?? "").localeCompare(b.oper_status ?? "")) * sign;
     }
     const pick = sort.column === "in" ? (u: Unit) => u.bps_in : (u: Unit) => u.bps_out;
     return (pick(a) - pick(b)) * sign;
