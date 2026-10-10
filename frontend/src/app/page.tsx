@@ -140,7 +140,7 @@ export default function Dashboard() {
                       <TableRow key={iface.name} className="border-outline-variant hover:bg-surface-container-high">
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${iface.oper_status.toLowerCase() === 'up' ? 'bg-success' : 'bg-error'}`} />
+                            <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${iface.oper_status?.toLowerCase() === 'up' ? 'bg-success' : 'bg-error'}`} />
                             <div className="min-w-0 flex-1">
                               <p className="font-mono text-sm font-semibold text-on-surface">{iface.name}</p>
                               <p className="max-w-[260px] truncate text-[10px] text-on-surface-variant">{iface.description || 'No description'}</p>
