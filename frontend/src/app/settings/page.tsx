@@ -183,10 +183,9 @@ export default function SettingsPage() {
           password: "",
         }));
       } else {
-        setMessage({
-          type: "error",
-          text: data.detail || data.message || "Failed to update settings.",
-        });
+        // Backend returns { error: "..." } for failures with detail/message fallbacks
+        const msg = data.error || data.detail || data.message || "Failed to update settings";
+        setMessage({ type: "error", text: msg });
       }
     } catch (error) {
       console.error("Error saving settings", error);
@@ -576,7 +575,7 @@ export default function SettingsPage() {
                       </button>
                     </div>
                     <p id="settings-password-desc" className="text-xs text-on-surface-variant">
-                      Leave unchanged if you don't want to update the password.
+                      Leave unchanged if you do not want to update the password.
                     </p>
                   </div>
                 </fieldset>

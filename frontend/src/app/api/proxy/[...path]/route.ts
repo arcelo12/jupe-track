@@ -24,6 +24,22 @@ async function proxyRequest(
   method: string,
   body?: string,
 ): Promise<NextResponse> {
+  // SA-048: optional Host-header validation to mitigate DNS rebinding.
+  // Enable by setting ALLOWED_PROXY_HOSTS (comma-separated, e.g.
+  // "localhost,monitor.example.net"). When unset the check is skipped —
+  // the Authorization requirement (below) remains the primary control.
+  const allowedHosts = (process.env.ALLOWED_PROXY_HOSTS ?? '').trim();
+  if (allowedHosts) {
+    const host = request.headers.get('host')?.toLowerCase() ?? '';
+    const hostname = host.split(':')[0];
+    const allowed = new Set(
+      allowedHosts.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean),
+    );
+    if (!allowed.has(hostname)) {
+      return NextResponse.json({ error: 'Invalid host' }, { status: 403 });
+    }
+  }
+
   // SA-022: reject path-traversal segments before building the target URL.
   if (path.some(seg => seg === '..' || seg.startsWith('/') || seg.includes('..'))) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 400 });

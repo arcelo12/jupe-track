@@ -102,8 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Login failed");
+      let message = "Login failed";
+      try {
+        const err = await res.json();
+        // Go backend returns { "error": "..." }; keep detail fallback for compat
+        message = err.error || err.detail || message;
+      } catch {
+        // non-JSON error body — keep default message
+      }
+      throw new Error(message);
     }
 
     const data = await res.json();

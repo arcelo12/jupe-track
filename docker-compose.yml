@@ -42,6 +42,7 @@ services:
     container_name: jupetrack_victoriametrics
     ports:
       - "127.0.0.1:8428:8428"
+      - "192.168.106.96:8430:8428"
     volumes:
       - victoriametrics-data:/victoria-metrics-data
     command:

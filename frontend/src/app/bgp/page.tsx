@@ -23,7 +23,7 @@ export default function BGPDashboard() {
   const [bgpPolicy, setBgpPolicy] = useState<BGPPeerPolicy | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
   const [policyLoading, setPolicyLoading] = useState(false);
-  
+
   const [lookupQuery, setLookupQuery] = useState<{ query: string, type: 'asn' | 'ip' | 'community' } | null>(null);
   const { logicalSystem } = useRefresh();
 

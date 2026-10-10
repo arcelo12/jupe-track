@@ -337,7 +337,11 @@ export default function InterfacesDashboard() {
         description="Live logical unit traffic overview"
         chartHeight={340}
       >
-        {modalIface && (
+        {modalIface && (trafficHistory[modalIface]?.length ?? 0) === 0 ? (
+          <div role="status" className="flex h-full w-full items-center justify-center rounded border border-dashed border-outline-variant text-xs text-on-surface-variant">
+            Waiting for live telemetry — data appears within a few seconds.
+          </div>
+        ) : modalIface ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={trafficHistory[modalIface] || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 4" stroke={CHART_GRID} vertical={false} />
@@ -349,8 +353,7 @@ export default function InterfacesDashboard() {
               <Area type="monotone" dataKey="out_mbps" name="Egress Mbps" stroke={CHART_OUT} strokeWidth={3} fill={CHART_OUT} fillOpacity={0.12} isAnimationActive />
             </AreaChart>
           </ResponsiveContainer>
-        )}
-
+        ) : null}
       </ChartDialog>
     </div>
   );

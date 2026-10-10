@@ -14,6 +14,13 @@ export interface BGPPeer {
   router_id?: string;
 }
 
+export interface BGPPoint {
+  timestamp: string;
+  state: string | null;
+  active_prefixes: number;
+  received_prefixes: number;
+}
+
 export interface BGPPolicyItem {
   term_name: string;
   from_conditions: string[];
