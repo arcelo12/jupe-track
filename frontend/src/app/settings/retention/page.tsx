@@ -71,6 +71,7 @@ function Toggle({
   checked,
   onChange,
   describedBy,
+  disabled = false,
 }: {
   id: string;
   label: string;
@@ -78,6 +79,7 @@ function Toggle({
   checked: boolean;
   onChange: (v: boolean) => void;
   describedBy: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
@@ -99,9 +101,11 @@ function Toggle({
         aria-checked={checked}
         aria-describedby={describedBy}
         aria-label={label}
+        disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative h-6 w-11 shrink-0 cursor-pointer rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2",
+          "relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2",
+          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
           checked
             ? "border-primary bg-primary"
             : "border-outline-variant bg-surface-container-highest"
@@ -131,6 +135,7 @@ function SliderField({
   unit,
   hint,
   onChange,
+  disabled = false,
 }: {
   id: string;
   label: string;
@@ -141,6 +146,7 @@ function SliderField({
   unit: string;
   hint: string;
   onChange: (v: number) => void;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -168,8 +174,9 @@ function SliderField({
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
+        disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-3 h-1.5 w-full cursor-pointer appearance-none rounded bg-surface-container-high accent-primary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4 [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-on-primary [&::-webkit-slider-thumb]:bg-primary"
+        className="mt-3 h-1.5 w-full cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 appearance-none rounded bg-surface-container-high accent-primary focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4 [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-on-primary [&::-webkit-slider-thumb]:bg-primary"
       />
       <div
         aria-hidden="true"
@@ -198,6 +205,7 @@ function TargetSelect({
   emptyHint,
   onToggle,
   onClear,
+  disabled = false,
 }: {
   id: string;
   title: string;
@@ -207,6 +215,7 @@ function TargetSelect({
   emptyHint: string;
   onToggle: (name: string) => void;
   onClear: () => void;
+  disabled?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
@@ -280,6 +289,7 @@ function TargetSelect({
                   id={`${id}-opt-${opt}`}
                   type="checkbox"
                   checked={active}
+                  disabled={disabled}
                   onChange={() => onToggle(opt)}
                   className="size-3.5 shrink-0 cursor-pointer accent-primary"
                 />
@@ -297,7 +307,8 @@ function TargetSelect({
         <button
           type="button"
           onClick={onClear}
-          className="text-xs text-on-surface-variant underline-offset-4 hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+          disabled={disabled}
+          className="text-xs text-on-surface-variant underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50 hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
         >
           Clear selection (scrape all)
         </button>
@@ -436,12 +447,12 @@ export default function RetentionPage() {
     ? [
         {
           label: "Interface Records",
-          val: status.total_interface_records.toLocaleString(),
+          val: (status.total_interface_records ?? 0).toLocaleString(),
           icon: Database,
         },
         {
           label: "BGP Records",
-          val: status.total_bgp_records.toLocaleString(),
+          val: (status.total_bgp_records ?? 0).toLocaleString(),
           icon: Network,
         },
         {
@@ -635,6 +646,7 @@ export default function RetentionPage() {
               description="Collect and store BGP peer state, rib-in/out, and prefix telemetry."
               checked={settings.enable_bgp}
               describedBy="bgp-enabled-desc"
+              disabled
               onChange={(v) => setSettings((s) => ({ ...s, enable_bgp: v }))}
             />
           </div>
@@ -674,6 +686,7 @@ export default function RetentionPage() {
               max={365}
               unit="days"
               hint="BGP metric samples older than this horizon are purged by VictoriaMetrics."
+              disabled
               onChange={(v) => setSettings((s) => ({ ...s, retention_days_bgp: v }))}
             />
           </div>
@@ -697,6 +710,7 @@ export default function RetentionPage() {
               onToggle={(n) => handleTargetToggle("interfaces", n)}
               onClear={() => setSettings((s) => ({ ...s, scrape_interface_targets: "" }))}
             />
+            <p className="mb-2 text-xs text-on-surface-variant">BGP settings are disabled on this page.</p>
             <TargetSelect
               id="target-bgp"
               title="Target BGP peers"
@@ -704,6 +718,7 @@ export default function RetentionPage() {
               options={availablePeers}
               selected={selectedPeers}
               emptyHint="Waiting for first scrape discovery to list BGP peers…"
+              disabled
               onToggle={(n) => handleTargetToggle("bgp", n)}
               onClear={() => setSettings((s) => ({ ...s, scrape_bgp_targets: "" }))}
             />
