@@ -191,7 +191,7 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
                   onMouseEnter={() => setHovered(n.id)}
                   onMouseLeave={() => setHovered(null)}
                   onClick={() => setSelected(n.id === selected ? null : n.id)}
-                  className={`h-full w-full truncate rounded border px-2 text-left font-mono text-xs transition-colors ${selected === n.id ? "border-primary bg-primary/15 text-primary" : "border-outline-variant bg-surface-container-low text-on-surface hover:border-primary/50"}`}
+                  className={`h-full w-full truncate rounded border px-2 text-left font-mono text-xs transition-[transform,colors] duration-150 hover:scale-110 ${selected === n.id ? "border-primary bg-primary/15 text-primary" : "border-outline-variant bg-surface-container-low text-on-surface hover:border-primary/50"}`}
                 >
                   <span className="font-bold">AS{n.id}</span>
                   {m && <span className="ml-1 text-[10px] text-on-surface-variant">{m.name}</span>}

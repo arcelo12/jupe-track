@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Server, Globe, Building, Activity, CheckCircle, XCircle } from 'lucide-react';
 import { GlowingCard } from '@/components/ui/GlowingCard';
 import { LookupAsPathGraph } from '@/components/ui/LookupAsPathGraph';
@@ -41,6 +41,7 @@ export interface LookupResultData {
 }
 
 export function LookupResultViewer({ result, showAsPath = false }: { result: unknown; showAsPath?: boolean }) {
+  const [openPeer, setOpenPeer] = useState<string | null>(null);
   const res = result as LookupResultData | null | undefined;
   if (!res || (!res.data && !res.asn_context)) {
     return (
@@ -161,7 +162,10 @@ export function LookupResultViewer({ result, showAsPath = false }: { result: unk
                 </div>
                 
                 <div className="space-y-4 max-h-72 overflow-y-auto pr-2">
-                  {(rrc.peers ?? []).map((peer, pIdx) => (
+                  {(rrc.peers ?? []).map((peer, pIdx) => {
+                    const key = `${idx}-${pIdx}`;
+                    const isOpen = openPeer === key;
+                    return (
                     <div key={pIdx} className="bg-surface-container-high border border-outline-variant rounded p-4 text-sm flex flex-col gap-3 hover:bg-surface-container-highest transition-colors">
                       <div className="flex justify-between text-xs pb-2 border-b border-outline-variant">
                         <span className="text-on-surface-variant">Peer: <span className="text-on-surface font-mono font-bold">{peer.peer}</span></span>
@@ -177,8 +181,26 @@ export function LookupResultViewer({ result, showAsPath = false }: { result: unk
                           <span className="font-mono text-primary font-medium">{peer.next_hop}</span>
                         </div>
                       )}
+                      {showAsPath && peer.as_path && peer.as_path.trim() !== '' && (
+                        <div>
+                          <button
+                            type="button"
+                            aria-expanded={isOpen}
+                            onClick={() => setOpenPeer(isOpen ? null : key)}
+                            className="text-xs font-semibold text-primary hover:underline"
+                          >
+                            {isOpen ? 'Hide path graph' : 'Show path graph'}
+                          </button>
+                          {isOpen && (
+                            <div className="mt-3">
+                              <LookupAsPathGraph paths={[peer.as_path]} />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </GlowingCard>
             ))}
