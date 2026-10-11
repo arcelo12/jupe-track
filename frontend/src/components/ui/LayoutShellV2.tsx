@@ -64,7 +64,7 @@ export default function LayoutShellV2({ children }: { children: React.ReactNode 
                     href={item.path}
                     onClick={() => setOpen(false)}
                     aria-current={active ? "page" : undefined}
-                    className={`flex min-h-10 items-center rounded-md px-3 text-sm font-medium transition-colors ${
+                    className={`flex min-h-10 items-center rounded px-3 text-sm font-medium transition-colors ${
                       active
                         ? "bg-[var(--ui-muted-bg)] text-[var(--ui-foreground)]"
                         : "text-[var(--ui-muted)] hover:bg-[var(--ui-muted-bg)] hover:text-[var(--ui-foreground)]"
@@ -87,7 +87,7 @@ export default function LayoutShellV2({ children }: { children: React.ReactNode 
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-[var(--ui-border)] bg-[var(--ui-background)] lg:flex">
         <Link href="/" className="flex h-14 items-center gap-2 px-5 font-semibold tracking-tight text-[var(--ui-foreground)]">
-          <span className="flex size-7 items-center justify-center rounded-md bg-[var(--ui-foreground)] text-xs text-[var(--ui-background)]">J</span>
+          <span className="flex size-7 items-center justify-center rounded bg-[var(--ui-foreground)] text-xs text-[var(--ui-background)]">J</span>
           JupeTrack
         </Link>
         {nav}
@@ -123,7 +123,7 @@ export default function LayoutShellV2({ children }: { children: React.ReactNode 
             aria-label="Open navigation"
             aria-expanded={open}
             onClick={() => setOpen(true)}
-            className="flex size-11 items-center justify-center rounded-md border border-[var(--ui-border)] text-[var(--ui-foreground)] lg:hidden"
+            className="flex size-11 items-center justify-center rounded border border-[var(--ui-border)] text-[var(--ui-foreground)] lg:hidden"
           >
             ☰
           </button>
@@ -135,7 +135,7 @@ export default function LayoutShellV2({ children }: { children: React.ReactNode 
             <button
               type="button"
               onClick={logout}
-              className="min-h-11 rounded-md px-3 text-sm text-[var(--ui-muted)] hover:bg-[var(--ui-muted-bg)] hover:text-[var(--ui-foreground)]"
+              className="min-h-11 rounded px-3 text-sm text-[var(--ui-muted)] hover:bg-[var(--ui-muted-bg)] hover:text-[var(--ui-foreground)]"
             >
               Sign out
             </button>
