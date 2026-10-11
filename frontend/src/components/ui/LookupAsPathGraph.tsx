@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Network } from "lucide-react";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
-import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, groupPolicies, TIER1_ASNS, type Layout } from "@/lib/as-path-layout";
+import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, groupPolicies, isTier1, reverseForDisplay, TIER1_ASNS, type Layout } from "@/lib/as-path-layout";
 import { CHART_EDGE, CHART_EDGE_FADED } from "@/lib/chart-colors";
 import { authFetch } from "@/lib/auth";
 
@@ -58,8 +58,10 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
   const policies = useMemo(() => groupPolicies(paths, TIER1_ASNS), [paths]);
 
   const layout: Layout = useMemo(() => {
-    if (mode === "policy") return layoutStraight(policies.map((p) => p.path));
-    return mode === "straight" ? layoutStraight(paths) : layoutFlexible(paths);
+    // Origin on the left, path flows outward to the right (bgp.tools style).
+    if (mode === "policy") return layoutStraight(policies.map((p) => reverseForDisplay(p.path)));
+    const display = paths.map((p) => reverseForDisplay(p));
+    return mode === "straight" ? layoutStraight(display) : layoutFlexible(display);
   }, [mode, paths, policies]);
 
   // Center target: origin when visible, else the end of the most frequent policy route.
@@ -68,8 +70,9 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
     if (origin && layout.nodes.some((n) => n.id === origin)) return origin;
     const top = policies[0];
     if (!top) return null;
+    // Display is reversed, so the route's origin-side hop is first.
     const hops = top.path.split(" ");
-    return hops[hops.length - 1] ?? null;
+    return hops[0] ?? null;
   }, [origin, layout.nodes, policies]);
   const originNode = centerId ? layout.nodes.find((n) => n.id === centerId) : undefined;
 
@@ -78,7 +81,7 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
     const m = new Map<string, number>();
     for (const p of policies) {
       const hops = p.path.split(" ");
-      const end = hops[hops.length - 1];
+      const end = hops[0];
       if (end) m.set(end, (m.get(end) ?? 0) + (p.count > 1 ? p.count : 0));
     }
     return m;
@@ -206,6 +209,7 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
                   >
                     <span className="font-bold">AS{n.id}</span>
                     {n.id === origin && <span className="ml-1 text-primary">origin</span>}
+                    {isTier1(n.id) && <span className="ml-1 text-primary">Tier-1</span>}
                     {m && <span className="ml-1 text-on-surface-variant">{m.name} · {m.type}</span>}
                   </span>
                 )}

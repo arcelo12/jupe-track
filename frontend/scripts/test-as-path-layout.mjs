@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies } from "../.test-build/as-path-layout.js";
+import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies, isTier1, reverseForDisplay } from "../.test-build/as-path-layout.js";
 
 // parse: drop I/E/? flags and bracket chars, keep order
 assert.deepEqual(parseAsPath("7018 3356 15169"), ["7018", "3356", "15169"]);
@@ -66,5 +66,14 @@ assert.deepEqual(g[0], { path: "7018 3356", count: 3 });
 assert.deepEqual(g[1], { path: "1299 6453", count: 1 });
 assert.equal(g.length, 2);
 assert.deepEqual(groupPolicies([], TIER1_ASNS), []);
+
+// isTier1 for tooltip label
+assert.equal(isTier1("3356"), true);
+assert.equal(isTier1("13335"), false);
+
+// reverseForDisplay: origin on the left, path flows out to the right (bgp.tools style)
+assert.equal(reverseForDisplay("7018 3356 13335"), "13335 3356 7018");
+assert.equal(reverseForDisplay("  1299 13335 I"), "13335 1299");
+assert.equal(reverseForDisplay(""), "");
 
 console.log("as-path-layout: all assertions passed");

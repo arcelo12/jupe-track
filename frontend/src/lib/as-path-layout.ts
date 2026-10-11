@@ -133,6 +133,10 @@ export const TIER1_ASNS: ReadonlySet<string> = new Set([
   "6453", "6762", "1299", "12956", "701", "6461", "174",
 ]);
 
+export function isTier1(asn: string): boolean {
+  return TIER1_ASNS.has(asn);
+}
+
 /**
  * Cut a hop list at the rightmost Tier-1 AS (nearest the origin), inclusive.
  * Returns the hops unchanged when no Tier-1 hop is present.
@@ -162,4 +166,12 @@ export function groupPolicies(
   return [...counts.entries()]
     .map(([path, count]) => ({ path, count }))
     .sort((a, b) => b.count - a.count || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+}
+
+/**
+ * Display order: origin first (left), path flows outward to the right, like bgp.tools.
+ * Operates on the raw path string and drops I/E/? flags via parseAsPath.
+ */
+export function reverseForDisplay(path: string): string {
+  return parseAsPath(path).reverse().join(" ");
 }
