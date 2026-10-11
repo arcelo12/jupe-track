@@ -20,6 +20,14 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [bgpSummary, setBgpSummary] = useState<BGPPeer[]>([]);
   const [interfaces, setInterfaces] = useState<InterfaceInfo[]>([]);
+  // Clear previous data when the logical system changes. Done during render,
+  // not in the effect, so no extra render cycle is needed.
+  const [prevLogicalSystem, setPrevLogicalSystem] = useState(logicalSystem);
+  if (prevLogicalSystem !== logicalSystem) {
+    setPrevLogicalSystem(logicalSystem);
+    setBgpSummary([]);
+    setInterfaces([]);
+  }
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -41,10 +49,6 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-
-    // Clear previous state to prevent old data from leaking into new logical system
-    setBgpSummary([]);
-    setInterfaces([]);
 
     // Tear down the previous socket *without* triggering reconnect logic.
     // We null out the handlers first so the close event is a no-op.
