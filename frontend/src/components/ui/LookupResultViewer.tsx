@@ -71,12 +71,12 @@ export function LookupResultViewer({ result, showAsPath = false }: { result: unk
               <h3 className="text-on-surface font-semibold font-display text-lg">Origin ASNs</h3>
             </div>
             <div className="flex flex-wrap gap-2 mt-2">
-              {data.asns.map((asn: string) => (
+              {(data.asns ?? []).map((asn: string) => (
                 <span key={asn} className="px-3 py-1.5 bg-primary/20 text-primary border border-primary/30 rounded font-mono font-semibold text-sm shadow-none">
                   AS{asn}
                 </span>
               ))}
-              {data.asns.length === 0 && <span className="text-on-surface-variant italic">No origin ASNs found</span>}
+              {(data.asns ?? []).length === 0 && <span className="text-on-surface-variant italic">No origin ASNs found</span>}
             </div>
           </GlowingCard>
         </div>
@@ -143,10 +143,10 @@ export function LookupResultViewer({ result, showAsPath = false }: { result: unk
           <div className="grid grid-cols-1 gap-6">
             {showAsPath && (
               <LookupAsPathGraph
-                paths={data.rrcs.flatMap((rrc) => rrc.peers.map((p) => p.as_path)).filter((s) => s && s.trim().length > 0)}
+                paths={(data.rrcs ?? []).flatMap((rrc) => (rrc.peers ?? []).map((p) => p.as_path)).filter((s) => s && s.trim().length > 0)}
               />
             )}
-            {data.rrcs.filter((rrc) => rrc.peers.length > 0).map((rrc, idx) => (
+            {(data.rrcs ?? []).filter((rrc) => (rrc.peers ?? []).length > 0).map((rrc, idx) => (
               <GlowingCard key={idx} delay={0.5 + (idx * 0.1)} className="p-5 bg-surface-container">
                 <div className="flex justify-between items-center mb-4 border-b border-outline-variant pb-3">
                   <div>
@@ -156,12 +156,12 @@ export function LookupResultViewer({ result, showAsPath = false }: { result: unk
                     <p className="text-xs text-on-surface-variant mt-1 uppercase tracking-wider">{rrc.location}</p>
                   </div>
                   <span className="text-xs font-semibold px-3 py-1 bg-primary/10 border border-primary/20 rounded text-primary shadow-none">
-                    {rrc.peers.length} peers
+                    {(rrc.peers ?? []).length} peers
                   </span>
                 </div>
                 
                 <div className="space-y-4 max-h-72 overflow-y-auto pr-2">
-                  {rrc.peers.map((peer, pIdx) => (
+                  {(rrc.peers ?? []).map((peer, pIdx) => (
                     <div key={pIdx} className="bg-surface-container-high border border-outline-variant rounded p-4 text-sm flex flex-col gap-3 hover:bg-surface-container-highest transition-colors">
                       <div className="flex justify-between text-xs pb-2 border-b border-outline-variant">
                         <span className="text-on-surface-variant">Peer: <span className="text-on-surface font-mono font-bold">{peer.peer}</span></span>
@@ -183,7 +183,7 @@ export function LookupResultViewer({ result, showAsPath = false }: { result: unk
               </GlowingCard>
             ))}
             
-            {data.rrcs.filter((rrc) => rrc.peers.length > 0).length === 0 && (
+            {(data.rrcs ?? []).filter((rrc) => (rrc.peers ?? []).length > 0).length === 0 && (
               <GlowingCard className="p-8 text-center bg-surface-container">
                 <p className="text-on-surface-variant">No BGP routes found from any RIPE RIS route collector for this resource.</p>
               </GlowingCard>
