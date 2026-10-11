@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Network } from "lucide-react";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
-import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, groupPolicies, isTier1, reverseForDisplay, TIER1_ASNS, type Layout } from "@/lib/as-path-layout";
+import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, groupPolicies, isTier1, reverseForDisplay, topPolicies, POLICY_MAX_ROUTES, TIER1_ASNS, type Layout } from "@/lib/as-path-layout";
 import { CHART_EDGE, CHART_EDGE_FADED } from "@/lib/chart-colors";
 import { authFetch } from "@/lib/auth";
 
@@ -55,7 +55,12 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
     } catch {}
   };
 
-  const policies = useMemo(() => groupPolicies(paths, TIER1_ASNS), [paths]);
+  const allPolicies = useMemo(() => groupPolicies(paths, TIER1_ASNS), [paths]);
+  // Cap drawn routes so the canvas stays inside the fixed viewport (real data gave 272 routes).
+  const { shown: policies, hidden: policiesHidden } = useMemo(
+    () => topPolicies(allPolicies, POLICY_MAX_ROUTES),
+    [allPolicies]
+  );
 
   const layout: Layout = useMemo(() => {
     // Origin on the left, path flows outward to the right (bgp.tools style).
@@ -141,7 +146,8 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
       <div className="overflow-x-auto">
         <div
           ref={viewportRef}
-          className="relative h-[320px] overflow-hidden"
+          style={{ height: Math.max(320, layout.height + 24) }}
+          className="relative overflow-hidden"
           onWheel={(e) => {
             if (!e.ctrlKey && !e.metaKey) return;
             e.preventDefault();
@@ -218,6 +224,11 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
           })}
           </div>
         </div>
+        {mode === "policy" && policiesHidden > 0 && (
+          <p className="mt-2 text-[11px] text-on-surface-variant">
+            Showing top {policies.length} of {allPolicies.length} routes. {policiesHidden} less common hidden.
+          </p>
+        )}
         <div className="mt-2 flex justify-end gap-1">
           <button type="button" aria-label="Zoom in" onClick={() => zoomBy(0.25)} className="rounded border border-outline-variant p-1 text-on-surface-variant hover:text-on-surface"><ZoomIn size={14} aria-hidden="true" /></button>
           <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-0.25)} className="rounded border border-outline-variant p-1 text-on-surface-variant hover:text-on-surface"><ZoomOut size={14} aria-hidden="true" /></button>

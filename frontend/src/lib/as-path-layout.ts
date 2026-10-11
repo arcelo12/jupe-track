@@ -175,3 +175,11 @@ export function groupPolicies(
 export function reverseForDisplay(path: string): string {
   return parseAsPath(path).reverse().join(" ");
 }
+
+/** Keep the n most frequent policy routes. Groups must already be sorted by count desc. */
+export function topPolicies<T>(groups: T[], n: number): { shown: T[]; hidden: number } {
+  return { shown: groups.slice(0, n), hidden: Math.max(0, groups.length - n) };
+}
+
+/** Max policy routes drawn in the graph. Beyond this the canvas grows past the fixed viewport. */
+export const POLICY_MAX_ROUTES = 5;

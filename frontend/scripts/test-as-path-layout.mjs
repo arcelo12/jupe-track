@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies, isTier1, reverseForDisplay } from "../.test-build/as-path-layout.js";
+import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies, isTier1, reverseForDisplay, topPolicies } from "../.test-build/as-path-layout.js";
 
 // parse: drop I/E/? flags and bracket chars, keep order
 assert.deepEqual(parseAsPath("7018 3356 15169"), ["7018", "3356", "15169"]);
@@ -75,5 +75,11 @@ assert.equal(isTier1("13335"), false);
 assert.equal(reverseForDisplay("7018 3356 13335"), "13335 3356 7018");
 assert.equal(reverseForDisplay("  1299 13335 I"), "13335 1299");
 assert.equal(reverseForDisplay(""), "");
+
+// topPolicies: keep the n most frequent routes, report how many were left out
+const groupsSample = [{path:"a",count:5},{path:"b",count:3},{path:"c",count:1}];
+assert.deepEqual(topPolicies(groupsSample, 2), { shown: [{path:"a",count:5},{path:"b",count:3}], hidden: 1 });
+assert.deepEqual(topPolicies(groupsSample, 10), { shown: groupsSample, hidden: 0 });
+assert.deepEqual(topPolicies([], 3), { shown: [], hidden: 0 });
 
 console.log("as-path-layout: all assertions passed");
