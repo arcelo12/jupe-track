@@ -81,3 +81,45 @@ function finish(nodes: LayoutNode[], edges: LayoutEdge[], rows: number): Layout 
     height: PAD * 2 + Math.max(rows, 1) * ROW_H,
   };
 }
+
+/** Origin AS = last hop. Most frequent origin wins; ties go to the first seen. */
+export function pickOrigin(paths: string[]): string | null {
+  const counts = new Map<string, number>();
+  for (const p of paths) {
+    const hops = parseAsPath(p);
+    if (hops.length === 0) continue;
+    const origin = hops[hops.length - 1];
+    counts.set(origin, (counts.get(origin) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [id, c] of counts) {
+    if (c > bestCount) {
+      best = id;
+      bestCount = c;
+    }
+  }
+  return best;
+}
+
+export const ZOOM_MIN = 0.5;
+export const ZOOM_MAX = 2;
+
+export function clampZoom(z: number): number {
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+}
+
+/**
+ * Translate that places a point (in layout coords) at the viewport center
+ * after scaling by zoom. Canvas is transformed as: translate(tx,ty) scale(zoom).
+ */
+export function centerOffset(
+  point: { x: number; y: number },
+  zoom: number,
+  viewport: { w: number; h: number }
+): { tx: number; ty: number } {
+  return {
+    tx: viewport.w / 2 - point.x * zoom,
+    ty: viewport.h / 2 - point.y * zoom,
+  };
+}

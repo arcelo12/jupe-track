@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Network } from "lucide-react";
-import { layoutFlexible, layoutStraight, type Layout } from "@/lib/as-path-layout";
+import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, type Layout } from "@/lib/as-path-layout";
 import { CHART_EDGE, CHART_EDGE_FADED } from "@/lib/chart-colors";
 import { authFetch } from "@/lib/auth";
 
@@ -30,6 +31,9 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
   const [mode, setMode] = useState<Mode>(() => (typeof window === "undefined" ? "straight" : readStoredMode()));
   const [hovered, setHovered] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const [mappings, setMappings] = useState<Record<string, AsMapping>>({});
 
   useEffect(() => {
@@ -55,6 +59,34 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
     () => (mode === "straight" ? layoutStraight(paths) : layoutFlexible(paths)),
     [mode, paths]
   );
+
+  const origin = useMemo(() => pickOrigin(paths), [paths]);
+  const originNode = origin ? layout.nodes.find((n) => n.id === origin) : undefined;
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const update = () => setViewport({ w: el.clientWidth, h: el.clientHeight });
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [layout.nodes.length]);
+
+  // Offset is derived from zoom + origin, so it is always centered. Zoom resets on mode/result change.
+  const [prevKey, setPrevKey] = useState({ mode, paths });
+  if (prevKey.mode !== mode || prevKey.paths !== paths) {
+    setPrevKey({ mode, paths });
+    setZoom(1);
+  }
+
+  // Center the node's midpoint, not its top-left corner.
+  const off = originNode && viewport.w > 0
+    ? centerOffset({ x: originNode.x + NODE_W / 2, y: originNode.y + NODE_H / 2 }, zoom, viewport)
+    : { tx: 0, ty: 0 };
+
+  const zoomBy = (delta: number) => setZoom((z) => clampZoom(z + delta));
+  const reset = () => setZoom(1);
 
   if (layout.nodes.length === 0) return null;
 
@@ -83,7 +115,23 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
       </div>
 
       <div className="overflow-x-auto">
-        <div className="relative" style={{ width: layout.width, height: layout.height, margin: "0 auto" }}>
+        <div
+          ref={viewportRef}
+          className="relative h-[320px] overflow-hidden"
+          onWheel={(e) => {
+            if (!e.ctrlKey && !e.metaKey) return;
+            e.preventDefault();
+            zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
+          }}
+        >
+          <div
+            className="absolute left-0 top-0 origin-top-left"
+            style={{
+              width: layout.width,
+              height: layout.height,
+              transform: `translate(${off.tx}px, ${off.ty}px) scale(${zoom})`,
+            }}
+          >
           <svg className="pointer-events-none absolute inset-0" width={layout.width} height={layout.height} aria-hidden="true">
             <defs>
               <marker id="aspath-arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
@@ -116,21 +164,36 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
           {layout.nodes.map((n) => {
             const m = mappings[n.id];
             return (
-              <button
-                key={n.id}
-                type="button"
-                onMouseEnter={() => setHovered(n.id)}
-                onMouseLeave={() => setHovered(null)}
-                onClick={() => setSelected(n.id === selected ? null : n.id)}
-                style={{ left: n.x, top: n.y, width: NODE_W, height: NODE_H }}
-                className={`absolute truncate rounded border px-2 text-left font-mono text-xs transition-colors ${selected === n.id ? "border-primary bg-primary/15 text-primary" : "border-outline-variant bg-surface-container-low text-on-surface hover:border-primary/50"}`}
-                title={m ? `AS${n.id} · ${m.name} (${m.type})` : `AS${n.id}`}
-              >
-                <span className="font-bold">AS{n.id}</span>
-                {m && <span className="ml-1 text-[10px] text-on-surface-variant">{m.name}</span>}
-              </button>
+              <div key={n.id} className="absolute" style={{ left: n.x, top: n.y, width: NODE_W, height: NODE_H }}>
+                <button
+                  type="button"
+                  onMouseEnter={() => setHovered(n.id)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => setSelected(n.id === selected ? null : n.id)}
+                  className={`h-full w-full truncate rounded border px-2 text-left font-mono text-xs transition-colors ${selected === n.id ? "border-primary bg-primary/15 text-primary" : "border-outline-variant bg-surface-container-low text-on-surface hover:border-primary/50"}`}
+                >
+                  <span className="font-bold">AS{n.id}</span>
+                  {m && <span className="ml-1 text-[10px] text-on-surface-variant">{m.name}</span>}
+                </button>
+                {hovered === n.id && (
+                  <span
+                    role="tooltip"
+                    className={`pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded border border-outline-variant bg-surface-container-high px-2 py-1 font-mono text-[11px] text-on-surface ${n.y < layout.height / 2 ? "top-full mt-1" : "bottom-full mb-1"}`}
+                  >
+                    <span className="font-bold">AS{n.id}</span>
+                    {n.id === origin && <span className="ml-1 text-primary">origin</span>}
+                    {m && <span className="ml-1 text-on-surface-variant">{m.name} · {m.type}</span>}
+                  </span>
+                )}
+              </div>
             );
           })}
+          </div>
+        </div>
+        <div className="mt-2 flex justify-end gap-1">
+          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(0.25)} className="rounded border border-outline-variant p-1 text-on-surface-variant hover:text-on-surface"><ZoomIn size={14} aria-hidden="true" /></button>
+          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(-0.25)} className="rounded border border-outline-variant p-1 text-on-surface-variant hover:text-on-surface"><ZoomOut size={14} aria-hidden="true" /></button>
+          <button type="button" aria-label="Reset zoom" onClick={reset} className="rounded border border-outline-variant p-1 text-on-surface-variant hover:text-on-surface"><RotateCcw size={14} aria-hidden="true" /></button>
         </div>
       </div>
 
