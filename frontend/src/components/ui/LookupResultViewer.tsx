@@ -1,6 +1,7 @@
 import React from 'react';
 import { Server, Globe, Building, Activity, CheckCircle, XCircle } from 'lucide-react';
 import { GlowingCard } from '@/components/ui/GlowingCard';
+import { LookupAsPathGraph } from '@/components/ui/LookupAsPathGraph';
 
 interface RRCInfo {
   rrc: string;
@@ -39,7 +40,7 @@ export interface LookupResultData {
   [key: string]: unknown;
 }
 
-export function LookupResultViewer({ result }: { result: unknown }) {
+export function LookupResultViewer({ result, showAsPath = false }: { result: unknown; showAsPath?: boolean }) {
   const res = result as LookupResultData | null | undefined;
   if (!res || (!res.data && !res.asn_context)) {
     return (
@@ -140,6 +141,11 @@ export function LookupResultViewer({ result }: { result: unknown }) {
           </GlowingCard>
 
           <div className="grid grid-cols-1 gap-6">
+            {showAsPath && (
+              <LookupAsPathGraph
+                paths={data.rrcs.flatMap((rrc) => rrc.peers.map((p) => p.as_path)).filter((s) => s && s.trim().length > 0)}
+              />
+            )}
             {data.rrcs.filter((rrc) => rrc.peers.length > 0).map((rrc, idx) => (
               <GlowingCard key={idx} delay={0.5 + (idx * 0.1)} className="p-5 bg-surface-container">
                 <div className="flex justify-between items-center mb-4 border-b border-outline-variant pb-3">

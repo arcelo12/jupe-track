@@ -399,7 +399,7 @@ export default function LookupPage() {
           </CardHeader>
 
           <CardContent className="p-4 md:p-6">
-            <LookupResultViewer result={result.data} />
+            <LookupResultViewer result={result.data} showAsPath />
           </CardContent>
         </Card>
       )}
