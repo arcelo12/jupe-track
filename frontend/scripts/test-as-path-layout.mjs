@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom } from "../.test-build/as-path-layout.js";
+import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies } from "../.test-build/as-path-layout.js";
 
 // parse: drop I/E/? flags and bracket chars, keep order
 assert.deepEqual(parseAsPath("7018 3356 15169"), ["7018", "3356", "15169"]);
@@ -49,5 +49,22 @@ for (const z of [1, 2]) {
   assert.equal(o.x * z + tx, vp.w / 2, `x centered at zoom ${z}`);
   assert.equal(o.y * z + ty, vp.h / 2, `y centered at zoom ${z}`);
 }
+
+// tier1 set: 15 ASN from spec
+assert.equal(TIER1_ASNS.size, 15);
+assert.ok(TIER1_ASNS.has("3356") && TIER1_ASNS.has("174") && !TIER1_ASNS.has("13335"));
+
+// truncateToTier1: cut after rightmost tier-1 hop; keep whole when none
+assert.deepEqual(truncateToTier1(["7018", "3356", "13335"], TIER1_ASNS), ["7018", "3356"]);
+assert.deepEqual(truncateToTier1(["7018", "3356", "6461", "50673"], TIER1_ASNS), ["7018", "3356", "6461"]);
+assert.deepEqual(truncateToTier1(["3356", "13335"], TIER1_ASNS), ["3356"], "tier-1 origin side kept");
+assert.deepEqual(truncateToTier1(["13335", "15169"], TIER1_ASNS), ["13335", "15169"], "no tier-1 kept whole");
+
+// groupPolicies: identical truncated paths merge, count desc then path asc
+const g = groupPolicies(["7018 3356 13335", "7018 3356 15169", "1299 6453 2497", "7018 3356 13335 I"], TIER1_ASNS);
+assert.deepEqual(g[0], { path: "7018 3356", count: 3 });
+assert.deepEqual(g[1], { path: "1299 6453", count: 1 });
+assert.equal(g.length, 2);
+assert.deepEqual(groupPolicies([], TIER1_ASNS), []);
 
 console.log("as-path-layout: all assertions passed");

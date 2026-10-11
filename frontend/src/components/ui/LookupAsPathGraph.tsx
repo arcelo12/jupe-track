@@ -3,11 +3,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Network } from "lucide-react";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
-import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, type Layout } from "@/lib/as-path-layout";
+import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, groupPolicies, TIER1_ASNS, type Layout } from "@/lib/as-path-layout";
 import { CHART_EDGE, CHART_EDGE_FADED } from "@/lib/chart-colors";
 import { authFetch } from "@/lib/auth";
 
-type Mode = "straight" | "flexible";
+type Mode = "straight" | "flexible" | "policy";
 const STORAGE_KEY = "jupetrack-as-path-mode";
 const NODE_W = 120;
 const NODE_H = 34;
@@ -22,7 +22,7 @@ interface AsMapping {
 function readStoredMode(): Mode {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "straight" || saved === "flexible") return saved;
+    if (saved === "straight" || saved === "flexible" || saved === "policy") return saved;
   } catch {}
   return "straight";
 }
@@ -55,13 +55,34 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
     } catch {}
   };
 
-  const layout: Layout = useMemo(
-    () => (mode === "straight" ? layoutStraight(paths) : layoutFlexible(paths)),
-    [mode, paths]
-  );
+  const policies = useMemo(() => groupPolicies(paths, TIER1_ASNS), [paths]);
 
+  const layout: Layout = useMemo(() => {
+    if (mode === "policy") return layoutStraight(policies.map((p) => p.path));
+    return mode === "straight" ? layoutStraight(paths) : layoutFlexible(paths);
+  }, [mode, paths, policies]);
+
+  // Center target: origin when visible, else the end of the most frequent policy route.
   const origin = useMemo(() => pickOrigin(paths), [paths]);
-  const originNode = origin ? layout.nodes.find((n) => n.id === origin) : undefined;
+  const centerId = useMemo(() => {
+    if (origin && layout.nodes.some((n) => n.id === origin)) return origin;
+    const top = policies[0];
+    if (!top) return null;
+    const hops = top.path.split(" ");
+    return hops[hops.length - 1] ?? null;
+  }, [origin, layout.nodes, policies]);
+  const originNode = centerId ? layout.nodes.find((n) => n.id === centerId) : undefined;
+
+  // In policy mode, how many raw paths end at each node (for the xN label).
+  const endCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of policies) {
+      const hops = p.path.split(" ");
+      const end = hops[hops.length - 1];
+      if (end) m.set(end, (m.get(end) ?? 0) + (p.count > 1 ? p.count : 0));
+    }
+    return m;
+  }, [policies]);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -100,7 +121,7 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
           <Network size={14} aria-hidden="true" className="text-primary" /> AS Path Topology
         </span>
         <div className="flex rounded border border-outline-variant bg-surface-container-high p-0.5" role="group" aria-label="AS path layout mode">
-          {(["straight", "flexible"] as const).map((m) => (
+          {(["straight", "flexible", "policy"] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -174,6 +195,9 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
                 >
                   <span className="font-bold">AS{n.id}</span>
                   {m && <span className="ml-1 text-[10px] text-on-surface-variant">{m.name}</span>}
+                  {mode === "policy" && (endCounts.get(n.id) ?? 0) > 1 && (
+                    <span className="ml-1 text-[10px] text-primary">×{endCounts.get(n.id)}</span>
+                  )}
                 </button>
                 {hovered === n.id && (
                   <span

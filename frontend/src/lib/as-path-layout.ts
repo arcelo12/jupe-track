@@ -123,3 +123,43 @@ export function centerOffset(
     ty: viewport.h / 2 - point.y * zoom,
   };
 }
+
+/**
+ * Tier-1 ASN set. Source: Wikipedia "Tier 1 network" (universally recognized list)
+ * plus Cogent (174), chosen by the user. Secondary source; revisit on real data.
+ */
+export const TIER1_ASNS: ReadonlySet<string> = new Set([
+  "7018", "3320", "3257", "6830", "3356", "2914", "5511", "3491",
+  "6453", "6762", "1299", "12956", "701", "6461", "174",
+]);
+
+/**
+ * Cut a hop list at the rightmost Tier-1 AS (nearest the origin), inclusive.
+ * Returns the hops unchanged when no Tier-1 hop is present.
+ */
+export function truncateToTier1(hops: string[], tier1: ReadonlySet<string>): string[] {
+  for (let i = hops.length - 1; i >= 0; i--) {
+    if (tier1.has(hops[i])) return hops.slice(0, i + 1);
+  }
+  return hops;
+}
+
+/**
+ * Truncate each path at its last Tier-1 AS, merge identical results, count them.
+ * Sorted by count descending, then by path string ascending.
+ */
+export function groupPolicies(
+  paths: string[],
+  tier1: ReadonlySet<string>
+): { path: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const p of paths) {
+    const hops = truncateToTier1(parseAsPath(p), tier1);
+    if (hops.length === 0) continue;
+    const key = hops.join(" ");
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([path, count]) => ({ path, count }))
+    .sort((a, b) => b.count - a.count || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+}
