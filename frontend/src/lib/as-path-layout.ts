@@ -183,3 +183,18 @@ export function topPolicies<T>(groups: T[], n: number): { shown: T[]; hidden: nu
 
 /** Max policy routes drawn in the graph. Beyond this the canvas grows past the fixed viewport. */
 export const POLICY_MAX_ROUTES = 5;
+
+/** Node width by container width: smaller cards on narrow screens. */
+export function nodeWidthFor(containerWidth: number): number {
+  return containerWidth < 640 ? 88 : 120;
+}
+
+/** Pointer movement below this stays a click; at or above it becomes a drag. */
+export const DRAG_THRESHOLD_PX = 6;
+
+export function panAfterDrag(
+  start: { x: number; y: number },
+  delta: { x: number; y: number }
+): { x: number; y: number } {
+  return { x: start.x + delta.x, y: start.y + delta.y };
+}

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies, isTier1, reverseForDisplay, topPolicies } from "../.test-build/as-path-layout.js";
+import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies, isTier1, reverseForDisplay, topPolicies, nodeWidthFor, panAfterDrag, DRAG_THRESHOLD_PX } from "../.test-build/as-path-layout.js";
 
 // parse: drop I/E/? flags and bracket chars, keep order
 assert.deepEqual(parseAsPath("7018 3356 15169"), ["7018", "3356", "15169"]);
@@ -81,5 +81,16 @@ const groupsSample = [{path:"a",count:5},{path:"b",count:3},{path:"c",count:1}];
 assert.deepEqual(topPolicies(groupsSample, 2), { shown: [{path:"a",count:5},{path:"b",count:3}], hidden: 1 });
 assert.deepEqual(topPolicies(groupsSample, 10), { shown: groupsSample, hidden: 0 });
 assert.deepEqual(topPolicies([], 3), { shown: [], hidden: 0 });
+
+// nodeWidthFor: 88 below 640px container, 120 otherwise
+assert.equal(nodeWidthFor(390), 88);
+assert.equal(nodeWidthFor(639), 88);
+assert.equal(nodeWidthFor(640), 120);
+assert.equal(nodeWidthFor(1280), 120);
+
+// drag threshold and pan accumulation
+assert.equal(DRAG_THRESHOLD_PX, 6);
+assert.deepEqual(panAfterDrag({ x: 0, y: 0 }, { x: 30, y: -12 }), { x: 30, y: -12 });
+assert.deepEqual(panAfterDrag({ x: 10, y: 5 }, { x: -4, y: 2 }), { x: 6, y: 7 });
 
 console.log("as-path-layout: all assertions passed");

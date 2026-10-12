@@ -3,13 +3,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Network } from "lucide-react";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
-import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, groupPolicies, isTier1, reverseForDisplay, topPolicies, POLICY_MAX_ROUTES, TIER1_ASNS, type Layout } from "@/lib/as-path-layout";
+import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, groupPolicies, isTier1, reverseForDisplay, topPolicies, POLICY_MAX_ROUTES, TIER1_ASNS, nodeWidthFor, DRAG_THRESHOLD_PX, type Layout } from "@/lib/as-path-layout";
 import { CHART_EDGE, CHART_EDGE_FADED } from "@/lib/chart-colors";
 import { authFetch } from "@/lib/auth";
 
 type Mode = "straight" | "flexible" | "policy";
 const STORAGE_KEY = "jupetrack-as-path-mode";
-const NODE_W = 120;
 const NODE_H = 34;
 
 interface AsMapping {
@@ -34,6 +33,11 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
+  const nodeW = nodeWidthFor(viewport.w || 1280);
+  // Pan offset in screen px, added to the centered translate. Drag updates it.
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ x: number; y: number; moved: boolean; suppressClick: boolean } | null>(null);
+  const suppressClickRef = useRef(false);
   const [mappings, setMappings] = useState<Record<string, AsMapping>>({});
 
   useEffect(() => {
@@ -107,15 +111,16 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
   if (prevKey.mode !== mode || prevKey.paths !== paths) {
     setPrevKey({ mode, paths });
     setZoom(1);
+    setPan({ x: 0, y: 0 });
   }
 
   // Center the node's midpoint, not its top-left corner.
   const off = originNode && viewport.w > 0
-    ? centerOffset({ x: originNode.x + NODE_W / 2, y: originNode.y + NODE_H / 2 }, zoom, viewport)
+    ? centerOffset({ x: originNode.x + nodeW / 2, y: originNode.y + NODE_H / 2 }, zoom, viewport)
     : { tx: 0, ty: 0 };
 
   const zoomBy = (delta: number) => setZoom((z) => clampZoom(z + delta));
-  const reset = () => setZoom(1);
+  const reset = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
 
   if (layout.nodes.length === 0) return null;
 
@@ -146,8 +151,37 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
       <div className="overflow-x-auto">
         <div
           ref={viewportRef}
-          style={{ height: Math.max(320, layout.height + 24) }}
-          className="relative overflow-hidden"
+          style={{ height: Math.min(480, Math.max(320, layout.height + 24)), touchAction: "none" }}
+          className="relative select-none overflow-hidden"
+          onPointerDown={(e) => {
+            if (e.button !== 0) return;
+            dragRef.current = { x: e.clientX, y: e.clientY, moved: false, suppressClick: false };
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            const d = dragRef.current;
+            if (!d) return;
+            const dx = e.clientX - d.x;
+            const dy = e.clientY - d.y;
+            if (!d.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+            if (!d.moved) {
+              d.moved = true;
+              d.suppressClick = true;
+            }
+            d.x = e.clientX;
+            d.y = e.clientY;
+            setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
+          }}
+          onPointerUp={() => {
+            const d = dragRef.current;
+            dragRef.current = null;
+            if (d && d.moved) {
+              // Swallow the click that follows a real drag; reset on the next tick.
+              suppressClickRef.current = true;
+              setTimeout(() => { suppressClickRef.current = false; }, 0);
+            }
+          }}
+          onPointerCancel={() => { dragRef.current = null; }}
           onWheel={(e) => {
             if (!e.ctrlKey && !e.metaKey) return;
             e.preventDefault();
@@ -159,7 +193,7 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
             style={{
               width: layout.width,
               height: layout.height,
-              transform: `translate(${off.tx}px, ${off.ty}px) scale(${zoom})`,
+              transform: `translate(${off.tx + pan.x}px, ${off.ty + pan.y}px) scale(${zoom})`,
             }}
           >
           <svg className="pointer-events-none absolute inset-0" width={layout.width} height={layout.height} aria-hidden="true">
@@ -172,7 +206,7 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
               const a = nodeById.get(e.from);
               const b = nodeById.get(e.to);
               if (!a || !b) return null;
-              const x1 = a.x + NODE_W;
+              const x1 = a.x + nodeW;
               const y1 = a.y + NODE_H / 2;
               const x2 = b.x;
               const y2 = b.y + NODE_H / 2;
@@ -194,12 +228,12 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
           {layout.nodes.map((n) => {
             const m = mappings[n.id];
             return (
-              <div key={n.id} className="absolute" style={{ left: n.x, top: n.y, width: NODE_W, height: NODE_H }}>
+              <div key={n.id} className="absolute" style={{ left: n.x, top: n.y, width: nodeW, height: NODE_H }}>
                 <button
                   type="button"
                   onMouseEnter={() => setHovered(n.id)}
                   onMouseLeave={() => setHovered(null)}
-                  onClick={() => setSelected(n.id === selected ? null : n.id)}
+                  onClick={() => { if (suppressClickRef.current) return; setSelected(n.id === selected ? null : n.id); }}
                   className={`h-full w-full truncate rounded border px-2 text-left font-mono text-xs transition-[transform,colors] duration-150 hover:scale-110 ${selected === n.id ? "border-primary bg-primary/15 text-primary" : "border-outline-variant bg-surface-container-low text-on-surface hover:border-primary/50"}`}
                 >
                   <span className="font-bold">AS{n.id}</span>
