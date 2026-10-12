@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies, isTier1, reverseForDisplay, topPolicies, nodeWidthFor, panAfterDrag, DRAG_THRESHOLD_PX } from "../.test-build/as-path-layout.js";
+import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies, isTier1, reverseForDisplay, topPolicies, nodeWidthFor, panAfterDrag, DRAG_THRESHOLD_PX, tier1RoutesOnly, tier1Name } from "../.test-build/as-path-layout.js";
 
 // parse: drop I/E/? flags and bracket chars, keep order
 assert.deepEqual(parseAsPath("7018 3356 15169"), ["7018", "3356", "15169"]);
@@ -92,5 +92,23 @@ assert.equal(nodeWidthFor(1280), 120);
 assert.equal(DRAG_THRESHOLD_PX, 6);
 assert.deepEqual(panAfterDrag({ x: 0, y: 0 }, { x: 30, y: -12 }), { x: 30, y: -12 });
 assert.deepEqual(panAfterDrag({ x: 10, y: 5 }, { x: -4, y: 2 }), { x: 6, y: 7 });
+
+// tier1RoutesOnly: keep routes whose truncated path ends at a Tier-1, merged and sorted
+const t1 = tier1RoutesOnly(["7018 3356 13335", "7018 3356 15169", "1299 13335", "13335 15169", "6461 50673"]);
+assert.deepEqual(t1, [
+  { path: "7018 3356", count: 2 },
+  { path: "1299", count: 1 },
+  { path: "6461", count: 1 },
+].sort((a, b) => b.count - a.count || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)));
+assert.deepEqual(tier1RoutesOnly([]), []);
+assert.deepEqual(tier1RoutesOnly(["13335 15169"]), [], "no tier-1 -> dropped");
+
+// tier1Name: built-in names for the 15 Tier-1 ASNs
+assert.equal(tier1Name("3356"), "Lumen");
+assert.equal(tier1Name("1299"), "Arelion");
+assert.equal(tier1Name("13335"), null);
+for (const asn of ["7018","3320","3257","6830","3356","2914","5511","3491","6453","6762","1299","12956","701","6461","174"]) {
+  assert.ok(tier1Name(asn), `name for ${asn}`);
+}
 
 console.log("as-path-layout: all assertions passed");

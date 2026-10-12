@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Network } from "lucide-react";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
-import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, groupPolicies, isTier1, reverseForDisplay, topPolicies, POLICY_MAX_ROUTES, TIER1_ASNS, nodeWidthFor, DRAG_THRESHOLD_PX, type Layout } from "@/lib/as-path-layout";
+import { layoutFlexible, layoutStraight, pickOrigin, centerOffset, clampZoom, tier1RoutesOnly, tier1Name, isTier1, reverseForDisplay, nodeWidthFor, DRAG_THRESHOLD_PX, type Layout } from "@/lib/as-path-layout";
 import { CHART_EDGE, CHART_EDGE_FADED } from "@/lib/chart-colors";
 import { authFetch } from "@/lib/auth";
 
@@ -59,12 +59,8 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
     } catch {}
   };
 
-  const allPolicies = useMemo(() => groupPolicies(paths, TIER1_ASNS), [paths]);
-  // Cap drawn routes so the canvas stays inside the fixed viewport (real data gave 272 routes).
-  const { shown: policies, hidden: policiesHidden } = useMemo(
-    () => topPolicies(allPolicies, POLICY_MAX_ROUTES),
-    [allPolicies]
-  );
+  // Policy mode: every route that ends at a Tier-1 hop. Drag and the height clamp reach all rows.
+  const policies = useMemo(() => tier1RoutesOnly(paths), [paths]);
 
   const layout: Layout = useMemo(() => {
     // Origin on the left, path flows outward to the right (bgp.tools style).
@@ -122,7 +118,8 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
   const zoomBy = (delta: number) => setZoom((z) => clampZoom(z + delta));
   const reset = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
 
-  if (layout.nodes.length === 0) return null;
+  // Policy with no Tier-1 route still renders the header so the empty-state note shows.
+  if (layout.nodes.length === 0 && mode !== "policy") return null;
 
   const nodeById = new Map(layout.nodes.map((n) => [n.id, n]));
   const selectedMapping = selected ? mappings[selected] : undefined;
@@ -250,7 +247,7 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
                     <span className="font-bold">AS{n.id}</span>
                     {n.id === origin && <span className="ml-1 text-primary">origin</span>}
                     {isTier1(n.id) && <span className="ml-1 text-primary">Tier-1</span>}
-                    {m && <span className="ml-1 text-on-surface-variant">{m.name} · {m.type}</span>}
+                    {(m?.name ?? tier1Name(n.id)) && <span className="ml-1 text-on-surface-variant">{m?.name ?? tier1Name(n.id)}{m ? ` · ${m.type}` : ""}</span>}
                   </span>
                 )}
               </div>
@@ -258,10 +255,8 @@ export function LookupAsPathGraph({ paths }: { paths: string[] }) {
           })}
           </div>
         </div>
-        {mode === "policy" && policiesHidden > 0 && (
-          <p className="mt-2 text-[11px] text-on-surface-variant">
-            Showing top {policies.length} of {allPolicies.length} routes. {policiesHidden} less common hidden.
-          </p>
+        {mode === "policy" && policies.length === 0 && (
+          <p className="mt-2 text-[11px] text-on-surface-variant">No Tier-1 routes in this result</p>
         )}
         <div className="mt-2 flex justify-end gap-1">
           <button type="button" aria-label="Zoom in" onClick={() => zoomBy(0.25)} className="rounded border border-outline-variant p-1 text-on-surface-variant hover:text-on-surface"><ZoomIn size={14} aria-hidden="true" /></button>

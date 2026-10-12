@@ -198,3 +198,45 @@ export function panAfterDrag(
 ): { x: number; y: number } {
   return { x: start.x + delta.x, y: start.y + delta.y };
 }
+
+/** Built-in names for the Tier-1 list (secondary source, Wikipedia). */
+const TIER1_NAME_MAP: ReadonlyMap<string, string> = new Map([
+  ["7018", "AT&T"],
+  ["3320", "Deutsche Telekom Global Carrier"],
+  ["3257", "GTT"],
+  ["6830", "Liberty Global"],
+  ["3356", "Lumen"],
+  ["2914", "NTT"],
+  ["5511", "Orange"],
+  ["3491", "PCCW Global"],
+  ["6453", "Tata Communications"],
+  ["6762", "Telecom Italia Sparkle"],
+  ["1299", "Arelion"],
+  ["12956", "Telxius"],
+  ["701", "Verizon"],
+  ["6461", "Zayo"],
+  ["174", "Cogent"],
+]);
+
+/** Built-in name for a Tier-1 ASN, or null when the ASN is not Tier-1. */
+export function tier1Name(asn: string): string | null {
+  return TIER1_NAME_MAP.get(asn) ?? null;
+}
+
+/**
+ * Only routes whose truncated path ends at a Tier-1 hop. Identical routes merge with a count.
+ * Sorted by count desc, then path asc.
+ */
+export function tier1RoutesOnly(paths: string[]): { path: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const p of paths) {
+    const hops = truncateToTier1(parseAsPath(p), TIER1_ASNS);
+    const last = hops[hops.length - 1];
+    if (!last || !TIER1_ASNS.has(last)) continue;
+    const key = hops.join(" ");
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([path, count]) => ({ path, count }))
+    .sort((a, b) => b.count - a.count || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+}
