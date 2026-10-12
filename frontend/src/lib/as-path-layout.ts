@@ -138,34 +138,15 @@ export function isTier1(asn: string): boolean {
 }
 
 /**
- * Cut a hop list at the rightmost Tier-1 AS (nearest the origin), inclusive.
- * Returns the hops unchanged when no Tier-1 hop is present.
+ * Keep the origin side: from the rightmost Tier-1 AS (nearest the origin) to the
+ * end of the hop list. The internet side before that Tier-1 is dropped, matching
+ * bgp.tools. Returns the hops unchanged when no Tier-1 hop is present.
  */
 export function truncateToTier1(hops: string[], tier1: ReadonlySet<string>): string[] {
   for (let i = hops.length - 1; i >= 0; i--) {
-    if (tier1.has(hops[i])) return hops.slice(0, i + 1);
+    if (tier1.has(hops[i])) return hops.slice(i);
   }
   return hops;
-}
-
-/**
- * Truncate each path at its last Tier-1 AS, merge identical results, count them.
- * Sorted by count descending, then by path string ascending.
- */
-export function groupPolicies(
-  paths: string[],
-  tier1: ReadonlySet<string>
-): { path: string; count: number }[] {
-  const counts = new Map<string, number>();
-  for (const p of paths) {
-    const hops = truncateToTier1(parseAsPath(p), tier1);
-    if (hops.length === 0) continue;
-    const key = hops.join(" ");
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([path, count]) => ({ path, count }))
-    .sort((a, b) => b.count - a.count || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
 /**
@@ -175,14 +156,6 @@ export function groupPolicies(
 export function reverseForDisplay(path: string): string {
   return parseAsPath(path).reverse().join(" ");
 }
-
-/** Keep the n most frequent policy routes. Groups must already be sorted by count desc. */
-export function topPolicies<T>(groups: T[], n: number): { shown: T[]; hidden: number } {
-  return { shown: groups.slice(0, n), hidden: Math.max(0, groups.length - n) };
-}
-
-/** Max policy routes drawn in the graph. Beyond this the canvas grows past the fixed viewport. */
-export const POLICY_MAX_ROUTES = 5;
 
 /** Node width by container width: smaller cards on narrow screens. */
 export function nodeWidthFor(containerWidth: number): number {
@@ -231,8 +204,9 @@ export function tier1RoutesOnly(paths: string[]): { path: string; count: number 
   const counts = new Map<string, number>();
   for (const p of paths) {
     const hops = truncateToTier1(parseAsPath(p), TIER1_ASNS);
-    const last = hops[hops.length - 1];
-    if (!last || !TIER1_ASNS.has(last)) continue;
+    // Rows now start at the Tier-1 hop (origin side). Row with no Tier-1 hop is dropped.
+    const first = hops[0];
+    if (!first || !TIER1_ASNS.has(first)) continue;
     const key = hops.join(" ");
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }

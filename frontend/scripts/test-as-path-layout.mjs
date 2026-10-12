@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, groupPolicies, isTier1, reverseForDisplay, topPolicies, nodeWidthFor, panAfterDrag, DRAG_THRESHOLD_PX, tier1RoutesOnly, tier1Name } from "../.test-build/as-path-layout.js";
+import { parseAsPath, layoutStraight, layoutFlexible, pickOrigin, centerOffset, clampZoom, TIER1_ASNS, truncateToTier1, isTier1, reverseForDisplay, nodeWidthFor, panAfterDrag, DRAG_THRESHOLD_PX, tier1RoutesOnly, tier1Name } from "../.test-build/as-path-layout.js";
 
 // parse: drop I/E/? flags and bracket chars, keep order
 assert.deepEqual(parseAsPath("7018 3356 15169"), ["7018", "3356", "15169"]);
@@ -54,18 +54,13 @@ for (const z of [1, 2]) {
 assert.equal(TIER1_ASNS.size, 15);
 assert.ok(TIER1_ASNS.has("3356") && TIER1_ASNS.has("174") && !TIER1_ASNS.has("13335"));
 
-// truncateToTier1: cut after rightmost tier-1 hop; keep whole when none
-assert.deepEqual(truncateToTier1(["7018", "3356", "13335"], TIER1_ASNS), ["7018", "3356"]);
-assert.deepEqual(truncateToTier1(["7018", "3356", "6461", "50673"], TIER1_ASNS), ["7018", "3356", "6461"]);
-assert.deepEqual(truncateToTier1(["3356", "13335"], TIER1_ASNS), ["3356"], "tier-1 origin side kept");
+// truncateToTier1: keep from rightmost tier-1 hop to origin; keep whole when none
+assert.deepEqual(truncateToTier1(["917", "931", "1299", "13335"], TIER1_ASNS), ["1299", "13335"]);
+assert.deepEqual(truncateToTier1(["20205", "1299", "13335"], TIER1_ASNS), ["1299", "13335"]);
+assert.deepEqual(truncateToTier1(["3356", "13335"], TIER1_ASNS), ["3356", "13335"], "rightmost tier-1 to origin");
+assert.deepEqual(truncateToTier1(["3356"], TIER1_ASNS), ["3356"], "tier-1 only");
 assert.deepEqual(truncateToTier1(["13335", "15169"], TIER1_ASNS), ["13335", "15169"], "no tier-1 kept whole");
 
-// groupPolicies: identical truncated paths merge, count desc then path asc
-const g = groupPolicies(["7018 3356 13335", "7018 3356 15169", "1299 6453 2497", "7018 3356 13335 I"], TIER1_ASNS);
-assert.deepEqual(g[0], { path: "7018 3356", count: 3 });
-assert.deepEqual(g[1], { path: "1299 6453", count: 1 });
-assert.equal(g.length, 2);
-assert.deepEqual(groupPolicies([], TIER1_ASNS), []);
 
 // isTier1 for tooltip label
 assert.equal(isTier1("3356"), true);
@@ -76,11 +71,6 @@ assert.equal(reverseForDisplay("7018 3356 13335"), "13335 3356 7018");
 assert.equal(reverseForDisplay("  1299 13335 I"), "13335 1299");
 assert.equal(reverseForDisplay(""), "");
 
-// topPolicies: keep the n most frequent routes, report how many were left out
-const groupsSample = [{path:"a",count:5},{path:"b",count:3},{path:"c",count:1}];
-assert.deepEqual(topPolicies(groupsSample, 2), { shown: [{path:"a",count:5},{path:"b",count:3}], hidden: 1 });
-assert.deepEqual(topPolicies(groupsSample, 10), { shown: groupsSample, hidden: 0 });
-assert.deepEqual(topPolicies([], 3), { shown: [], hidden: 0 });
 
 // nodeWidthFor: 88 below 640px container, 120 otherwise
 assert.equal(nodeWidthFor(390), 88);
@@ -94,11 +84,15 @@ assert.deepEqual(panAfterDrag({ x: 0, y: 0 }, { x: 30, y: -12 }), { x: 30, y: -1
 assert.deepEqual(panAfterDrag({ x: 10, y: 5 }, { x: -4, y: 2 }), { x: 6, y: 7 });
 
 // tier1RoutesOnly: keep routes whose truncated path ends at a Tier-1, merged and sorted
-const t1 = tier1RoutesOnly(["7018 3356 13335", "7018 3356 15169", "1299 13335", "13335 15169", "6461 50673"]);
+const t1 = tier1RoutesOnly([
+  "7018 3356 13335", "7018 3356 13335", "7018 3356 15169",
+  "1299 13335", "13335 15169", "6461 50673", "20205 1299 13335",
+]);
 assert.deepEqual(t1, [
-  { path: "7018 3356", count: 2 },
-  { path: "1299", count: 1 },
-  { path: "6461", count: 1 },
+  { path: "1299 13335", count: 2 },
+  { path: "3356 13335", count: 2 },
+  { path: "3356 15169", count: 1 },
+  { path: "6461 50673", count: 1 },
 ].sort((a, b) => b.count - a.count || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)));
 assert.deepEqual(tier1RoutesOnly([]), []);
 assert.deepEqual(tier1RoutesOnly(["13335 15169"]), [], "no tier-1 -> dropped");
