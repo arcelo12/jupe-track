@@ -242,6 +242,7 @@ func parseInterfaces(replyXML string) ([]cache.InterfaceStat, error) {
 		Interfaces []struct {
 			Name        string `xml:"name"`
 			Description string `xml:"description"`
+			SnmpIndex   string `xml:"snmp-index"`
 			AdminStatus string `xml:"admin-status"`
 			OperStatus  string `xml:"oper-status"`
 			BpsIn       int64  `xml:"traffic-statistics>input-bps"`
@@ -249,6 +250,7 @@ func parseInterfaces(replyXML string) ([]cache.InterfaceStat, error) {
 			Logicals    []struct {
 				Name        string `xml:"name"`
 				Description string `xml:"description"`
+				SnmpIndex   string `xml:"snmp-index"`
 				AdminStatus string `xml:"admin-status"`
 				OperStatus  string `xml:"oper-status"`
 				BpsIn       int64  `xml:"transit-traffic-statistics>input-bps"`
@@ -274,6 +276,7 @@ func parseInterfaces(replyXML string) ([]cache.InterfaceStat, error) {
 		iface := cache.InterfaceStat{
 			Name:        name,
 			Description: strings.TrimSpace(i.Description),
+			IfIndex:     strings.TrimSpace(i.SnmpIndex),
 			AdminStatus: strings.TrimSpace(i.AdminStatus),
 			OperStatus:  strings.TrimSpace(i.OperStatus),
 			BpsIn:       i.BpsIn,
@@ -296,6 +299,7 @@ func parseInterfaces(replyXML string) ([]cache.InterfaceStat, error) {
 			logicalIface := cache.InterfaceStat{
 				Name:        liName,
 				Description: strings.TrimSpace(li.Description),
+				IfIndex:     strings.TrimSpace(li.SnmpIndex),
 				AdminStatus: liAdmin,
 				OperStatus:  liOper,
 				BpsIn:       li.BpsIn,

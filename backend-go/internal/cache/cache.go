@@ -24,6 +24,7 @@ type BGPPeer struct {
 type InterfaceStat struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	IfIndex     string `json:"if_index"`
 	Type        string `json:"type"`
 	AdminStatus string `json:"admin_status"`
 	OperStatus  string `json:"oper_status"`

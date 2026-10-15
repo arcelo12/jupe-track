@@ -260,8 +260,9 @@ func PushToVictoriaMetrics(bgp []cache.BGPPeer, ifaces []cache.InterfaceStat, de
 	}
 
 	for _, i := range ifaces {
-		buffer.WriteString(fmt.Sprintf("jupetrack_interface_bps_in{interface=\"%s\", type=\"%s\"} %d\n", i.Name, i.Type, i.BpsIn))
-		buffer.WriteString(fmt.Sprintf("jupetrack_interface_bps_out{interface=\"%s\", type=\"%s\"} %d\n", i.Name, i.Type, i.BpsOut))
+		cleanDesc := strings.ReplaceAll(i.Description, `"`, `\"`)
+		buffer.WriteString(fmt.Sprintf("jupetrack_interface_bps_in{interface=\"%s\", description=\"%s\", if_index=\"%s\", type=\"%s\"} %d\n", i.Name, cleanDesc, i.IfIndex, i.Type, i.BpsIn))
+		buffer.WriteString(fmt.Sprintf("jupetrack_interface_bps_out{interface=\"%s\", description=\"%s\", if_index=\"%s\", type=\"%s\"} %d\n", i.Name, cleanDesc, i.IfIndex, i.Type, i.BpsOut))
 	}
 
 	if devStatus != nil {
