@@ -56,3 +56,35 @@ func TestParseJunosBandwidth(t *testing.T) {
 		}
 	}
 }
+
+func TestParsePolicerXMLConfig(t *testing.T) {
+	reply := `<rpc-reply xmlns:junos="http://xml.juniper.net/junos/22.3R3/junos">
+  <configuration xmlns="http://xml.juniper.net/xnm/1.1/xnm" junos:changed-localtime="...">
+    <firewall>
+      <policer>
+        <name>LIMIT-1G</name>
+        <if-exceeding>
+          <bandwidth-limit>1g</bandwidth-limit>
+          <burst-size-limit>15k</burst-size-limit>
+        </if-exceeding>
+      </policer>
+      <policer>
+        <name>LIMIT-100M</name>
+        <if-exceeding>
+          <bandwidth-limit>100m</bandwidth-limit>
+        </if-exceeding>
+      </policer>
+    </firewall>
+  </configuration>
+</rpc-reply>`
+	limits := parsePolicerXMLConfig(reply, "global")
+	if len(limits) != 2 {
+		t.Fatalf("got %d limits, want 2: %+v", len(limits), limits)
+	}
+	if limits[0].Name != "LIMIT-1G" || limits[0].BandwidthBps != 1_000_000_000 {
+		t.Errorf("limits[0] = %+v", limits[0])
+	}
+	if limits[1].Name != "LIMIT-100M" || limits[1].BandwidthBps != 100_000_000 {
+		t.Errorf("limits[1] = %+v", limits[1])
+	}
+}

@@ -1,7 +1,9 @@
 package scraper
 
 import (
+	"encoding/xml"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -19,9 +21,8 @@ type PolicerLimit struct {
 }
 
 // FetchPolicerLimits reads every configured policer's bandwidth-limit.
-// `show firewall policer` output does not include limits, so the
-// configuration tree is queried via CLI `| display set` (compact, no XML
-// nesting pitfalls) and parsed line by line.
+// Uses `| display xml` (the pattern proven working over NETCONF in
+// policy.go); `| display set` triggers 'syntax error' on MX204 NETCONF.
 func FetchPolicerLimits(logicalSystem string) ([]PolicerLimit, error) {
 	if logicalSystem == "" {
 		logicalSystem = "global"
@@ -31,15 +32,50 @@ func FetchPolicerLimits(logicalSystem string) ([]PolicerLimit, error) {
 		return nil, fmt.Errorf("invalid logical_system: %v", err)
 	}
 
-	cmd := "show configuration firewall policer | display set"
+	cmd := "show configuration firewall policer | display xml"
 	if sanitized != "global" {
-		cmd = fmt.Sprintf("show configuration logical-systems %s firewall policer | display set", sanitized)
+		cmd = fmt.Sprintf("show configuration logical-systems %s firewall policer | display xml", sanitized)
 	}
 	out, err := junos.RunCLICommand(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("policer config fetch failed: %v", err)
 	}
-	return parsePolicerSetOutput(out, sanitized), nil
+	return parsePolicerXMLConfig(out, sanitized), nil
+}
+
+// parsePolicerXMLConfig parses `show configuration firewall policer | display xml`:
+//
+//	<configuration><firewall><policer><name>P1</name><if-exceeding>
+//
+// <bandwidth-limit>1g</bandwidth-limit>... (encoding/xml matches on
+// local names, so Junos namespace prefixes are ignored automatically).
+func parsePolicerXMLConfig(replyXML, logicalSystem string) []PolicerLimit {
+	var resp struct {
+		Policers []struct {
+			Name        string `xml:"name"`
+			IfExceeding struct {
+				BandwidthLimit string `xml:"bandwidth-limit"`
+			} `xml:"if-exceeding"`
+		} `xml:"configuration>firewall>policer"`
+	}
+	if err := xml.Unmarshal([]byte(replyXML), &resp); err != nil {
+		log.Printf("Policer config XML parse error: %v", err)
+		return nil
+	}
+	limits := make([]PolicerLimit, 0, len(resp.Policers))
+	for _, p := range resp.Policers {
+		name := strings.TrimSpace(p.Name)
+		bw := strings.TrimSpace(p.IfExceeding.BandwidthLimit)
+		if name == "" || bw == "" {
+			continue
+		}
+		limits = append(limits, PolicerLimit{
+			Name:          name,
+			LogicalSystem: logicalSystem,
+			BandwidthBps:  parseJunosBandwidth(bw),
+		})
+	}
+	return limits
 }
 
 // parsePolicerSetOutput parses lines like:
