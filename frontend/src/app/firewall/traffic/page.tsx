@@ -96,8 +96,10 @@ export default function FirewallTrafficPage() {
     );
   }
 
-  const maxBps = Math.max(...points.map((p) => p.bps), 1000000); // min 1M for scale
-  const limitMbps = 1000; // assumed 1Gbps policer, adjust based on real config later
+  const maxBps = Math.max(...points.map((p) => p.bps), 1000); // min 1 kbps scale
+  // Limit hardcoded 1000 Mbps hanya ditampilkan bila relevan (traffic mendekati limit).
+  const limitMbps = 1000;
+  const showLimit = maxBps > limitMbps * 1e6 * 0.05; // tampil hanya jika traffic > 5% limit
 
   return (
     <div className="space-y-4">
@@ -148,8 +150,7 @@ export default function FirewallTrafficPage() {
               fontSize={12}
             />
             <YAxis
-              domain={[0, maxBps * 1.2]}
-              tickFormatter={(v) => (v / 1e6).toFixed(0) + " M"}
+              tickFormatter={formatBps}
               label={{ value: "bps", angle: -90, position: "insideLeft" }}
               fontSize={12}
             />
@@ -167,12 +168,14 @@ export default function FirewallTrafficPage() {
               name="Throughput"
             />
             {/* Limit line via ReferenceLine: tampil di chart, tidak ikut tooltip data */}
-            <ReferenceLine
-              y={limitMbps * 1e6}
-              stroke="#ef4444"
-              strokeDasharray="4 4"
-              label={{ value: `Limit ${limitMbps} Mbps`, position: "insideTopRight", fontSize: 11 }}
-            />
+            {showLimit && (
+              <ReferenceLine
+                y={limitMbps * 1e6}
+                stroke="#ef4444"
+                strokeDasharray="4 4"
+                label={{ value: `Limit ${limitMbps} Mbps`, position: "insideTopRight", fontSize: 11 }}
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       </section>
