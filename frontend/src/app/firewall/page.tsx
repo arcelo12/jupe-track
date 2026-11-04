@@ -236,7 +236,7 @@ function FilterRow({ filter, ls }: { filter: FirewalFilter; ls: string }) {
         <Link
           href={`/firewall/traffic?filter=${encodeURIComponent(filter.name)}&ls=${encodeURIComponent(
             ls
-          )}`}
+          )}${filter.policers[0] ? `&policer=${encodeURIComponent(filter.policers[0].name)}` : ""}`}
           className="text-primary text-sm hover:underline"
         >
           View Chart →

@@ -31,6 +31,7 @@ export default function FirewallTrafficPage() {
   const filterName = searchParams.get("filter") || "";
   const counterName = searchParams.get("counter") || "";
   const ls = (searchParams.get("ls") ?? "global") as string;
+  const policerName = searchParams.get("policer") || "";
   const [hours, setHours] = useState<number>(1);
 
   const [points, setPoints] = useState<TrafficPoint[]>([]);
@@ -57,7 +58,7 @@ export default function FirewallTrafficPage() {
             ls
           )}&filter=${encodeURIComponent(filterName)}&counter=${encodeURIComponent(
             counterName
-          )}&hours=${hours}`
+          )}&hours=${hours}${policerName ? `&policer=${encodeURIComponent(policerName)}` : ""}`
         );
         if (!res.ok) throw new Error(`traffic: ${res.status}`);
         const json = await res.json();
@@ -79,7 +80,7 @@ export default function FirewallTrafficPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterName, counterName, ls, hours]);
+  }, [filterName, counterName, ls, hours, policerName]);
 
   if (loading && points.length === 0) {
     return (
