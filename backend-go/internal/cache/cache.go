@@ -2,6 +2,7 @@ package cache
 
 import (
 	"sync"
+	"time"
 
 	"github.com/arcelo12/jupe-track/backend-go/internal/metrics"
 )
@@ -46,6 +47,7 @@ type StateCache struct {
 	bgpPeers     map[string][]BGPPeer
 	interfaces   []InterfaceStat
 	deviceStatus *DeviceStatus
+	firewall     map[string][]FirewallFilter
 }
 
 // Global cache instance
@@ -134,4 +136,53 @@ func (c *StateCache) GetDeviceStatus() *DeviceStatus {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.deviceStatus
+}
+
+// FirewallCounter is a single counter entry of a firewall filter term.
+type FirewallCounter struct {
+	Name    string `json:"name"`
+	Bytes   uint64 `json:"bytes"`
+	Packets uint64 `json:"packets"`
+}
+
+// FirewallPolicer is a single policer entry with drop statistics.
+type FirewallPolicer struct {
+	Name           string `json:"name"`
+	BytesDropped   uint64 `json:"bytes_dropped"`
+	PacketsDropped uint64 `json:"packets_dropped"`
+}
+
+// FirewallFilter is a snapshot of one firewall filter with its counters and policers.
+type FirewallFilter struct {
+	Name          string            `json:"name"`
+	LogicalSystem string            `json:"logical_system"`
+	Counters      []FirewallCounter `json:"counters"`
+	Policers      []FirewallPolicer `json:"policers"`
+	Timestamp     time.Time         `json:"timestamp"`
+}
+
+// SetFirewall stores the latest firewall filter snapshot per logical system.
+func (c *StateCache) SetFirewall(system string, filters []FirewallFilter) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.firewall == nil {
+		c.firewall = make(map[string][]FirewallFilter)
+	}
+	if system == "" {
+		system = "global"
+	}
+	c.firewall[system] = filters
+}
+
+// GetFirewall returns the latest firewall snapshot for a logical system.
+func (c *StateCache) GetFirewall(system string) []FirewallFilter {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if system == "" {
+		system = "global"
+	}
+	filters := c.firewall[system]
+	out := make([]FirewallFilter, len(filters))
+	copy(out, filters)
+	return out
 }

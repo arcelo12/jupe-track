@@ -40,6 +40,7 @@ func SetupRoutes(r *gin.Engine) {
 	RegisterWebSocketRoutes(api)
 	RegisterLookupRoutes(api)
 	RegisterASMappingRoutes(api)
+	RegisterFirewallRoutes(api)
 	RegisterAPIKeyRoutes(api) // enforces JWT + admin internally
 	RegisterUserRoutes(api)   // enforces JWT + admin internally
 

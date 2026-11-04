@@ -103,6 +103,7 @@ func startWorkerLoop() {
 				bgScrape := currentSettings.BackgroundScrape
 				enableBGP := currentSettings.EnableBGP
 				enableInterfaces := currentSettings.EnableInterfaces
+				enableFirewall := currentSettings.EnableFirewall
 				mu.Unlock()
 
 				// If BackgroundScrape is disabled and no active users, skip this cycle
@@ -221,6 +222,19 @@ func startWorkerLoop() {
 				// Push to TSDB (only if we scraped anything)
 				if len(filteredBgpData) > 0 || len(filteredIfaceData) > 0 || devStatus != nil {
 					PushToVictoriaMetrics(filteredBgpData, filteredIfaceData, devStatus)
+
+					// Firewall filter/policer analytics (PRD: QoS per-customer)
+					if enableFirewall {
+						for _, sys := range systems {
+							fwData, err := FetchFirewall(sys)
+							if err == nil {
+								cache.GlobalCache.SetFirewall(sys, fwData)
+								PushFirewallToVictoriaMetrics(fwData)
+							} else {
+								log.Printf("Worker: firewall fetch error for %s: %v\n", sys, err)
+							}
+						}
+					}
 				}
 
 				// Update last scrape timestamps in DB
@@ -399,4 +413,45 @@ func TriggerScrape() {
 
 		log.Println("Worker: Manual scrape cycle completed.")
 	}()
+}
+
+// PushFirewallToVictoriaMetrics writes firewall counter/policer snapshots in
+// Prometheus text format. Counter bytes/packets are cumulative (monotonic);
+// rate()/irate() on the query side converts them to bps/pps.
+func PushFirewallToVictoriaMetrics(filters []cache.FirewallFilter) {
+	if len(filters) == 0 {
+		return
+	}
+	var buffer bytes.Buffer
+	for _, f := range filters {
+		ls := sanitizeLabel(f.LogicalSystem)
+		filter := sanitizeLabel(f.Name)
+		for _, c := range f.Counters {
+			term := sanitizeLabel(c.Name)
+			buffer.WriteString(fmt.Sprintf("jupetrack_firewall_counter_bytes_total{logical_system=\"%s\", filter=\"%s\", term=\"%s\"} %d\n", ls, filter, term, c.Bytes))
+			buffer.WriteString(fmt.Sprintf("jupetrack_firewall_counter_packets_total{logical_system=\"%s\", filter=\"%s\", term=\"%s\"} %d\n", ls, filter, term, c.Packets))
+		}
+		for _, p := range f.Policers {
+			name := sanitizeLabel(p.Name)
+			buffer.WriteString(fmt.Sprintf("jupetrack_firewall_policer_drop_bytes_total{logical_system=\"%s\", filter=\"%s\", policer=\"%s\"} %d\n", ls, filter, name, p.BytesDropped))
+			buffer.WriteString(fmt.Sprintf("jupetrack_firewall_policer_drop_packets_total{logical_system=\"%s\", filter=\"%s\", policer=\"%s\"} %d\n", ls, filter, name, p.PacketsDropped))
+		}
+	}
+	if buffer.Len() == 0 {
+		return
+	}
+	resp, err := http.Post("http://victoriametrics:8428/api/v1/import/prometheus", "text/plain", &buffer)
+	if err != nil {
+		log.Printf("Failed to push firewall metrics to TSDB: %v\n", err)
+		return
+	}
+	resp.Body.Close()
+}
+
+// sanitizeLabel escapes a value for use inside a Prometheus label string.
+func sanitizeLabel(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	s = strings.ReplaceAll(s, "\n", `\n`)
+	return s
 }

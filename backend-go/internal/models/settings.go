@@ -9,6 +9,7 @@ type ScraperSettings struct {
 	gorm.Model
 	EnableBGP              bool          `json:"enable_bgp" gorm:"default:true"`
 	EnableInterfaces       bool          `json:"enable_interfaces" gorm:"default:true"`
+	EnableFirewall         bool          `json:"enable_firewall" gorm:"default:false"`
 	ScrapeInterval         time.Duration `json:"scrape_interval" gorm:"default:30000000000"` // Default 30s
 	BackgroundScrape       bool          `json:"background_scrape" gorm:"default:false"`     // Only scrape when web users are active
 	RetentionDaysInterface int           `json:"retention_days_interface" gorm:"default:30"`

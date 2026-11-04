@@ -44,6 +44,7 @@ const (
 	ScopeReadMetrics      = "read:metrics"
 	ScopeReadDevice       = "read:device"
 	ScopeReadLookup       = "read:lookup"
+	ScopeReadFirewall     = "read:firewall"
 	ScopeReadAll          = "read:*" // wildcard: semua scope read:*
 	ScopeExecLookingGlass = "exec:looking-glass"
 )
@@ -56,6 +57,7 @@ func ValidScopes() []string {
 		ScopeReadMetrics,
 		ScopeReadDevice,
 		ScopeReadLookup,
+		ScopeReadFirewall,
 		ScopeReadAll,
 		ScopeExecLookingGlass,
 	}
