@@ -15,8 +15,9 @@ import (
 )
 
 // FetchFirewall collects firewall filter counters and policer drop stats.
-// It tries the native XML RPC first and falls back to CLI text output,
-// because some Junos versions do not expose get-firewall-filter-information.
+// Uses the CLI (`show firewall`) over NETCONF: Junos rejects the native
+// get-firewall-filter-information RPC without a filtername, so text output
+// is the reliable path for a full listing (verified on MX204).
 func FetchFirewall(logicalSystem string) ([]cache.FirewallFilter, error) {
 	if logicalSystem == "" {
 		logicalSystem = "global"
@@ -26,22 +27,6 @@ func FetchFirewall(logicalSystem string) ([]cache.FirewallFilter, error) {
 		return nil, fmt.Errorf("invalid logical_system: %v", err)
 	}
 
-	// 1) Try native RPC (available on many Junos releases).
-	lsPrefix := ""
-	if sanitized != "global" {
-		lsPrefix = fmt.Sprintf("logical-system %s ", sanitized)
-	}
-	rpcXML := fmt.Sprintf("<get-firewall-filter-information>%s</get-firewall-filter-information>", lsToStr(lsPrefix))
-	if reply, err := junos.RunNetconfRPC(rpcXML); err == nil {
-		if filters := parseFirewallXML(reply, sanitized); len(filters) > 0 {
-			return filters, nil
-		}
-		log.Println("Firewall: native RPC returned no data, falling back to CLI")
-	} else {
-		log.Printf("Firewall: native RPC failed (%v), falling back to CLI", err)
-	}
-
-	// 2) Fallback: CLI text output of `show firewall` (all filters, incl. policers).
 	cmd := "show firewall"
 	if sanitized != "global" {
 		cmd = fmt.Sprintf("show firewall logical-system %s", sanitized)
