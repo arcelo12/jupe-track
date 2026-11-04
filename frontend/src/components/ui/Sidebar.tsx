@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, ChevronLeft, ChevronRight, X, Globe, Bookmark, Users } from 'lucide-react';
+import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, ChevronLeft, ChevronRight, X, Globe, Bookmark, Users, Gauge } from 'lucide-react';
 import { useWebSocket } from '@/components/WebSocketProvider';
 import { useAuth } from '@/components/AuthProvider';
 import { authFetch } from '@/lib/auth';
@@ -73,6 +73,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen, m
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Interfaces', path: '/interfaces', icon: Network },
         { name: 'BGP Neighbors', path: '/bgp', icon: Handshake },
+        { name: 'QoS & Firewall', path: '/firewall', icon: Gauge },
       ]
     },
     {

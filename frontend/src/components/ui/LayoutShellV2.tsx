@@ -10,12 +10,13 @@ import { UiVersionSwitcher } from "@/components/UiVersionProvider";
 import { useWebSocket } from "@/components/WebSocketProvider";
 import AdminGuard from "@/components/ui/AdminGuard";
 import HeaderRefreshButton from "@/components/ui/HeaderRefreshButton";
-import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, Globe, Bookmark, Users } from "lucide-react";
+import { LayoutDashboard, Network, Handshake, ShieldAlert, Search, Settings, Archive, Compass, Globe, Bookmark, Users, Gauge } from "lucide-react";
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; "aria-hidden"?: boolean }>> = {
   "/": LayoutDashboard, "/interfaces": Network, "/bgp": Handshake, "/policy": ShieldAlert,
   "/lg": Search, "/route-lookup": Compass, "/lookup": Globe, "/settings": Settings,
   "/settings/users": Users, "/settings/retention": Archive, "/settings/as-mapping": Bookmark,
+  "/firewall": Gauge,
 };
 
 const GROUPS = [
@@ -23,6 +24,7 @@ const GROUPS = [
     { name: "Dashboard", path: "/" },
     { name: "Interfaces", path: "/interfaces" },
     { name: "BGP Neighbors", path: "/bgp" },
+    { name: "QoS & Firewall", path: "/firewall" },
   ]},
   { title: "Tools", items: [
     { name: "Routing Policy", path: "/policy" },
