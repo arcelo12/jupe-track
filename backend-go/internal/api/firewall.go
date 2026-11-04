@@ -8,11 +8,29 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/arcelo12/jupe-track/backend-go/internal/cache"
 	"github.com/gin-gonic/gin"
 )
+
+// getPolicerLimit resolves a policer bandwidth limit: try the requested
+// logical system first, then the LS embedded in live names ("__EXCH/...").
+func getPolicerLimit(sys, liveName string) (uint64, bool) {
+	if bw, ok := cache.GlobalCache.GetPolicerLimit(sys, liveName); ok {
+		return bw, true
+	}
+	if strings.HasPrefix(liveName, "__") {
+		if i := strings.Index(liveName, "/"); i > 2 {
+			ls := liveName[2:i]
+			if ls != sys {
+				return cache.GlobalCache.GetPolicerLimit(ls, liveName)
+			}
+		}
+	}
+	return 0, false
+}
 
 // RegisterFirewallRoutes exposes the QoS/firewall analytics endpoints.
 func RegisterFirewallRoutes(r *gin.RouterGroup) {
@@ -53,7 +71,7 @@ func RegisterFirewallRoutes(r *gin.RouterGroup) {
 					PacketsDropped: p.PacketsDropped,
 					IsDropping:     p.PacketsDropped > 0,
 				}
-				if bw, ok := cache.GlobalCache.GetPolicerLimit(sys, p.Name); ok && bw > 0 {
+				if bw, ok := getPolicerLimit(sys, p.Name); ok && bw > 0 {
 					ps.BandwidthBps = bw
 					ps.BandwidthHuman = humanBps(bw)
 				}
@@ -88,7 +106,7 @@ func RegisterFirewallRoutes(r *gin.RouterGroup) {
 		// Live policer bandwidth limit when known, else fallback query param.
 		var limitBps uint64
 		if pName := c.Query("policer"); pName != "" {
-			if bw, ok := cache.GlobalCache.GetPolicerLimit(sys, pName); ok {
+			if bw, ok := getPolicerLimit(sys, pName); ok {
 				limitBps = bw
 			}
 		}
