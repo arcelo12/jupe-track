@@ -117,11 +117,20 @@ func RegisterFirewallRoutes(r *gin.RouterGroup) {
 		}
 
 		// rate() over counter -> bytes/s; *8 -> bits/s. 5m lookbehind keeps
-		// the rate stable even with slow scrape intervals.
-		query := fmt.Sprintf(
-			`rate(jupetrack_firewall_counter_bytes_total{logical_system="%s",filter="%s",term="%s"}[5m]) * 8`,
-			sanitizePromLabel(sys), sanitizePromLabel(filterName), sanitizePromLabel(term),
-		)
+		// the rate stable even with slow scrape intervals. With an empty
+		// counter, aggregate every term of the filter into one series.
+		var query string
+		if term == "" {
+			query = fmt.Sprintf(
+				`sum(rate(jupetrack_firewall_counter_bytes_total{logical_system="%s",filter="%s"}[5m])) * 8`,
+				sanitizePromLabel(sys), sanitizePromLabel(filterName),
+			)
+		} else {
+			query = fmt.Sprintf(
+				`rate(jupetrack_firewall_counter_bytes_total{logical_system="%s",filter="%s",term="%s"}[5m]) * 8`,
+				sanitizePromLabel(sys), sanitizePromLabel(filterName), sanitizePromLabel(term),
+			)
+		}
 
 		step := c.DefaultQuery("step", "60s")
 		end := time.Now()
