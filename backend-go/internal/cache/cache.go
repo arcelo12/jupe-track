@@ -222,18 +222,25 @@ func (c *StateCache) GetPolicerLimits(system string) []PolicerLimitInfo {
 }
 
 // GetPolicerLimit finds the configured bandwidth of one policer by name.
-// Matched by exact name, or by suffix: filter-scoped policer names in the
-// output are prefixed with the filter path (e.g. __EXCH/FILTER/POLICER),
-// while config names are bare.
+// Live names are Junos-internal and carry the logical-system prefix plus a
+// suffix, e.g. live "__EXCH/LIMIT-1G-LIMIT-AS151583-DOWN" maps to config
+// policer "LIMIT-1G". Match rules, most specific first:
+//  1. exact match
+//  2. live name == "__<LS>/" + config name + optional "-<suffix>"
 func (c *StateCache) GetPolicerLimit(system, name string) (uint64, bool) {
-	for _, l := range c.GetPolicerLimits(system) {
+	limits := c.GetPolicerLimits(system)
+	for _, l := range limits {
 		if l.Name == name {
 			return l.BandwidthBps, true
 		}
 	}
-	// suffix match: config "POLICER-X" matches live "__EXCH/FILTER/POLICER-X"
-	for _, l := range c.GetPolicerLimits(system) {
-		if strings.HasSuffix(name, "/"+l.Name) {
+	// Strip the leading "__<LS>/" segment if present.
+	rest := name
+	if i := strings.Index(rest, "/"); i >= 0 && strings.HasPrefix(rest, "__") {
+		rest = rest[i+1:]
+	}
+	for _, l := range limits {
+		if rest == l.Name || strings.HasPrefix(rest, l.Name+"-") {
 			return l.BandwidthBps, true
 		}
 	}
