@@ -1,9 +1,7 @@
 package scraper
 
 import (
-	"encoding/xml"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -12,8 +10,6 @@ import (
 )
 
 // PolicerLimit is the configured bandwidth limit of one policer, in bps.
-// BandwidthPerPolicer mirrors firewall policer inheritance: logical-system
-// policers live under configuration>logical-systems>firewall>policer.
 type PolicerLimit struct {
 	Name          string `json:"name"`
 	LogicalSystem string `json:"logical_system"`
@@ -21,8 +17,14 @@ type PolicerLimit struct {
 }
 
 // FetchPolicerLimits reads every configured policer's bandwidth-limit.
-// Uses `| display xml` (the pattern proven working over NETCONF in
-// policy.go); `| display set` triggers 'syntax error' on MX204 NETCONF.
+//
+// Verified live on MX204 (Junos 22.2R3):
+//   - `show configuration firewall policer | display xml` fails with
+//     'syntax error' over NETCONF <command> (both set and xml variants).
+//   - `show configuration [logical-systems LS] firewall` (plain braces,
+//     no pipe) works and contains the full policer blocks.
+//
+// The braces output is parsed line by line; one command per logical system.
 func FetchPolicerLimits(logicalSystem string) ([]PolicerLimit, error) {
 	if logicalSystem == "" {
 		logicalSystem = "global"
@@ -32,104 +34,78 @@ func FetchPolicerLimits(logicalSystem string) ([]PolicerLimit, error) {
 		return nil, fmt.Errorf("invalid logical_system: %v", err)
 	}
 
-	cmd := "show configuration firewall policer | display xml"
+	cmd := "show configuration firewall"
 	if sanitized != "global" {
-		cmd = fmt.Sprintf("show configuration logical-systems %s firewall policer | display xml", sanitized)
+		cmd = fmt.Sprintf("show configuration logical-systems %s firewall", sanitized)
 	}
 	out, err := junos.RunCLICommand(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("policer config fetch failed: %v", err)
 	}
-	return parsePolicerXMLConfig(out, sanitized), nil
+	return parsePolicerBraces(out, sanitized), nil
 }
 
-// parsePolicerXMLConfig parses `show configuration firewall policer | display xml`:
+// parsePolicerBraces parses Junos braces-config output:
 //
-//	<configuration><firewall><policer><name>P1</name><if-exceeding>
+//	policer LIMIT-1G {
+//	    if-exceeding {
+//	        bandwidth-limit 900m;
+//	        burst-size-limit 4m;
+//	    }
+//	    then discard;
+//	}
 //
-// <bandwidth-limit>1g</bandwidth-limit>... (encoding/xml matches on
-// local names, so Junos namespace prefixes are ignored automatically).
-func parsePolicerXMLConfig(replyXML, logicalSystem string) []PolicerLimit {
-	var resp struct {
-		Policers []struct {
-			Name        string `xml:"name"`
-			IfExceeding struct {
-				BandwidthLimit string `xml:"bandwidth-limit"`
-			} `xml:"if-exceeding"`
-		} `xml:"configuration>firewall>policer"`
-	}
-	if err := xml.Unmarshal([]byte(replyXML), &resp); err != nil {
-		log.Printf("Policer config XML parse error: %v", err)
-		return nil
-	}
-	limits := make([]PolicerLimit, 0, len(resp.Policers))
-	for _, p := range resp.Policers {
-		name := strings.TrimSpace(p.Name)
-		bw := strings.TrimSpace(p.IfExceeding.BandwidthLimit)
-		if name == "" || bw == "" {
-			continue
-		}
-		limits = append(limits, PolicerLimit{
-			Name:          name,
-			LogicalSystem: logicalSystem,
-			BandwidthBps:  parseJunosBandwidth(bw),
-		})
-	}
-	return limits
-}
-
-// parsePolicerSetOutput parses lines like:
-//
-//	set firewall policer LIMIT-1G bandwidth-limit 1g
-//	set firewall policer LIMIT-1G burst-size-limit 15k
-//	set logical-systems EXCH firewall policer P1 bandwidth-limit 100m
-//
-// into PolicerLimit entries (bandwidth-limit only, converted to bps).
-func parsePolicerSetOutput(out, logicalSystem string) []PolicerLimit {
+// Tracks nesting depth so "bandwidth-limit" lines are only accepted inside
+// a policer's if-exceeding block, and returns one entry per policer.
+func parsePolicerBraces(out, logicalSystem string) []PolicerLimit {
 	limits := make([]PolicerLimit, 0)
-	seen := make(map[string]bool)
 
-	for _, line := range strings.Split(out, "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.Contains(line, "bandwidth-limit") {
+	var curName string
+	inPolicer := false
+	inIfExceeding := false
+	depth := 0
+
+	for _, raw := range strings.Split(out, "\n") {
+		line := strings.TrimSpace(raw)
+		line = strings.TrimSuffix(line, ";")
+
+		switch {
+		case strings.HasPrefix(line, "policer ") && strings.HasSuffix(line, "{"):
+			curName = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line, "policer "), "{"))
+			inPolicer = true
+			inIfExceeding = false
+			depth = 1
 			continue
 		}
-		fields := strings.Fields(line)
-		// Skip logical-systems tree when parsing the global config: entries
-		// there belong to a logical system, not the global instance.
-		hasLS := false
-		for _, f := range fields {
-			if f == "logical-systems" {
-				hasLS = true
-				break
+
+		if !inPolicer {
+			continue
+		}
+
+		depth += strings.Count(line, "{") - strings.Count(line, "}")
+
+		if strings.HasPrefix(line, "if-exceeding {") {
+			inIfExceeding = true
+			continue
+		}
+		if strings.HasPrefix(line, "bandwidth-limit ") && inIfExceeding {
+			val := strings.TrimSpace(strings.TrimPrefix(line, "bandwidth-limit "))
+			if curName != "" && val != "" {
+				limits = append(limits, PolicerLimit{
+					Name:          curName,
+					LogicalSystem: logicalSystem,
+					BandwidthBps:  parseJunosBandwidth(val),
+				})
 			}
-		}
-		if hasLS {
 			continue
 		}
-		// locate "policer <name>" and "bandwidth-limit <value>"
-		var name, value string
-		for i, f := range fields {
-			if f == "policer" && i+1 < len(fields) {
-				name = fields[i+1]
-			}
-			if f == "bandwidth-limit" && i+1 < len(fields) {
-				value = fields[i+1]
-			}
+
+		// Depth reached 0: policer block closed.
+		if depth <= 0 {
+			inPolicer = false
+			inIfExceeding = false
+			curName = ""
 		}
-		if name == "" || value == "" {
-			continue
-		}
-		key := logicalSystem + "/" + name
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		limits = append(limits, PolicerLimit{
-			Name:          name,
-			LogicalSystem: logicalSystem,
-			BandwidthBps:  parseJunosBandwidth(value),
-		})
 	}
 	return limits
 }
