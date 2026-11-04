@@ -242,9 +242,18 @@ function FilterRow({ filter, ls }: { filter: FirewalFilter; ls: string }) {
           View Chart →
         </Link>
       </div>
-      <div className="mt-2 text-xs text-muted-foreground">
-        Terms: {terms.slice(0, 5).join(", ")}
-        {terms.length > 5 ? ` (${terms.length - 5} more)` : ""}
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>Terms:</span>
+        {terms.length === 0 && <span>—</span>}
+        {terms.map((t) => (
+          <Link
+            key={t}
+            href={`/firewall/traffic?filter=${encodeURIComponent(filter.name)}&counter=${encodeURIComponent(t)}&ls=${encodeURIComponent(ls)}${filter.policers[0] ? `&policer=${encodeURIComponent(filter.policers[0].name)}` : ""}`}
+            className="rounded border px-1.5 py-0.5 text-primary hover:bg-muted"
+          >
+            {t}
+          </Link>
+        ))}
       </div>
     </div>
   );

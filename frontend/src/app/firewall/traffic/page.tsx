@@ -32,12 +32,41 @@ export default function FirewallTrafficPage() {
   const counterName = searchParams.get("counter") || "";
   const ls = (searchParams.get("ls") ?? "global") as string;
   const policerName = searchParams.get("policer") || "";
+  const [terms, setTerms] = useState<string[]>([]);
+  const [counterOverride, setCounterOverride] = useState<string | null>(null);
+  const activeCounter = counterOverride ?? counterName;
   const [hours, setHours] = useState<number>(1);
 
   const [points, setPoints] = useState<TrafficPoint[]>([]);
   const [limitBps, setLimitBps] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Load the filter's term list so the chart can switch per-term.
+  useEffect(() => {
+    let cancelled = false;
+    if (!filterName) return;
+    (async () => {
+      try {
+        const res = await authFetch(
+          `/api/proxy/firewall/filters?logical_system=${encodeURIComponent(ls)}`
+        );
+        if (!res.ok) return;
+        const json = await res.json();
+        const f = (json.filters || []).find(
+          (x: { name: string }) => x.name === filterName
+        );
+        if (!cancelled && f) {
+          setTerms((f.counters || []).map((c: { name: string }) => c.name));
+        }
+      } catch {
+        /* term list is best-effort; chart still works without it */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filterName, ls]);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,7 +86,7 @@ export default function FirewallTrafficPage() {
           `/api/proxy/firewall/traffic?logical_system=${encodeURIComponent(
             ls
           )}&filter=${encodeURIComponent(filterName)}&counter=${encodeURIComponent(
-            counterName
+            activeCounter
           )}&hours=${hours}${policerName ? `&policer=${encodeURIComponent(policerName)}` : ""}`
         );
         if (!res.ok) throw new Error(`traffic: ${res.status}`);
@@ -80,7 +109,7 @@ export default function FirewallTrafficPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterName, counterName, ls, hours, policerName]);
+  }, [filterName, activeCounter, ls, hours, policerName]);
 
   if (loading && points.length === 0) {
     return (
@@ -109,7 +138,7 @@ export default function FirewallTrafficPage() {
       <header className="border-b pb-3 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold">
-            {filterName} – {counterName || "All Terms"}
+            {filterName} – {activeCounter || "All Terms"}
           </h1>
           <p className="text-xs text-muted-foreground">
             LS: {ls}
@@ -120,6 +149,30 @@ export default function FirewallTrafficPage() {
         </div>
 
         <div className="flex items-center gap-2 text-sm">
+          {terms.length > 0 && (
+            <label>
+              Term:
+              <select
+                className="bg-background border rounded px-2 py-1 ml-1"
+                value={activeCounter}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCounterOverride(v);
+                  const params = new URLSearchParams(window.location.search);
+                  if (v) params.set("counter", v);
+                  else params.delete("counter");
+                  window.history.replaceState({}, "", `${pathname}?${params.toString()}`);
+                }}
+              >
+                <option value="">All Terms (sum)</option>
+                {terms.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Range:
             <select
