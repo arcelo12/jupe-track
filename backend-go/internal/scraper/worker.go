@@ -234,17 +234,28 @@ func startWorkerLoop() {
 								log.Printf("Worker: firewall fetch error for %s: %v\n", sys, err)
 							}
 
-							// Policer bandwidth limits from configuration; config
-							// rarely changes so failures are non-fatal.
-							limits, err := FetchPolicerLimits(sys)
-							if err == nil {
-								infos := make([]cache.PolicerLimitInfo, 0, len(limits))
-								for _, l := range limits {
-									infos = append(infos, cache.PolicerLimitInfo{Name: l.Name, BandwidthBps: l.BandwidthBps})
+							// Policer bandwidth limits. Global config is usually empty
+							// when filters live in logical systems; derive the LS list
+							// from the live filter names ("__EXCH/...") and fetch each.
+							lsSet := map[string]bool{}
+							for _, f := range fwData {
+								if strings.HasPrefix(f.Name, "__") {
+									if i := strings.Index(f.Name, "/"); i > 2 {
+										lsSet[f.Name[2:i]] = true
+									}
 								}
-								cache.GlobalCache.SetPolicerLimits(sys, infos)
-							} else {
-								log.Printf("Worker: policer limits fetch error for %s: %v\n", sys, err)
+							}
+							for ls := range lsSet {
+								limits, err := FetchPolicerLimits(ls)
+								if err == nil {
+									infos := make([]cache.PolicerLimitInfo, 0, len(limits))
+									for _, l := range limits {
+										infos = append(infos, cache.PolicerLimitInfo{Name: l.Name, BandwidthBps: l.BandwidthBps})
+									}
+									cache.GlobalCache.SetPolicerLimits(ls, infos)
+								} else {
+									log.Printf("Worker: policer limits fetch error for %s: %v\n", ls, err)
+								}
 							}
 						}
 					}
