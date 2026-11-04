@@ -31,8 +31,7 @@ func RegisterFirewallRoutes(r *gin.RouterGroup) {
 	})
 
 	// GET /api/v1/firewall/policers?logical_system=global
-	// Live policer status + is_dropping heuristic (delta vs previous snapshot
-	// is handled client-side; here we report current cumulative drops).
+	// Live policer status with configured bandwidth limit when known.
 	fw.GET("/policers", RequireScope(ScopeReadFirewall), func(c *gin.Context) {
 		sys := c.DefaultQuery("logical_system", "global")
 		type PolicerStatus struct {
@@ -41,17 +40,24 @@ func RegisterFirewallRoutes(r *gin.RouterGroup) {
 			BytesDropped   uint64 `json:"bytes_dropped"`
 			PacketsDropped uint64 `json:"packets_dropped"`
 			IsDropping     bool   `json:"is_dropping"`
+			BandwidthBps   uint64 `json:"bandwidth_bps,omitempty"`
+			BandwidthHuman string `json:"bandwidth_human,omitempty"`
 		}
 		statuses := make([]PolicerStatus, 0)
 		for _, f := range cache.GlobalCache.GetFirewall(sys) {
 			for _, p := range f.Policers {
-				statuses = append(statuses, PolicerStatus{
+				ps := PolicerStatus{
 					Filter:         f.Name,
 					Policer:        p.Name,
 					BytesDropped:   p.BytesDropped,
 					PacketsDropped: p.PacketsDropped,
 					IsDropping:     p.PacketsDropped > 0,
-				})
+				}
+				if bw, ok := cache.GlobalCache.GetPolicerLimit(sys, p.Name); ok && bw > 0 {
+					ps.BandwidthBps = bw
+					ps.BandwidthHuman = humanBps(bw)
+				}
+				statuses = append(statuses, ps)
 			}
 		}
 		c.JSON(http.StatusOK, gin.H{"logical_system": sys, "policers": statuses})
@@ -77,6 +83,19 @@ func RegisterFirewallRoutes(r *gin.RouterGroup) {
 		tsdbURL := os.Getenv("TSDB_URL")
 		if tsdbURL == "" {
 			tsdbURL = "http://jupetrack_victoriametrics:8428"
+		}
+
+		// Live policer bandwidth limit when known, else fallback query param.
+		var limitBps uint64
+		if pName := c.Query("policer"); pName != "" {
+			if bw, ok := cache.GlobalCache.GetPolicerLimit(sys, pName); ok {
+				limitBps = bw
+			}
+		}
+		if limitBps == 0 {
+			if v, err := strconv.ParseUint(c.Query("limit_bps"), 10, 64); err == nil {
+				limitBps = v
+			}
 		}
 
 		// rate() over counter -> bytes/s; *8 -> bits/s. 5m lookbehind keeps
@@ -132,9 +151,24 @@ func RegisterFirewallRoutes(r *gin.RouterGroup) {
 			"logical_system": sys,
 			"filter":         filterName,
 			"counter":        term,
+			"limit_bps":      limitBps,
 			"points":         points,
 		})
 	})
+}
+
+// humanBps formats bits per second for display ("1.0 Gbps", "100 Mbps").
+func humanBps(bps uint64) string {
+	switch {
+	case bps >= 1_000_000_000:
+		return fmt.Sprintf("%.1f Gbps", float64(bps)/1_000_000_000)
+	case bps >= 1_000_000:
+		return fmt.Sprintf("%.0f Mbps", float64(bps)/1_000_000)
+	case bps >= 1_000:
+		return fmt.Sprintf("%.0f kbps", float64(bps)/1_000)
+	default:
+		return fmt.Sprintf("%d bps", bps)
+	}
 }
 
 // sanitizePromLabel escapes a value for use inside a PromQL label matcher.

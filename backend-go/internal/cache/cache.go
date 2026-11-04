@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -43,11 +44,12 @@ type DeviceStatus struct {
 }
 
 type StateCache struct {
-	mu           sync.RWMutex
-	bgpPeers     map[string][]BGPPeer
-	interfaces   []InterfaceStat
-	deviceStatus *DeviceStatus
-	firewall     map[string][]FirewallFilter
+	mu            sync.RWMutex
+	bgpPeers      map[string][]BGPPeer
+	interfaces    []InterfaceStat
+	deviceStatus  *DeviceStatus
+	firewall      map[string][]FirewallFilter
+	policerLimits map[string][]PolicerLimitInfo
 }
 
 // Global cache instance
@@ -185,4 +187,55 @@ func (c *StateCache) GetFirewall(system string) []FirewallFilter {
 	out := make([]FirewallFilter, len(filters))
 	copy(out, filters)
 	return out
+}
+
+// PolicerLimitInfo carries the configured bandwidth limit of a policer.
+type PolicerLimitInfo struct {
+	Name         string `json:"name"`
+	BandwidthBps uint64 `json:"bandwidth_bps"`
+}
+
+// SetPolicerLimits stores the policer bandwidth limits per logical system.
+func (c *StateCache) SetPolicerLimits(system string, limits []PolicerLimitInfo) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.policerLimits == nil {
+		c.policerLimits = make(map[string][]PolicerLimitInfo)
+	}
+	if system == "" {
+		system = "global"
+	}
+	c.policerLimits[system] = limits
+}
+
+// GetPolicerLimits returns policer bandwidth limits for a logical system.
+func (c *StateCache) GetPolicerLimits(system string) []PolicerLimitInfo {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if system == "" {
+		system = "global"
+	}
+	out := c.policerLimits[system]
+	res := make([]PolicerLimitInfo, len(out))
+	copy(res, out)
+	return res
+}
+
+// GetPolicerLimit finds the configured bandwidth of one policer by name.
+// Matched by exact name, or by suffix: filter-scoped policer names in the
+// output are prefixed with the filter path (e.g. __EXCH/FILTER/POLICER),
+// while config names are bare.
+func (c *StateCache) GetPolicerLimit(system, name string) (uint64, bool) {
+	for _, l := range c.GetPolicerLimits(system) {
+		if l.Name == name {
+			return l.BandwidthBps, true
+		}
+	}
+	// suffix match: config "POLICER-X" matches live "__EXCH/FILTER/POLICER-X"
+	for _, l := range c.GetPolicerLimits(system) {
+		if strings.HasSuffix(name, "/"+l.Name) {
+			return l.BandwidthBps, true
+		}
+	}
+	return 0, false
 }

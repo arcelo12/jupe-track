@@ -233,6 +233,19 @@ func startWorkerLoop() {
 							} else {
 								log.Printf("Worker: firewall fetch error for %s: %v\n", sys, err)
 							}
+
+							// Policer bandwidth limits from configuration; config
+							// rarely changes so failures are non-fatal.
+							limits, err := FetchPolicerLimits(sys)
+							if err == nil {
+								infos := make([]cache.PolicerLimitInfo, 0, len(limits))
+								for _, l := range limits {
+									infos = append(infos, cache.PolicerLimitInfo{Name: l.Name, BandwidthBps: l.BandwidthBps})
+								}
+								cache.GlobalCache.SetPolicerLimits(sys, infos)
+							} else {
+								log.Printf("Worker: policer limits fetch error for %s: %v\n", sys, err)
+							}
 						}
 					}
 				}

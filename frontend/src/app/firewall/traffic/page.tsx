@@ -34,6 +34,7 @@ export default function FirewallTrafficPage() {
   const [hours, setHours] = useState<number>(1);
 
   const [points, setPoints] = useState<TrafficPoint[]>([]);
+  const [limitBps, setLimitBps] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +63,7 @@ export default function FirewallTrafficPage() {
         const json = await res.json();
         if (!cancelled) {
           setPoints(json.points || []);
+          setLimitBps(Number(json.limit_bps) || 0);
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Failed to fetch traffic";
@@ -97,9 +99,9 @@ export default function FirewallTrafficPage() {
   }
 
   const maxBps = Math.max(...points.map((p) => p.bps), 1000); // min 1 kbps scale
-  // Limit hardcoded 1000 Mbps hanya ditampilkan bila relevan (traffic mendekati limit).
-  const limitMbps = 1000;
-  const showLimit = maxBps > limitMbps * 1e6 * 0.05; // tampil hanya jika traffic > 5% limit
+  // Limit nyata dari config policer (backend); fallback hardcoded dihapus.
+  const limitMbps = limitBps / 1e6;
+  const showLimit = limitBps > 0 && maxBps > limitBps * 0.05;
 
   return (
     <div className="space-y-4">
@@ -109,7 +111,10 @@ export default function FirewallTrafficPage() {
             {filterName} – {counterName || "All Terms"}
           </h1>
           <p className="text-xs text-muted-foreground">
-            LS: {ls} • Limit target: ~{limitMbps} Mbps (configurable per filter)
+            LS: {ls}
+            {limitMbps > 0
+              ? ` • Limit: ${formatBps(limitBps)}`
+              : " • Limit: tidak dikonfigurasi"}
           </p>
         </div>
 
@@ -192,7 +197,7 @@ export default function FirewallTrafficPage() {
         />
         <SummaryItem
           label="Over-limit %"
-          value={overLimitPct(points, limitMbps * 1e6)}
+          value={limitBps > 0 ? overLimitPct(points, limitBps) : "—"}
         />
       </section>
     </div>
