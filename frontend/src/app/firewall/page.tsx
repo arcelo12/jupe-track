@@ -8,6 +8,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { authFetch } from "@/lib/auth";
+import { useRefresh } from "@/components/RefreshProvider";
 
 interface FirewalFilter {
   name: string;
@@ -43,9 +44,14 @@ interface PolicerStatus {
 }
 
 export default function FirewallAnalytics() {
+  const {
+    logicalSystem: ls,
+    setLogicalSystem,
+    availableSystems,
+    refreshTrigger,
+  } = useRefresh();
   const [filtersRes, setFiltersRes] = useState<FiltersResponse | null>(null);
   const [policers, setPolicers] = useState<PolicerStatus[]>([]);
-  const [ls, setLs] = useState("global");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,7 +99,7 @@ export default function FirewallAnalytics() {
     return () => {
       cancelled = true;
     };
-  }, [ls]);
+  }, [ls, refreshTrigger]);
 
   if (loading) {
     return (
@@ -130,11 +136,16 @@ export default function FirewallAnalytics() {
         <select
           className="bg-background border rounded px-2 py-1 text-sm"
           value={ls}
-          onChange={(e) => setLs(e.target.value)}
+          onChange={(e) => setLogicalSystem(e.target.value)}
+          aria-label="Logical system"
         >
-          <option value="global">Global</option>
-          <option value="EXCH">EXCH</option>
-          <option value="__EXCH">__EXCH</option>
+          {(availableSystems.length > 0 ? availableSystems : ["global"]).map(
+            (s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            )
+          )}
         </select>
       </header>
 

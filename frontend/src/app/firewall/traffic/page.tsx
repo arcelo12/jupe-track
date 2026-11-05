@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { authFetch } from "@/lib/auth";
+import { useRefresh } from "@/components/RefreshProvider";
 
 interface TrafficPoint {
   timestamp: string;
@@ -27,6 +28,7 @@ export default function FirewallTrafficPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { refreshTrigger } = useRefresh();
 
   const filterName = searchParams.get("filter") || "";
   const counterName = searchParams.get("counter") || "";
@@ -109,7 +111,7 @@ export default function FirewallTrafficPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterName, activeCounter, ls, hours, policerName]);
+  }, [filterName, activeCounter, ls, hours, policerName, refreshTrigger]);
 
   if (loading && points.length === 0) {
     return (
