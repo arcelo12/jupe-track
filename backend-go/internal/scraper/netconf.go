@@ -123,6 +123,94 @@ func parseBGP(replyXML string) ([]cache.BGPPeer, error) {
 	return peers, nil
 }
 
+// FetchBGPPeerDetail fetches detailed BGP peer info (including advertised
+// prefix counts) via get-bgp-neighbor-information for a single peer. The
+// get-bgp-summary-information RPC used by the fast scraper does not include
+// advertised-prefix-count, so we fetch it on demand when the UI opens the
+// peer detail modal.
+func FetchBGPPeerDetail(logicalSystem string, peerIP string) (*cache.BGPPeer, error) {
+	peerIP, err := utils.SanitizeJunosInput(peerIP)
+	if err != nil {
+		return nil, fmt.Errorf("invalid peer address")
+	}
+	lsStr := ""
+	if logicalSystem != "" && logicalSystem != "global" {
+		ls, err := utils.SanitizeJunosInput(logicalSystem)
+		if err != nil {
+			return nil, fmt.Errorf("invalid logical_system: %v", err)
+		}
+		lsStr = fmt.Sprintf("<logical-system>%s</logical-system>", utils.EscapeXML(ls))
+	}
+	rpcXML := fmt.Sprintf("<get-bgp-neighbor-information>%s<neighbor-address>%s</neighbor-address></get-bgp-neighbor-information>", lsStr, utils.EscapeXML(peerIP))
+	replyXML, err := junos.RunNetconfRPC(rpcXML)
+	if err != nil {
+		return nil, fmt.Errorf("BGP neighbor NETCONF RPC failed: %v", err)
+	}
+
+	return parseBGPPeerDetail(replyXML)
+}
+
+// parseBGPPeerDetail converts a get-bgp-neighbor-information reply for a single
+// peer into a cache.BGPPeer. Sums advertised/active/received/accepted prefixes
+// across all RIBs.
+func parseBGPPeerDetail(replyXML string) (*cache.BGPPeer, error) {
+	replyXML = removeXMLNamespaces(replyXML)
+
+	var resp struct {
+		XMLName xml.Name `xml:"rpc-reply"`
+		Peers   []struct {
+			PeerAddress string `xml:"peer-address"`
+			PeerAS      string `xml:"peer-as"`
+			PeerState   string `xml:"peer-state"`
+			ElapsedTime string `xml:"elapsed-time"`
+			Description string `xml:"description"`
+			PeerID      string `xml:"peer-id"`
+			BgpRibs     []struct {
+				Name               string `xml:"name"`
+				ActivePrefixes     int    `xml:"active-prefix-count"`
+				ReceivedPrefixes   int    `xml:"received-prefix-count"`
+				AcceptedPrefixes   int    `xml:"accepted-prefix-count"`
+				AdvertisedPrefixes int    `xml:"advertised-prefix-count"`
+			} `xml:"bgp-rib"`
+		} `xml:"bgp-information>bgp-peer"`
+	}
+	if err := xml.Unmarshal([]byte(replyXML), &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse BGP neighbor XML: %v", err)
+	}
+	if len(resp.Peers) == 0 {
+		return nil, fmt.Errorf("peer not found in reply")
+	}
+	p := resp.Peers[0]
+	state := strings.TrimSpace(p.PeerState)
+	if state == "" {
+		state = "Idle"
+	}
+	var active, recv, acc, adv int
+	for _, rib := range p.BgpRibs {
+		active += rib.ActivePrefixes
+		recv += rib.ReceivedPrefixes
+		acc += rib.AcceptedPrefixes
+		adv += rib.AdvertisedPrefixes
+	}
+	peer := &cache.BGPPeer{
+		PeerAddress:        strings.TrimSpace(p.PeerAddress),
+		RouterId:           strings.TrimSpace(p.PeerID),
+		PeerAS:             strings.TrimSpace(p.PeerAS),
+		State:              state,
+		Description:        strings.TrimSpace(p.Description),
+		Uptime:             strings.TrimSpace(p.ElapsedTime),
+		ActivePrefixes:     active,
+		ReceivedPrefixes:   recv,
+		AcceptedPrefixes:   acc,
+		AdvertisedPrefixes: adv,
+		Afi:                "ipv4",
+	}
+	if strings.Contains(peer.PeerAddress, ":") {
+		peer.Afi = "ipv6"
+	}
+	return peer, nil
+}
+
 // FetchDeviceStatus fetches device routing engine status via native NETCONF XML RPC
 func FetchDeviceStatus() (*cache.DeviceStatus, error) {
 	rpcXML := `<get-route-engine-information/>`

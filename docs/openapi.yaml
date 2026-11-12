@@ -218,6 +218,44 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/ServerError" }
+  /bgp-peer/{logical_system}/{peer}:
+    get:
+      tags: [bgp]
+      summary: On-demand BGP peer detail including advertised prefix count
+      description: |
+        Fetches `get-bgp-neighbor-information` for a single peer. Use when the
+        summary endpoint's `advertised_prefixes` is 0 — `get-bgp-summary-information`
+        does not return that field.
+        Scope: read:bgp
+      parameters:
+        - $ref: "#/components/parameters/LogicalSystem"
+        - name: peer
+          in: path
+          required: true
+          schema: { type: string }
+          description: Peer IP address
+      responses:
+        "200":
+          description: BGP peer detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  peer_address: { type: string }
+                  peer_as: { type: string }
+                  router_id: { type: string }
+                  state: { type: string }
+                  uptime: { type: string }
+                  description: { type: string }
+                  active_prefixes: { type: integer }
+                  received_prefixes: { type: integer }
+                  accepted_prefixes: { type: integer }
+                  advertised_prefixes: { type: integer }
+                  afi: { type: string, enum: [ipv4, ipv6] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/ServerError" }
   /bgp-logs/{logical_system}/{peer}:
     get:
       tags: [bgp]

@@ -19,9 +19,8 @@ export default function BGPDashboard() {
   const [bgpData, setBgpData] = useState<BGPPeer[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPeer, setSelectedPeer] = useState<BGPPeer | null>(null);
-  const [bgpLogs, setBgpLogs] = useState<string[]>([]);
   const [bgpPolicy, setBgpPolicy] = useState<BGPPeerPolicy | null>(null);
-  const [logsLoading, setLogsLoading] = useState(false);
+  const [peerDetail, setPeerDetail] = useState<BGPPeer | null>(null);
   const [policyLoading, setPolicyLoading] = useState(false);
 
   const [lookupQuery, setLookupQuery] = useState<{ query: string, type: 'asn' | 'ip' | 'community' } | null>(null);
@@ -53,38 +52,36 @@ export default function BGPDashboard() {
 
   useEffect(() => {
     if (selectedPeer) {
-      const fetchLogsAndPolicy = async () => {
-        setLogsLoading(true);
+      const fetchPolicy = async () => {
         setPolicyLoading(true);
-        setBgpLogs([]);
         setBgpPolicy(null);
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-          const [logsRes, policyRes] = await Promise.all([
-            authFetch(`/api/proxy/bgp-logs/${logicalSystem}/${selectedPeer.peer_address}`, { signal: controller.signal }),
-            authFetch(`/api/proxy/bgp-policy/${logicalSystem}`, { signal: controller.signal })
+          const [policyRes, detailRes] = await Promise.all([
+            authFetch(`/api/proxy/bgp-policy/${logicalSystem}`, { signal: controller.signal }),
+            authFetch(`/api/proxy/bgp-peer/${logicalSystem}/${selectedPeer.peer_address}`, { signal: controller.signal })
           ]);
-
           clearTimeout(timeoutId);
-
-          if (logsRes.ok) {
-             const logsData = await logsRes.json();
-             setBgpLogs(Array.isArray(logsData) ? logsData : []);
-          }
           if (policyRes.ok) {
-             const policyData = await policyRes.json();
-             setBgpPolicy(policyData[selectedPeer.peer_address] || null);
+            const policyData = await policyRes.json();
+            setBgpPolicy(policyData[selectedPeer.peer_address] || null);
+          }
+          if (detailRes.ok) {
+            const detailData = await detailRes.json();
+            setPeerDetail(detailData);
+          } else {
+            setPeerDetail(null);
           }
         } catch {
-          setBgpLogs(["Error fetching logs from device."]);
+          setPeerDetail(null);
         } finally {
-          setLogsLoading(false);
           setPolicyLoading(false);
         }
       };
-      fetchLogsAndPolicy();
+      fetchPolicy();
+    } else {
+      setPeerDetail(null);
     }
   }, [selectedPeer, logicalSystem]);
 
@@ -262,7 +259,7 @@ export default function BGPDashboard() {
                          <div className="text-xs text-on-surface-variant mb-2 uppercase tracking-widest flex items-center gap-2">
                            <Clock aria-hidden="true" size={12} /> Router ID
                          </div>
-                         <div className="text-base sm:text-lg font-mono font-bold text-on-surface truncate">{selectedPeer.router_id || "N/A"}</div>
+                         <div className="text-base sm:text-lg font-mono font-bold text-on-surface truncate">{peerDetail?.router_id || selectedPeer.router_id || "N/A"}</div>
                       </CardContent>
                     </Card>
                     <Card className="bg-surface-container border-outline-variant border-l-4 border-l-primary rounded shadow-none min-w-0">
@@ -281,7 +278,7 @@ export default function BGPDashboard() {
                          <div className="text-xs text-on-surface-variant mb-2 uppercase tracking-widest flex items-center gap-2">
                            <Network aria-hidden="true" size={12} /> Advertised Routes
                          </div>
-                         <div className="text-xl sm:text-2xl font-mono font-bold text-outline">{selectedPeer.advertised_prefixes || 0}</div>
+                         <div className="text-xl sm:text-2xl font-mono font-bold text-outline">{(peerDetail?.advertised_prefixes ?? selectedPeer.advertised_prefixes) || 0}</div>
                       </CardContent>
                     </Card>
                     <Card className="bg-surface-container border-outline-variant border-l-4 border-l-primary rounded shadow-none min-w-0">
@@ -304,41 +301,7 @@ export default function BGPDashboard() {
                     </Card>
                   </div>
 
-                  {/* Logs */}
-                  <Card className="border-outline-variant bg-surface-container rounded shadow-none">
-                    <CardContent className="p-4 sm:p-5">
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-sm font-semibold text-on-surface uppercase tracking-widest flex items-center gap-2">
-                          <Server aria-hidden="true" size={14} className="text-on-surface-variant" />
-                          Syslog Messages
-                        </h3>
-                      </div>
-                      <div
-                        role="region"
-                        aria-label="Syslog messages"
-                        tabIndex={0}
-                        className="bg-surface-container-low rounded p-3 sm:p-4 font-mono text-[11px] text-on-surface-variant h-40 overflow-y-auto whitespace-pre-wrap border border-outline-variant focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                      >
-                        {logsLoading ? (
-                           <div role="status" aria-live="polite" className="animate-pulse flex items-center gap-2 text-primary">
-                             <span aria-hidden="true" className="w-2 h-2 rounded-full bg-primary"></span>
-                             Fetching latest syslog messages…
-                           </div>
-                        ) : bgpLogs.length > 0 ? (
-                           <div className="space-y-1.5">
-                              {bgpLogs.map((line, i) => (
-                                <div key={i} className="hover:bg-surface-container-high px-2 py-1 -mx-2 rounded transition-colors break-all">
-                                  {line}
-                                </div>
-                              ))}
-                           </div>
-                        ) : (
-                           <span className="text-on-surface-variant flex items-center justify-center h-full italic">No log messages found for this peer.</span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                  </div>
               </ScrollArea>
             </>
           )}

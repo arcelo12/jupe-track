@@ -55,6 +55,22 @@ func RegisterBGPRoutes(r *gin.RouterGroup) {
 		c.JSON(http.StatusOK, policies)
 	})
 
+	bgp.GET("/bgp-peer/:logical_system/:peer", RequireScope(ScopeReadBGP), func(c *gin.Context) {
+		ls := c.Param("logical_system")
+		peer := c.Param("peer")
+		lsSanitized, err := utils.SanitizeJunosInput(ls)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid logical system parameter"})
+			return
+		}
+		p, err := scraper.FetchBGPPeerDetail(lsSanitized, peer)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, p)
+	})
+
 	bgp.GET("/bgp-logs/:logical_system/:peer", RequireScope(ScopeReadBGP), func(c *gin.Context) {
 		peer := c.Param("peer")
 		peer, err := utils.SanitizeJunosInput(peer)

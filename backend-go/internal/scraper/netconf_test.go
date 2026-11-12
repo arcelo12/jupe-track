@@ -222,3 +222,48 @@ func TestParseDeviceStatusEmpty(t *testing.T) {
 		t.Error("parseDeviceStatus(malformed) = nil error, want parse error")
 	}
 }
+
+func TestParseBGPPeerDetail(t *testing.T) {
+	sample := `<rpc-reply>
+  <bgp-information>
+    <bgp-peer>
+      <peer-address>192.0.2.2+54321</peer-address>
+      <peer-as>65002</peer-as>
+      <peer-state>Established</peer-state>
+      <peer-id>10.0.0.2</peer-id>
+      <description>transit-b</description>
+      <elapsed-time>3d 4h</elapsed-time>
+      <bgp-rib>
+        <name>inet.0</name>
+        <active-prefix-count>150</active-prefix-count>
+        <received-prefix-count>150</received-prefix-count>
+        <accepted-prefix-count>150</accepted-prefix-count>
+        <advertised-prefix-count>12</advertised-prefix-count>
+      </bgp-rib>
+      <bgp-rib>
+        <name>inet6.0</name>
+        <active-prefix-count>10</active-prefix-count>
+        <received-prefix-count>10</received-prefix-count>
+        <accepted-prefix-count>10</accepted-prefix-count>
+        <advertised-prefix-count>3</advertised-prefix-count>
+      </bgp-rib>
+    </bgp-peer>
+  </bgp-information>
+</rpc-reply>`
+	peer, err := parseBGPPeerDetail(sample)
+	if err != nil {
+		t.Fatalf("parseBGPPeerDetail error: %v", err)
+	}
+	if peer.PeerAddress != "192.0.2.2+54321" || peer.PeerAS != "65002" || peer.State != "Established" {
+		t.Errorf("peer core = %+v", peer)
+	}
+	if peer.AdvertisedPrefixes != 15 || peer.ActivePrefixes != 160 {
+		t.Errorf("prefix sums = adv=%d active=%d, want adv=15 active=160", peer.AdvertisedPrefixes, peer.ActivePrefixes)
+	}
+}
+
+func TestParseBGPPeerDetailEmpty(t *testing.T) {
+	if _, err := parseBGPPeerDetail(`<rpc-reply><bgp-information></bgp-information></rpc-reply>`); err == nil {
+		t.Error("parseBGPPeerDetail(no peer) = nil error, want error")
+	}
+}
