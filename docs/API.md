@@ -78,7 +78,7 @@ akan ditolak dengan `403`.
 
 | Scope                | Memberi akses ke |
 |----------------------|------------------|
-| `read:bgp`           | `/logical-systems`, `/bgp-summary/*`, `/bgp-policy/*`, `/bgp-logs/*`, `/live/bgp`, `/as-mapping` (GET) |
+| `read:bgp`           | `/logical-systems`, `/bgp-summary/*`, `/bgp-policy/*`, `/bgp-peer/*`, `/bgp-logs/*`, `/live/bgp`, `/as-mapping` (GET) |
 | `read:interfaces`    | `/interfaces/traffic/*`, `/live/interfaces` |
 | `read:metrics`       | `/metrics/status`, `/metrics/interfaces/*`, `/metrics/bgp/peers` |
 | `read:device`        | `/metrics/device/status` |
@@ -387,6 +387,36 @@ Respons `200` — array string:
 ```
 
 Error: `400` parameter peer tidak valid.
+
+---
+
+#### `GET /bgp-peer/:logical_system/:peer`
+
+Detail satu peer via `get-bgp-neighbor-information`, termasuk `advertised_prefixes`.
+Gunakan saat ringkasan (`/bgp-summary/...`) menampilkan `advertised_prefixes=0`
+karena RPC ringkasan Junos tidak menyertakan field tersebut.
+
+**Auth**: JWT atau API key scope `read:bgp`.
+
+Respons `200`:
+
+```json
+{
+  "peer_address": "192.0.2.2+54321",
+  "peer_as": "65002",
+  "router_id": "10.0.0.2",
+  "state": "Established",
+  "uptime": "3d 4h",
+  "description": "transit-b",
+  "active_prefixes": 160,
+  "received_prefixes": 160,
+  "accepted_prefixes": 160,
+  "advertised_prefixes": 15,
+  "afi": "ipv4"
+}
+```
+
+Error: `400` parameter peer tidak valid, `500` gagal RPC.
 
 ---
 
