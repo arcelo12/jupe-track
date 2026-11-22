@@ -53,39 +53,9 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
      localStorage.setItem('junos-selected-system', logicalSystem);
   }, [logicalSystem]);
 
-  // Sync refreshInterval to Go backend scraper interval config
-  React.useEffect(() => {
-    if (typeof window === 'undefined' || window.location.pathname === '/login') return;
-
-    const syncInterval = async () => {
-      try {
-        const { authFetch } = await import('@/lib/auth');
-        
-        // Fetch current settings
-        const getRes = await authFetch(`/api/proxy/ws/settings?t=${Date.now()}`);
-        if (getRes.ok) {
-          const settings = await getRes.json();
-          const targetIntervalNs = refreshInterval * 1_000_000_000;
-          
-          if (settings.scrape_interval !== targetIntervalNs) {
-            settings.scrape_interval = targetIntervalNs;
-            
-            // Post updated settings back to backend
-            await authFetch('/api/proxy/ws/settings', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(settings)
-            });
-            console.log(`[RefreshProvider] Scraper interval updated in backend to ${refreshInterval}s`);
-          }
-        }
-      } catch (e) {
-        console.warn("Failed to sync scraper interval with backend", e);
-      }
-    };
-
-    syncInterval();
-  }, [refreshInterval]);
+  // Note: the per-viewer cadence is pushed to the backend over the WebSocket
+  // (see WebSocketProvider.sendInterval). The global scraper interval is left
+  // untouched so one user's setting can't override another's.
 
   const triggerRefresh = () => {
     setRefreshTrigger(prev => prev + 1);

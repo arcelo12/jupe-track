@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -64,6 +65,9 @@ type Client struct {
 	conn          *websocket.Conn
 	send          chan interface{}
 	logicalSystem string
+	// interval is the update cadence this client asked for (seconds). 0 means
+	// the client never told us, so it is ignored by MinClientInterval.
+	interval time.Duration
 }
 
 // WSMessage wrapper for structured messages pushed to frontend
@@ -71,6 +75,13 @@ type WSMessage struct {
 	Type string      `json:"type"`
 	Data interface{} `json:"data"`
 }
+
+// Bounds for client-declared update intervals. Clamped so a single browser
+// tab can't pin the Junos scrape rate to sub-second or multi-minute values.
+const (
+	minClientIntervalSeconds = 5
+	maxClientIntervalSeconds = 300
+)
 
 type Hub struct {
 	clients    map[*Client]bool
@@ -115,6 +126,9 @@ func (h *Hub) run() {
 			client.send <- WSMessage{Type: "bgp_summary", Data: cache.GlobalCache.GetBGP(client.logicalSystem)}
 			client.send <- WSMessage{Type: "interfaces", Data: cache.GlobalCache.GetInterfaces()}
 
+			// A new viewer may raise the scrape cadence (min across clients).
+			notifyScraperInterval(h)
+
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
@@ -124,6 +138,9 @@ func (h *Hub) run() {
 				log.Printf("[WS Hub] Unregistered client. Total active clients: %d", len(h.clients))
 			}
 			h.mu.Unlock()
+
+			// The leaving client may have been the fast one that was driving cadence.
+			notifyScraperInterval(h)
 
 		case message := <-h.broadcast:
 			h.mu.Lock()
@@ -139,6 +156,49 @@ func (h *Hub) run() {
 			h.mu.Unlock()
 		}
 	}
+}
+
+// MinClientInterval returns the fastest update interval requested by any
+// connected client. Returns 0 when no client has declared an interval, which
+// tells the scraper to fall back to the configured ScrapeInterval.
+// Fastest client wins so a 5s viewer keeps 5s even when a 30s viewer joins;
+// the slower viewer throttles on its own side instead of pulling the
+// scraper rate up.
+func (h *Hub) MinClientInterval() time.Duration {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var min time.Duration
+	for client := range h.clients {
+		if client.interval <= 0 {
+			continue
+		}
+		if min == 0 || client.interval < min {
+			min = client.interval
+		}
+	}
+	return min
+}
+
+// effectiveInterval picks the scraper cadence: the fastest active client, or
+// the configured scrape interval when nobody has declared one.
+func (h *Hub) effectiveInterval() time.Duration {
+	if min := h.MinClientInterval(); min > 0 {
+		return min
+	}
+	var settings models.ScraperSettings
+	if database.DB != nil {
+		database.DB.First(&settings)
+	}
+	if settings.ScrapeInterval > 0 {
+		return settings.ScrapeInterval
+	}
+	return 30 * time.Second
+}
+
+// notifyScraperInterval pushes the current effective cadence to the scraper
+// so its ticker can be reset without restarting the loop.
+func notifyScraperInterval(h *Hub) {
+	scraper.RequestInterval(h.effectiveInterval())
 }
 
 // GetActiveLogicalSystems returns the list of unique logical systems requested by active clients
@@ -315,13 +375,33 @@ func (c *Client) readPump() {
 	})
 
 	for {
-		_, _, err := c.conn.ReadMessage()
+		_, raw, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("[WS] Read error: %v", err)
 			}
 			break
 		}
+		_ = c.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+
+		// Client-to-server messages: only set_interval is handled. Anything
+		// else is accepted and ignored.
+		var m struct {
+			Type            string `json:"type"`
+			IntervalSeconds int    `json:"interval_seconds"`
+		}
+		if json.Unmarshal(raw, &m) != nil || m.Type != "set_interval" {
+			continue
+		}
+		if m.IntervalSeconds < minClientIntervalSeconds || m.IntervalSeconds > maxClientIntervalSeconds {
+			continue
+		}
+		globalHub.mu.Lock()
+		if _, ok := globalHub.clients[c]; ok {
+			c.interval = time.Duration(m.IntervalSeconds) * time.Second
+		}
+		globalHub.mu.Unlock()
+		notifyScraperInterval(&globalHub)
 	}
 }
 

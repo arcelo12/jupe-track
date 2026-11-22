@@ -16,7 +16,7 @@ interface WebSocketContextType {
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
-  const { logicalSystem } = useRefresh();
+  const { logicalSystem, refreshInterval } = useRefresh();
   const { isAuthenticated } = useAuth();
   const [bgpSummary, setBgpSummary] = useState<BGPPeer[]>([]);
   const [interfaces, setInterfaces] = useState<InterfaceInfo[]>([]);
@@ -38,6 +38,26 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   // Stale callbacks from older sockets compare their captured id against
   // the current value and bail out if they don't match.
   const connectionIdRef = useRef(0);
+
+  // Per-viewer throttle: the scraper runs at the fastest client's cadence, so
+  // a 30s viewer receives a push every 5s when a 5s viewer is also online.
+  // Drop pushes that arrive sooner than this viewer's own refreshInterval so
+  // it re-renders at its requested rate without extra work on Junos.
+  const lastBgpAtRef = useRef(0);
+  const lastIfacesAtRef = useRef(0);
+  const refreshIntervalRef = useRef(refreshInterval);
+  refreshIntervalRef.current = refreshInterval;
+
+  // Tell the backend this viewer's cadence. The hub keeps the min across
+  // clients and feeds it to the scraper ticker.
+  const sendInterval = (ws: WebSocket, seconds: number) => {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    try {
+      ws.send(JSON.stringify({ type: 'set_interval', interval_seconds: seconds }));
+    } catch {
+      // socket closed between check and send — ignore
+    }
+  };
 
   useEffect(() => {
     // Bump connection id so any in-flight callbacks from the previous
@@ -108,22 +128,28 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         setIsConnected(true);
         setError(null);
         retryCountRef.current = 0;
+        // Declare this viewer's cadence as soon as the socket is up.
+        sendInterval(ws, refreshIntervalRef.current);
       };
 
       ws.onmessage = (event) => {
         if (isStale()) return;
         try {
           const msg = JSON.parse(event.data);
+          const now = Date.now();
+          const windowMs = refreshIntervalRef.current * 1000;
           switch (msg.type) {
             case 'bgp_summary':
-              if (Array.isArray(msg.data)) {
-                setBgpSummary(msg.data);
-              }
+              if (!Array.isArray(msg.data)) break;
+              if (now - lastBgpAtRef.current < windowMs) break;
+              lastBgpAtRef.current = now;
+              setBgpSummary(msg.data);
               break;
             case 'interfaces':
-              if (Array.isArray(msg.data)) {
-                setInterfaces(msg.data);
-              }
+              if (!Array.isArray(msg.data)) break;
+              if (now - lastIfacesAtRef.current < windowMs) break;
+              lastIfacesAtRef.current = now;
+              setInterfaces(msg.data);
               break;
             default:
               if (process.env.NODE_ENV === 'development') {
@@ -198,6 +224,16 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       }
     };
   }, [logicalSystem, isAuthenticated]);
+
+  // Push cadence changes to the backend without reconnecting.
+  const sendIntervalRef = useRef(sendInterval);
+  sendIntervalRef.current = sendInterval;
+  React.useEffect(() => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      sendIntervalRef.current(ws, refreshInterval);
+    }
+  }, [refreshInterval]);
 
   return (
     <WebSocketContext.Provider value={{ bgpSummary, interfaces, isConnected, error }}>

@@ -380,6 +380,20 @@ func UpdateSettings(newSettings *models.ScraperSettings) {
 	}
 }
 
+// RequestInterval nudges the running scrape ticker to a new cadence. Used by
+// the WS hub so the fastest connected viewer drives the scrape rate without
+// restarting the loop. Safe to call before the loop starts; the initial ticker
+// value is still settings.ScrapeInterval.
+func RequestInterval(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	select {
+	case updateTickerChan <- d:
+	default:
+	}
+}
+
 // TriggerScrape runs a scrape cycle immediately in the background
 func TriggerScrape() {
 	go func() {
