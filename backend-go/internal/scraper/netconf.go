@@ -298,12 +298,9 @@ func parseDeviceStatus(replyXML string) (*cache.DeviceStatus, error) {
 	return status, nil
 }
 
-// FetchInterfaces fetches physical interface statistics for ge/et/xe ports.
-// The Junos RPC filters by type on the RE before serialising, so we don't pull
-// mgmt/loopback/tunnel/lsi interfaces only to drop them in parseInterfaces.
-// Cuts the response payload (and the RE work to build it) by ~50-70%.
+// FetchInterfaces fetches interface statistics from the Junos device via native NETCONF XML RPC
 func FetchInterfaces() ([]cache.InterfaceStat, error) {
-	rpcXML := `<get-interface-information><statistics/><detail/><interface-type>ethernet</interface-type></get-interface-information>`
+	rpcXML := `<get-interface-information><statistics/><detail/></get-interface-information>`
 	replyXML, err := junos.RunNetconfRPC(rpcXML)
 	if err != nil {
 		return nil, fmt.Errorf("Interfaces NETCONF RPC failed: %v", err)
